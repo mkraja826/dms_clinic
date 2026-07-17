@@ -1,4 +1,4 @@
-{
+﻿{
   "expo": {
     "name": "CapDent",
     "slug": "dmsdms",
@@ -42,7 +42,7 @@
     ],
     "android": {
       "package": "com.dms.clinic",
-      "versionCode": 16,
+      "versionCode": 17,
       "allowBackup": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -83,3 +83,4 @@
     "owner": "mk261098s-team"
   }
 }
+
