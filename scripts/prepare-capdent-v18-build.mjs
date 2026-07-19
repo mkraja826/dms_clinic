@@ -36,6 +36,24 @@ updateJson("eas.json", (config) => {
   config.build.production.env ??= {};
   config.build.production.env.EXPO_PUBLIC_ENABLE_PRICING_V2_OBSERVATION = "false";
   config.build.production.env.EXPO_PUBLIC_ENABLE_PAID_PLANS = "false";
+
+  // Build a Play-distributed AAB using the same trusted production environment,
+  // but enable paid plans only for internal testers. This profile is generated
+  // locally so credentials are inherited rather than duplicated in source.
+  config.build["play-internal"] = JSON.parse(JSON.stringify(config.build.production));
+  config.build["play-internal"].autoIncrement = false;
+  config.build["play-internal"].android ??= {};
+  config.build["play-internal"].android.buildType = "app-bundle";
+  config.build["play-internal"].env ??= {};
+  config.build["play-internal"].env.EXPO_PUBLIC_ENABLE_PRICING_V2_OBSERVATION = "true";
+  config.build["play-internal"].env.EXPO_PUBLIC_ENABLE_PAID_PLANS = "true";
+
+  config.submit ??= {};
+  config.submit["play-internal"] = {
+    android: {
+      track: "internal",
+    },
+  };
 });
 
 updateJson("package.json", (config) => {
