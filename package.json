@@ -1,6 +1,6 @@
 {
   "name": "dms-mobile-app",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
@@ -13,8 +13,8 @@
     "build:android:apk": "eas build --platform android --profile preview",
     "build:android:aab": "eas build --platform android --profile production",
     "build:ios": "eas build --platform ios --profile production",
-    "apply:android-rc": "node scripts/apply-android-rc-2026-07-17.mjs",
-    "check:android-rc": "npm run typecheck"
+    "sync:v18-version": "node scripts/sync-capdent-v18-version.mjs",
+    "check:v18": "npm run typecheck"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
