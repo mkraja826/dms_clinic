@@ -11,6 +11,10 @@ import {
   getClinicFeatureSettings,
 } from "@/lib/clinicOptions";
 import { uploadPatientProfilePhoto } from "@/lib/patientProfilePhoto";
+import {
+  observeCapDentPricingV2,
+  type CapDentPricingV2Observation,
+} from "@/lib/pricingV2";
 import { ClinicPatientLimitStatus, createPatient, getClinicPatientLimitStatus } from "@/lib/supabase";
 
 export default function AddPatientScreen() {
@@ -35,6 +39,8 @@ export default function AddPatientScreen() {
   });
   const [features, setFeatures] = useState(DEFAULT_CLINIC_FEATURE_SETTINGS);
   const [limitStatus, setLimitStatus] = useState<ClinicPatientLimitStatus | null>(null);
+  const [pricingObservation, setPricingObservation] =
+    useState<CapDentPricingV2Observation | null>(null);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -61,9 +67,15 @@ export default function AddPatientScreen() {
     }
   }
 
+  async function loadPricingObservation() {
+    const observation = await observeCapDentPricingV2();
+    setPricingObservation(observation);
+  }
+
   useEffect(() => {
     loadFeatures();
     loadLimitStatus();
+    loadPricingObservation();
   }, []);
 
   async function pickPatientPhoto() {
@@ -134,6 +146,7 @@ export default function AddPatientScreen() {
 
       const nextUsage = await getClinicPatientLimitStatus();
       setLimitStatus(nextUsage);
+      void loadPricingObservation();
 
       if (!nextUsage.unlimited && (nextUsage.level === "notice" || nextUsage.level === "warning")) {
         Alert.alert("Patient saved", nextUsage.message, [
@@ -150,8 +163,36 @@ export default function AddPatientScreen() {
     }
   }
 
+  const observedEntitlements = pricingObservation?.entitlements;
+  const observedPatientUsage = observedEntitlements
+    ? observedEntitlements.patientLimit === null
+      ? `${observedEntitlements.patientCount} patients / unlimited`
+      : `${observedEntitlements.patientCount} / ${observedEntitlements.patientLimit} patients`
+    : null;
+
   return (
     <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: 16, gap: 16 }}>
+      {pricingObservation && pricingObservation.status !== "disabled" ? (
+        <SectionCard
+          title="Version 18 Pricing Observation"
+          subtitle="Internal preview only. This screen does not block patient registration."
+        >
+          <Text style={{ color: colors.text, fontWeight: "800" }}>
+            {pricingObservation.status === "live"
+              ? `${observedEntitlements?.planLabel ?? "Free"} • ${observedPatientUsage}`
+              : "Safe fallback active"}
+          </Text>
+          <Text style={{ color: colors.muted, lineHeight: 20 }}>
+            {pricingObservation.message}
+          </Text>
+          {pricingObservation.status === "live" ? (
+            <Text style={{ color: colors.muted, lineHeight: 20 }}>
+              Server-reported enforcement: {observedEntitlements?.patientLimitEnforced ? "enabled" : "disabled"}. Grandfathered: {observedEntitlements?.grandfathered ? "yes" : "no"}.
+            </Text>
+          ) : null}
+        </SectionCard>
+      ) : null}
+
       {limitStatus && !limitStatus.unlimited && limitStatus.level !== "none" ? (
         <SectionCard
           title={limitStatus.level === "blocked" ? "Free Patient Limit Reached" : "Free Patient Slots"}
