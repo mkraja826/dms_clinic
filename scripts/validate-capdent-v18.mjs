@@ -37,6 +37,14 @@ expect(
   "Android versionCode must be 18."
 );
 expect(pkg.version === "1.2.0", "package.json version must be 1.2.0.");
+expect(
+  eas.cli?.appVersionSource === "local",
+  "EAS must use local versioning so app.json versionCode 18 is authoritative."
+);
+expect(
+  eas.build?.production?.autoIncrement === false,
+  "Production autoIncrement must be disabled for deterministic version code 18."
+);
 
 expect(
   eas.build?.development?.env?.EXPO_PUBLIC_ENABLE_PRICING_V2_OBSERVATION ===
