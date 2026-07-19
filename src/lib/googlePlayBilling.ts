@@ -35,17 +35,17 @@ export const GOOGLE_PLAY_PLAN_DETAILS: Record<
   }
 > = {
   professional: {
-    name: "CapDent Professional",
+    name: "CapDent Cloud",
     productId: GOOGLE_PLAY_PROFESSIONAL_PRODUCT_ID,
     monthlyAmount: 799,
-    description: "For growing clinics that need unlimited core work, owner controls, reminders, and organized daily workflow.",
+    description: "5 GB secure cloud storage, unlimited patient records, backup and sync for one clinic.",
     badge: "Popular",
   },
   clinic_intelligence: {
-    name: "CapDent Clinic Intelligence",
+    name: "CapDent Intelligence",
     productId: GOOGLE_PLAY_INTELLIGENCE_PRODUCT_ID,
-    monthlyAmount: 1500,
-    description: "Deep owner analytics, clinic flow review, revenue quality, Smile Gallery, and Share Studio direction.",
+    monthlyAmount: 1499,
+    description: "20 GB cloud storage, advanced analytics, business insights, and management for up to 3 clinics.",
     badge: "Analytics",
   },
 };
@@ -280,10 +280,6 @@ export async function launchGooglePlaySubscriptionPurchase(
   plan: GooglePlayBillingPlan,
   options?: { currentProductId?: string | null }
 ) {
-  if (plan.key === "professional" && (!plan.hasTrialOffer || !plan.offerToken)) {
-    throw new Error("Professional 3-month free trial offer was not returned by Google Play. Check the trial offer in Play Console.");
-  }
-
   await initGooglePlayBilling();
 
   const iap = getIapModule();
@@ -368,17 +364,21 @@ export async function recordGooglePlaySubscriptionPurchase(purchase: any) {
       GOOGLE_PLAY_PROFESSIONAL_PRODUCT_ID
   );
 
-  const { data, error } = await supabase.rpc("record_google_play_subscription_purchase", {
-    p_product_id: productId,
-    p_purchase_token: purchaseToken,
-    p_order_id: purchase?.orderId || purchase?.transactionId || null,
-    p_auto_renewing: true,
-    p_raw_purchase: purchase || {},
+  const { data, error } = await supabase.functions.invoke("verify-google-play-subscription", {
+    body: {
+      product_id: productId,
+      purchase_token: purchaseToken,
+      order_id: purchase?.orderId || purchase?.transactionId || null,
+    },
   });
 
   if (error) throw error;
+  if (!data?.verified || !data?.activated || !data?.subscription) {
+    throw new Error(data?.message || "Google Play has not verified paid access. CapDent remains on the Free plan.");
+  }
+
   invalidateSupabaseCache();
-  return data;
+  return data.subscription;
 }
 
 export async function finishGooglePlaySubscriptionPurchase(purchase: any) {
