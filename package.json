@@ -14,7 +14,8 @@
     "build:android:aab": "eas build --platform android --profile production",
     "build:ios": "eas build --platform ios --profile production",
     "sync:v18-version": "node scripts/sync-capdent-v18-version.mjs",
-    "check:v18": "npm run typecheck"
+    "validate:v18": "node scripts/validate-capdent-v18.mjs",
+    "check:v18": "npm run validate:v18 && npm run typecheck"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
