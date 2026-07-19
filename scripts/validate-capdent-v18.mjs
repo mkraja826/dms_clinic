@@ -12,9 +12,17 @@ const app = readJson("app.json");
 const eas = readJson("eas.json");
 const pkg = readJson("package.json");
 const pricing = readText("src/lib/pricingV2.ts");
+const billing = readText("src/lib/googlePlayBilling.ts");
+const subscription = readText("src/lib/subscription.ts");
 const addPatient = readText("src/app/patient/add.tsx");
 const migration = readText(
   "supabase/migrations/20260719173000_capdent_pricing_v2_foundation.sql"
+);
+const billingSecurityMigration = readText(
+  "supabase/migrations/20260720102000_secure_google_play_subscription_authority.sql"
+);
+const playVerifier = readText(
+  "supabase/functions/verify-google-play-subscription/index.ts"
 );
 const databaseTest = readText(
   "supabase/tests/database/capdent_pricing_v2_foundation_test.sql"
@@ -118,6 +126,91 @@ expect(
 );
 
 expect(
+  billing.includes('"midms_monthly_799"'),
+  "Cloud must use the existing Google Play product ID midms_monthly_799."
+);
+expect(
+  billing.includes('"midms_clinic_intelligence_monthly"'),
+  "Intelligence must use its existing Google Play product ID."
+);
+expect(
+  billing.includes("monthlyAmount: 1499"),
+  "Google Play Intelligence fallback price must be INR 1499."
+);
+expect(
+  !billing.includes("monthlyAmount: 1500"),
+  "Google Play billing must not restore the obsolete INR 1500 fallback."
+);
+expect(
+  billing.includes('supabase.functions.invoke("verify-google-play-subscription"'),
+  "Purchases must be sent to the verified Google Play Edge Function."
+);
+expect(
+  !billing.includes('supabase.rpc("record_google_play_subscription_purchase"'),
+  "The Android client must not call the legacy purchase activation RPC."
+);
+expect(
+  billing.includes("!data?.verified || !data?.activated"),
+  "The Android client must reject unverified or non-active purchases."
+);
+expect(
+  subscription.includes("SUBSCRIPTION_INTELLIGENCE_AMOUNT = 1499"),
+  "Subscription Intelligence price must remain INR 1499."
+);
+expect(
+  !subscription.includes("SUBSCRIPTION_INTELLIGENCE_AMOUNT = 1500"),
+  "Subscription code must not restore the obsolete INR 1500 amount."
+);
+
+expect(
+  playVerifier.includes("GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64"),
+  "The verifier must authenticate with the protected service-account secret."
+);
+expect(
+  playVerifier.includes("GOOGLE_PLAY_PACKAGE_NAME"),
+  "The verifier must use the configured Android package name."
+);
+expect(
+  playVerifier.includes("purchases/subscriptionsv2/tokens"),
+  "The verifier must use Google Play subscriptionsv2.get."
+);
+expect(
+  playVerifier.includes("matchingItems.length === 0"),
+  "The verifier must reject tokens that do not match the selected product."
+);
+expect(
+  playVerifier.includes('state === "SUBSCRIPTION_STATE_ACTIVE"'),
+  "The verifier must explicitly require a Google entitlement state."
+);
+expect(
+  playVerifier.includes("monthlyPrice: 1499"),
+  "The server verifier must activate Intelligence at INR 1499."
+);
+expect(
+  playVerifier.includes("already linked to another clinic"),
+  "The verifier must prevent purchase-token reuse across clinics."
+);
+
+expect(
+  billingSecurityMigration.includes(
+    "from public, anon, authenticated"
+  ),
+  "The legacy activation RPC must be revoked from mobile clients."
+);
+expect(
+  billingSecurityMigration.includes(
+    "revoke insert, update, delete, truncate, references, trigger"
+  ),
+  "Authenticated clients must not write subscription authority tables."
+);
+expect(
+  billingSecurityMigration.includes(
+    "clinic_subscriptions_google_play_token_unique"
+  ),
+  "The database must enforce one clinic per Google purchase token."
+);
+
+expect(
   databaseTest.includes("select extensions.plan(29);"),
   "Pricing database test must keep all 29 assertions."
 );
@@ -132,4 +225,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log("CapDent v18 configuration and pricing safety checks passed.");
+console.log("CapDent v18 configuration, pricing, and secure Play billing checks passed.");
