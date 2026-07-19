@@ -65,6 +65,14 @@ expect(
   "Preview pricing observation must be enabled."
 );
 expect(
+  eas.build?.development?.env?.EXPO_PUBLIC_ENABLE_PAID_PLANS === "false",
+  "Development paid plans must remain disabled."
+);
+expect(
+  eas.build?.preview?.env?.EXPO_PUBLIC_ENABLE_PAID_PLANS === "false",
+  "Preview paid plans must remain disabled."
+);
+expect(
   eas.build?.production?.env?.EXPO_PUBLIC_ENABLE_PRICING_V2_OBSERVATION ===
     "false",
   "Production pricing observation must remain disabled."
@@ -72,6 +80,36 @@ expect(
 expect(
   eas.build?.production?.env?.EXPO_PUBLIC_ENABLE_PAID_PLANS === "false",
   "Production paid plans must remain disabled."
+);
+expect(
+  eas.build?.["play-internal"]?.autoIncrement === false,
+  "Play internal billing build must keep deterministic version code 18."
+);
+expect(
+  eas.build?.["play-internal"]?.android?.buildType === "app-bundle",
+  "Play internal billing build must produce an Android App Bundle."
+);
+expect(
+  eas.build?.["play-internal"]?.env?.EXPO_PUBLIC_ENABLE_PAID_PLANS === "true",
+  "Paid plans may be enabled only in the Play internal profile."
+);
+expect(
+  eas.build?.["play-internal"]?.env?.EXPO_PUBLIC_ENABLE_PRICING_V2_OBSERVATION === "true",
+  "Play internal billing observation must be enabled."
+);
+expect(
+  eas.build?.["play-internal"]?.env?.EXPO_PUBLIC_SUPABASE_URL ===
+    eas.build?.production?.env?.EXPO_PUBLIC_SUPABASE_URL,
+  "Play internal must inherit the trusted production Supabase URL."
+);
+expect(
+  eas.build?.["play-internal"]?.env?.EXPO_PUBLIC_SUPABASE_ANON_KEY ===
+    eas.build?.production?.env?.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+  "Play internal must inherit the trusted production Supabase key."
+);
+expect(
+  eas.submit?.["play-internal"]?.android?.track === "internal",
+  "Play internal submissions must target only the internal testing track."
 );
 
 expect(
