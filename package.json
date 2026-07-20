@@ -8,6 +8,8 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
+    "build": "expo export --platform web",
+    "build:web": "expo export --platform web",
     "typecheck": "tsc --noEmit",
     "build:android": "eas build --platform android --profile production",
     "build:android:apk": "eas build --platform android --profile preview",
