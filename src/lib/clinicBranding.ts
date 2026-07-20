@@ -1,4 +1,6 @@
 import * as FileSystem from "expo-file-system/legacy";
+import { optimizeUploadImage } from "@/lib/imageCompression";
+import { parseStorageObjectUrl } from "@/lib/storageUrls";
 import { getCurrentProfile, supabase } from "@/lib/supabase";
 
 export type ClinicBrand = {
@@ -56,17 +58,27 @@ export async function uploadClinicLogo(uri: string) {
     throw new Error("Clinic profile not found");
   }
 
-  const base64 = await FileSystem.readAsStringAsync(uri, {
+  const { data: existingClinic, error: existingClinicError } = await supabase
+    .from("clinics")
+    .select("logo_url")
+    .eq("id", profile.clinic_id)
+    .maybeSingle();
+
+  if (existingClinicError) throw existingClinicError;
+
+  const optimized = await optimizeUploadImage(uri, "clinic_logo");
+  const base64 = await FileSystem.readAsStringAsync(optimized.uri, {
     encoding: FileSystem.EncodingType.Base64,
   });
 
   const bytes = base64ToUint8Array(base64);
-  const path = `${profile.clinic_id}/logo-${Date.now()}.jpg`;
+  const path = `${profile.clinic_id}/logo-${Date.now()}.webp`;
 
   const { error: uploadError } = await supabase.storage
     .from("clinic-logos")
     .upload(path, bytes, {
-      contentType: "image/jpeg",
+      contentType: optimized.mimeType,
+      cacheControl: "31536000",
       upsert: true,
     });
 
@@ -81,7 +93,24 @@ export async function uploadClinicLogo(uri: string) {
     })
     .eq("id", profile.clinic_id);
 
-  if (updateError) throw updateError;
+  if (updateError) {
+    await supabase.storage.from("clinic-logos").remove([path]);
+    throw updateError;
+  }
+
+  const previousLogo = parseStorageObjectUrl(existingClinic?.logo_url);
+  if (
+    previousLogo?.bucket === "clinic-logos" &&
+    previousLogo.path !== path
+  ) {
+    const { error: cleanupError } = await supabase.storage
+      .from(previousLogo.bucket)
+      .remove([previousLogo.path]);
+
+    if (cleanupError) {
+      console.warn("Unable to remove the previous clinic logo:", cleanupError.message);
+    }
+  }
 
   return data.publicUrl;
 }

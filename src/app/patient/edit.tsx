@@ -1,12 +1,13 @@
 import { router, useLocalSearchParams } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { useEffect, useState } from "react";
-import { Alert, Image, Pressable, Text, View } from "react-native";
+import { Alert, Pressable, Text, View } from "react-native";
 import { AppButton } from "@/components/AppButton";
 import { AppInput } from "@/components/AppInput";
 import { EmptyState } from "@/components/EmptyState";
 import { Screen } from "@/components/Screen";
 import { SectionCard } from "@/components/SectionCard";
+import { SecureStorageImage } from "@/components/SecureStorageImage";
 import { colors } from "@/constants/colors";
 import {
   DEFAULT_CLINIC_FEATURE_SETTINGS,
@@ -52,7 +53,7 @@ export default function EditPatientScreen() {
   async function pickPatientPhoto() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.8,
+      quality: 1,
       allowsEditing: true,
       aspect: [1, 1],
     });
@@ -208,7 +209,7 @@ export default function EditPatientScreen() {
               }}
             >
               {photoPreview ? (
-                <Image source={{ uri: photoPreview }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+                <SecureStorageImage uri={photoPreview} style={{ width: "100%", height: "100%" }} contentFit="cover" />
               ) : (
                 <Text style={{ color: colors.primary, fontWeight: "900", textAlign: "center" }}>
                   Add Photo

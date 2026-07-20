@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Image, Pressable, Text, View } from "react-native";
+import { Alert, Pressable, Text, View } from "react-native";
 import { ActionCard } from "@/components/ActionCard";
 import { AppButton } from "@/components/AppButton";
 import { ClinicBrandHeader } from "@/components/ClinicBrandHeader";
@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { RescheduleAppointmentModal } from "@/components/RescheduleAppointmentModal";
 import { Screen } from "@/components/Screen";
 import { SectionCard } from "@/components/SectionCard";
+import { SecureStorageImage } from "@/components/SecureStorageImage";
 import { StatCard } from "@/components/StatCard";
 import { WaitingAppointmentActions } from "@/components/WaitingAppointmentActions";
 import { WorkflowBottomNav } from "@/components/WorkflowBottomNav";
@@ -501,7 +502,7 @@ function PatientAvatar({
       }}
     >
       {photoUrl ? (
-        <Image source={{ uri: photoUrl }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+        <SecureStorageImage uri={photoUrl} style={{ width: "100%", height: "100%" }} contentFit="cover" />
       ) : (
         <Ionicons name={warning ? "time-outline" : "person-outline"} size={22} color={warning ? colors.warning : colors.primary} />
       )}

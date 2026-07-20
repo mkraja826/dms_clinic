@@ -299,7 +299,7 @@ function patchEnvExample() {
     }
 
     console.log("Environment feature flags: applied");
-    return `${text.trimEnd()}\n\n# Release feature flags. Keep disabled until separately tested and approved.\nEXPO_PUBLIC_ENABLE_PAID_PLANS=false\nEXPO_PUBLIC_ENABLE_REALTIME=false\n\n# Clinical uploads use Cloudflare R2 with a Supabase Storage fallback.\nEXPO_PUBLIC_UPLOAD_PROVIDER=r2\nEXPO_PUBLIC_UPLOAD_STRICT_R2=false\n`;
+    return `${text.trimEnd()}\n\n# Release feature flags. Keep disabled until separately tested and approved.\nEXPO_PUBLIC_ENABLE_PAID_PLANS=false\nEXPO_PUBLIC_ENABLE_REALTIME=false\n\n# Clinical uploads use Supabase Storage.\n`;
   });
 }
 

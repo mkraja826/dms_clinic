@@ -3,7 +3,6 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
-  Image,
   Platform,
   Pressable,
   Text,
@@ -12,11 +11,13 @@ import {
 } from "react-native";
 import { AppButton } from "@/components/AppButton";
 import { EmptyState } from "@/components/EmptyState";
+import { SecureStorageImage } from "@/components/SecureStorageImage";
 import { Screen } from "@/components/Screen";
 import { SectionCard } from "@/components/SectionCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { colors } from "@/constants/colors";
 import { deletePatientFileRecord, supabase } from "@/lib/supabase";
+import { resolveStorageUrls } from "@/lib/storageUrls";
 
 type FileType =
   | "all"
@@ -163,7 +164,14 @@ export default function GalleryScreen() {
 
       if (error) throw error;
 
-      setFiles((data || []) as unknown as GalleryFile[]);
+      const rows = (data || []) as unknown as GalleryFile[];
+      const signedUrls = await resolveStorageUrls(rows.map((row) => row.file_url));
+      setFiles(
+        rows.map((row) => ({
+          ...row,
+          file_url: signedUrls.get(row.file_url) ?? row.file_url,
+        }))
+      );
     } catch (error) {
       Alert.alert("Gallery load failed", getErrorMessage(error));
     } finally {
@@ -403,10 +411,10 @@ function GalleryTile({
           }}
         >
           {isLikelyImage(file.file_url) ? (
-            <Image
-              source={{ uri: file.file_url }}
+            <SecureStorageImage
+              uri={file.file_url}
               style={{ width: "100%", height: "100%" }}
-              resizeMode="cover"
+              contentFit="cover"
             />
           ) : (
             <Ionicons name={getFileIcon(file.file_type)} size={42} color={colors.primary} />

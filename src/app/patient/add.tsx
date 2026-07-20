@@ -81,7 +81,7 @@ export default function AddPatientScreen() {
   async function pickPatientPhoto() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.8,
+      quality: 1,
       allowsEditing: true,
       aspect: [1, 1],
     });

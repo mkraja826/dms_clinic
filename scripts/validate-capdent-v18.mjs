@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 function readJson(path) {
   return JSON.parse(readFileSync(path, "utf8"));
@@ -15,6 +15,14 @@ const pricing = readText("src/lib/pricingV2.ts");
 const billing = readText("src/lib/googlePlayBilling.ts");
 const subscription = readText("src/lib/subscription.ts");
 const addPatient = readText("src/app/patient/add.tsx");
+const uploadPatient = readText("src/lib/supabase.ts");
+const patientProfilePhoto = readText("src/lib/patientProfilePhoto.ts");
+const clinicBranding = readText("src/lib/clinicBranding.ts");
+const imageCompression = readText("src/lib/imageCompression.ts");
+const storageUrls = readText("src/lib/storageUrls.ts");
+const secureStorageImage = readText("src/components/SecureStorageImage.tsx");
+const environmentExample = readText(".env.example");
+const supabaseConfig = readText("supabase/config.toml");
 const migration = readText(
   "supabase/migrations/20260719173000_capdent_pricing_v2_foundation.sql"
 );
@@ -103,13 +111,123 @@ expect(
   "Play internal must inherit the trusted production Supabase URL."
 );
 expect(
-  eas.build?.["play-internal"]?.env?.EXPO_PUBLIC_SUPABASE_ANON_KEY ===
-    eas.build?.production?.env?.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+  eas.build?.["play-internal"]?.env?.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ===
+    eas.build?.production?.env?.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
   "Play internal must inherit the trusted production Supabase key."
+);
+expect(
+  Object.values(eas.build ?? {}).every(
+    (profile) =>
+      profile?.env?.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.startsWith(
+        "sb_publishable_"
+      ) && !profile?.env?.EXPO_PUBLIC_SUPABASE_ANON_KEY
+  ),
+  "Every v18 build profile must use the modern Supabase publishable key."
 );
 expect(
   eas.submit?.["play-internal"]?.android?.track === "internal",
   "Play internal submissions must target only the internal testing track."
+);
+const storageSecurityMigration = readText(
+  "supabase/migrations/20260720105410_secure_storage_and_rls_consolidation_v18.sql"
+);
+const storageMetadataMigration = readText(
+  "supabase/migrations/20260720105741_track_optimized_storage_metadata_v18.sql"
+);
+const profilePrivilegeMigration = readText(
+  "supabase/migrations/20260720112030_restrict_profile_column_updates_v18.sql"
+);
+const privateStorageCutover = readText(
+  "supabase/private-storage-cutover-v18.sql"
+);
+
+const releaseConfiguration = `${JSON.stringify(eas)}\n${environmentExample}\n${supabaseConfig}`;
+expect(
+  !/UPLOAD_PROVIDER|STRICT_R2|create-r2-upload-url|cloudflare\s+r2/i.test(
+    releaseConfiguration
+  ),
+  "Release configuration must use Supabase Storage only."
+);
+expect(
+  !existsSync("supabase/functions/create-r2-upload-url/index.ts"),
+  "The retired R2 upload Edge Function source must stay removed."
+);
+expect(
+  pkg.dependencies?.["expo-image-manipulator"]?.startsWith("~57."),
+  "The Expo 57-compatible image optimizer must be installed."
+);
+expect(
+  imageCompression.includes("ImageManipulator.SaveFormat.WEBP"),
+  "Uploaded images must be encoded as WebP."
+);
+expect(
+  imageCompression.includes("initialQuality: 0.99") &&
+    imageCompression.includes("minimumQuality: 0.96") &&
+    imageCompression.includes("targetRatio: 0.3") &&
+    imageCompression.includes("minimumTargetBytes: 300 * 1024"),
+  "Clinical compression must preserve detail while targeting about 30% of the source size."
+);
+expect(
+  imageCompression.includes("originalSizeBytes") &&
+    imageCompression.includes("storedSizeBytes"),
+  "Image optimization must record before/after byte sizes."
+);
+expect(
+  uploadPatient.includes("optimizeUploadImage(input.uri, input.file_type)"),
+  "Patient images must be optimized before Supabase upload."
+);
+expect(
+  uploadPatient.includes('provider: "supabase"'),
+  "Patient uploads must use Supabase Storage."
+);
+expect(
+  uploadPatient.includes('cacheControl: "31536000"'),
+  "Immutable uploads must use a long browser cache lifetime."
+);
+expect(
+  uploadPatient.includes("remove([storageResult.storagePath])") &&
+    patientProfilePhoto.includes("previousPhoto.path") &&
+    clinicBranding.includes("previousLogo.path"),
+  "Failed and superseded Storage objects must be cleaned up."
+);
+expect(
+  Object.values(eas.build ?? {}).every(
+    (profile) => profile?.env?.EXPO_PUBLIC_USE_SIGNED_STORAGE_URLS === "true"
+  ),
+  "Every v18 build profile must resolve clinical files through signed URLs."
+);
+expect(
+  storageUrls.includes("createSignedUrls") && storageUrls.includes("SIGNED_URL_REFRESH_MS"),
+  "Storage URLs must be batch-signed and refreshed before expiry."
+);
+expect(
+  secureStorageImage.includes('cachePolicy = "memory-disk"'),
+  "Remote clinical images must use memory and disk caching."
+);
+expect(
+  storageSecurityMigration.includes("to authenticated") &&
+    storageSecurityMigration.includes("clinical_storage_select_same_clinic"),
+  "Clinical Storage must use authenticated clinic-scoped policies."
+);
+expect(
+  storageSecurityMigration.includes("file_size_limit") &&
+    storageSecurityMigration.includes("allowed_mime_types"),
+  "Clinical Storage buckets must enforce size and MIME limits."
+);
+expect(
+  storageMetadataMigration.includes("storage_path") &&
+    storageMetadataMigration.includes("stored_size_bytes"),
+  "File records must retain Storage identity and compression metadata."
+);
+expect(
+  profilePrivilegeMigration.includes("grant update (name, phone)") &&
+    profilePrivilegeMigration.includes("revoke insert, delete, truncate, references, trigger, update"),
+  "Direct profile writes must be limited to non-authority personal fields."
+);
+expect(
+  privateStorageCutover.includes("set public = false") &&
+    privateStorageCutover.includes("Older builds"),
+  "The private clinical Storage cutover must remain an explicit post-v18 rollout step."
 );
 
 expect(
@@ -263,4 +381,6 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log("CapDent v18 configuration, pricing, and secure Play billing checks passed.");
+console.log(
+  "CapDent v18 configuration, Supabase-only optimized uploads, pricing, and secure Play billing checks passed."
+);

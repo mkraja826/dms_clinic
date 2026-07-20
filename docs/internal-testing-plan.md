@@ -4,9 +4,21 @@ Use this before Play Store internal testing or clinic pilot handover.
 
 ## Branch
 
-Use `pilot-safe-android-cleanup`.
+Use `release/capdent-v18`.
 
 Do not merge to main until testing is complete.
+
+## Test tenant
+
+Use the Supabase clinic stored as `Pavani dental` for v18 application and
+database testing. Do not run production-readiness tests against other clinics.
+
+- Database write-path checks must run inside transactions that end with
+  `ROLLBACK`.
+- Interactive upload tests must use clearly labelled test records and the
+  authenticated Storage API for cleanup.
+- Never expose patient names, contact details, user IDs, or clinic IDs in test
+  reports.
 
 ## Test accounts
 

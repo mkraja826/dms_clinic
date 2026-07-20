@@ -3,7 +3,6 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
-  Image,
   Linking,
   Platform,
   Pressable,
@@ -15,6 +14,7 @@ import { AppButton } from "@/components/AppButton";
 import { EmptyState } from "@/components/EmptyState";
 import { Screen } from "@/components/Screen";
 import { SectionCard } from "@/components/SectionCard";
+import { SecureStorageImage } from "@/components/SecureStorageImage";
 import { StatusBadge } from "@/components/StatusBadge";
 import { colors } from "@/constants/colors";
 import {
@@ -31,6 +31,7 @@ import {
   Visit,
   Invoice,
 } from "@/lib/supabase";
+import { resolveStorageUrls } from "@/lib/storageUrls";
 
 type PatientDetails = {
   patient: Patient;
@@ -98,8 +99,15 @@ export default function PatientProfileScreen() {
 
     try {
       if (showLoading) setLoading(true);
-      const data = await getPatientById(patientId);
-      setDetails(data as PatientDetails);
+      const data = (await getPatientById(patientId)) as PatientDetails;
+      const signedUrls = await resolveStorageUrls(data.files.map((file) => file.file_url));
+      setDetails({
+        ...data,
+        files: data.files.map((file) => ({
+          ...file,
+          file_url: signedUrls.get(file.file_url) ?? file.file_url,
+        })),
+      });
       const logs = await getPatientAuditLogs(patientId);
       setAuditLogs(logs);
     } catch (error) {
@@ -168,7 +176,6 @@ export default function PatientProfileScreen() {
       try {
         setDeletingFileId(file.id);
 
-        await tryDeleteFromStorage(file);
         await deletePatientFileRecord(file.id);
 
         await load();
@@ -728,10 +735,10 @@ function FileTile({
     >
       <Pressable onPress={onOpen}>
         {isImage ? (
-          <Image
-            source={{ uri: file.file_url }}
+          <SecureStorageImage
+            uri={file.file_url}
             style={{ width: "100%", height: 132, backgroundColor: colors.surfaceSoft }}
-            resizeMode="cover"
+            contentFit="cover"
           />
         ) : (
           <View
@@ -808,33 +815,4 @@ function RiskRow({ label, value }: { label: string; value: boolean }) {
       </Text>
     </Text>
   );
-}
-
-function getStorageBucket(file: PatientFile) {
-  if (file.file_type === "xray") return "xrays";
-  if (file.file_type === "prescription") return "prescriptions";
-  return "patient-files";
-}
-
-function getStoragePathFromPublicUrl(file: PatientFile) {
-  const bucket = getStorageBucket(file);
-  const marker = `/storage/v1/object/public/${bucket}/`;
-  const index = file.file_url.indexOf(marker);
-
-  if (index === -1) return null;
-
-  return decodeURIComponent(file.file_url.slice(index + marker.length));
-}
-
-async function tryDeleteFromStorage(file: PatientFile) {
-  const bucket = getStorageBucket(file);
-  const path = getStoragePathFromPublicUrl(file);
-
-  if (!path) return;
-
-  const { error } = await supabase.storage.from(bucket).remove([path]);
-
-  if (error) {
-    console.warn("Storage delete failed, continuing DB delete:", error.message);
-  }
 }

@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { Image, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
+import { SecureStorageImage } from "@/components/SecureStorageImage";
 import { colors, radius } from "@/constants/colors";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
@@ -72,10 +73,10 @@ export function ClinicBrandHeader({
           }}
         >
           {brand?.logo_url ? (
-            <Image
-              source={{ uri: brand.logo_url }}
+            <SecureStorageImage
+              uri={brand.logo_url}
               style={{ width: "100%", height: "100%" }}
-              resizeMode="cover"
+              contentFit="cover"
             />
           ) : (
             <Ionicons name="medkit-outline" size={28} color={colors.primary} />
