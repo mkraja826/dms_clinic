@@ -60,6 +60,10 @@
         "android.permission.WRITE_EXTERNAL_STORAGE"
       ]
     },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
     "ios": {
       "bundleIdentifier": "com.dms.clinic",
       "buildNumber": "2",
