@@ -3,7 +3,9 @@ import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { colors } from "@/constants/colors";
+import { PaymentNotificationCoordinator } from "@/components/PaymentNotificationCoordinator";
 import { isSupabaseConfigured, normalizeRole } from "@/lib/supabase";
+import { VisitDraftProvider } from "@/lib/visitDraft";
 
 const appLogo = require("../../assets/icon.png");
 
@@ -113,6 +115,7 @@ function RootStack() {
           <Stack.Screen name="patient/upload-xray" options={{ headerShown: true, title: "Upload X-ray" }} />
           <Stack.Screen name="patient/upload-photo" options={{ headerShown: true, title: "Upload Patient Photo" }} />
           <Stack.Screen name="patient/visit" options={{ headerShown: true, title: "Add Visit" }} />
+          <Stack.Screen name="patient/tooth-chart" options={{ headerShown: true, title: "Dental Chart" }} />
           <Stack.Screen name="payment/consultation" options={{ headerShown: true, title: "Consultation Fee" }} />
           <Stack.Screen name="payment/fee" options={{ headerShown: true, title: "Reception Fees" }} />
           <Stack.Screen name="payment/op-fee" options={{ headerShown: true, title: "OP Fee" }} />
@@ -215,7 +218,11 @@ export default function Layout() {
 
   return (
     <AuthProvider>
-      <RootStack />
+      <PaymentNotificationCoordinator>
+        <VisitDraftProvider>
+          <RootStack />
+        </VisitDraftProvider>
+      </PaymentNotificationCoordinator>
     </AuthProvider>
   );
 }

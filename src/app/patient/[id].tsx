@@ -16,7 +16,13 @@ import { Screen } from "@/components/Screen";
 import { SectionCard } from "@/components/SectionCard";
 import { SecureStorageImage } from "@/components/SecureStorageImage";
 import { StatusBadge } from "@/components/StatusBadge";
+import { PatientDentalChartSection } from "@/components/tooth-chart/PatientDentalChartSection";
 import { colors } from "@/constants/colors";
+import {
+  DEFAULT_CLINIC_FEATURE_SETTINGS,
+  getClinicFeatureSettings,
+} from "@/lib/clinicOptions";
+import { isToothChartEnabledForClinic } from "@/lib/featureFlags";
 import {
   deletePatientFileRecord,
   FileType,
@@ -93,13 +99,22 @@ export default function PatientProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
+  const [clinicFeatures, setClinicFeatures] = useState(
+    DEFAULT_CLINIC_FEATURE_SETTINGS
+  );
 
   async function load(showLoading = true) {
     if (!patientId) return;
 
     try {
       if (showLoading) setLoading(true);
-      const data = (await getPatientById(patientId)) as PatientDetails;
+      const [data, featureSettings] = await Promise.all([
+        getPatientById(patientId) as Promise<PatientDetails>,
+        getClinicFeatureSettings().catch(
+          () => DEFAULT_CLINIC_FEATURE_SETTINGS
+        ),
+      ]);
+      setClinicFeatures(featureSettings);
       const signedUrls = await resolveStorageUrls(data.files.map((file) => file.file_url));
       setDetails({
         ...data,
@@ -474,6 +489,14 @@ export default function PatientProfileScreen() {
           />
         )}
       </SectionCard>
+
+      <PatientDentalChartSection
+        enabled={isToothChartEnabledForClinic(
+          clinicFeatures.tooth_chart_enabled
+        )}
+        patientId={patient.id}
+        treatments={treatments}
+      />
 
       <SectionCard title="Patient Edit Audit" subtitle="Shows important patient detail changes for owner and staff accountability.">
         {auditLogs.length ? (

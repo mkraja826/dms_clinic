@@ -8,16 +8,35 @@ import { EmptyState } from "@/components/EmptyState";
 import { Screen } from "@/components/Screen";
 import { SectionCard } from "@/components/SectionCard";
 import { StatusBadge } from "@/components/StatusBadge";
+import { ToothChartSummary } from "@/components/tooth-chart/ToothChartSummary";
 import { colors } from "@/constants/colors";
 import { useAuth } from "@/lib/auth";
+import {
+  DEFAULT_CLINIC_FEATURE_SETTINGS,
+  getClinicFeatureSettings,
+} from "@/lib/clinicOptions";
 import {
   formatClinicMoney,
   getDefaultClinicPreferences,
 } from "@/lib/clinicLocale";
 import { getClinicPreferences } from "@/lib/clinicPreferences";
+import { isToothChartEnabledForClinic } from "@/lib/featureFlags";
 import { searchPatientsPage } from "@/lib/patientDirectory";
-import { createAppointment, createInvoice, createVisit, getCurrentProfile, supabase } from "@/lib/supabase";
+import {
+  createAppointment,
+  createInvoice,
+  createVisit,
+  getCurrentProfile,
+  saveVisitWithToothChart,
+  supabase,
+} from "@/lib/supabase";
 import type { Patient, Profile } from "@/lib/supabase";
+import {
+  canEditDentalChart,
+  DentalTreatmentStatus,
+  serializeToothFindings,
+} from "@/lib/toothChart";
+import { useVisitDraft } from "@/lib/visitDraft";
 
 type ComplaintKey = "Pain" | "Swelling" | "Cap issue" | "Wisdom tooth" | "Broken tooth" | "Review" | "Other";
 type TreatmentFlow = "undecided" | "ongoing" | "new";
@@ -72,6 +91,7 @@ const TIME_SLOTS: Slot[] = [
   { label: "07:30 PM", hour: 19, minute: 30 },
 ];
 const ONGOING_PAYMENT_METHODS = ["Cash", "UPI", "Card"] as const;
+const VISIT_DRAFT_ID = "add-visit";
 
 function toNumber(value: string | number | null | undefined) {
   const cleaned = String(value ?? "").replace(/[^0-9.]/g, "");
@@ -181,11 +201,20 @@ export default function AddVisitScreen() {
   const [currencyCode, setCurrencyCode] = useState(
     getDefaultClinicPreferences().currencyCode
   );
+  const [clinicFeatures, setClinicFeatures] = useState(
+    DEFAULT_CLINIC_FEATURE_SETTINGS
+  );
+  const [chartTreatmentStatus, setChartTreatmentStatus] =
+    useState<DentalTreatmentStatus>("ongoing");
   const patientRequestRef = useRef(0);
   const patientSearchMountedRef = useRef(false);
   const saveVisitLockRef = useRef(false);
   const formatMoney = (value: string | number | null | undefined) =>
     formatClinicMoney(value, currencyCode);
+  const visitDraft = useVisitDraft(selectedPatientId, VISIT_DRAFT_ID);
+  const toothChartEnabled =
+    canEditDentalChart(profile?.role) &&
+    isToothChartEnabledForClinic(clinicFeatures.tooth_chart_enabled);
 
   async function loadPatients(searchText = patientSearch) {
     const requestId = patientRequestRef.current + 1;
@@ -267,8 +296,12 @@ export default function AddVisitScreen() {
     const preferencesPromise = getClinicPreferences().catch(() =>
       getDefaultClinicPreferences()
     );
+    const featurePromise = getClinicFeatureSettings().catch(
+      () => DEFAULT_CLINIC_FEATURE_SETTINGS
+    );
     await Promise.all([loadPatients(patientSearch), loadDoctors()]);
     setCurrencyCode((await preferencesPromise).currencyCode);
+    setClinicFeatures(await featurePromise);
   }
 
   useEffect(() => {
@@ -292,6 +325,7 @@ export default function AddVisitScreen() {
     setTreatmentFlow("undecided");
     setPromptedTreatmentKey("");
     setOngoingPaidAmount("");
+    setChartTreatmentStatus("ongoing");
   }, [selectedPatientId]);
 
   useEffect(() => {
@@ -566,6 +600,84 @@ export default function AddVisitScreen() {
     setSaving(true);
 
     try {
+      if (toothChartEnabled && visitDraft.findings.length > 0) {
+        await saveVisitWithToothChart({
+          patient_id: selectedPatientId,
+          doctor_id: selectedDoctorId,
+          chief_complaint: complaintSummary.trim(),
+          doctor_notes: continuingExistingTreatment
+            ? `Charted visit for existing treatment: ${
+                primaryActiveTreatment?.treatment_name || "existing treatment"
+              }.`
+            : null,
+          next_appointment_date: followupDateTime
+            ? followupDateTime.toISOString()
+            : null,
+          followup_notes: followupDateTime
+            ? continuingExistingTreatment
+              ? `Ongoing treatment follow-up: ${
+                  primaryActiveTreatment?.treatment_name || complaintSummary
+                }${
+                  selectedDoctor
+                    ? ` • Treated by ${selectedDoctor.name}`
+                    : ""
+                }`
+              : `Follow-up for: ${complaintSummary}${
+                  selectedDoctor
+                    ? ` • Treated by ${selectedDoctor.name}`
+                    : ""
+                }`
+            : null,
+          existing_treatment_id: continuingExistingTreatment
+            ? primaryActiveTreatment?.id
+            : null,
+          existing_treatment_status: continuingExistingTreatment
+            ? chartTreatmentStatus
+            : null,
+          existing_payment_amount: continuingExistingTreatment
+            ? ongoingCollected
+            : 0,
+          existing_payment_method: ongoingPaymentMethod,
+          treatments: shouldCreateTreatment
+            ? [
+                {
+                  treatment_name: treatmentName.trim(),
+                  category: treatmentCategory.trim() || null,
+                  cost,
+                  paid_amount: paid,
+                  payment_method: "Cash",
+                  status: chartTreatmentStatus,
+                },
+              ]
+            : [],
+          chart_entries: serializeToothFindings(visitDraft.findings),
+        });
+
+        // The persisted local draft is cleared only after the atomic database
+        // transaction succeeds.
+        await visitDraft.clear();
+
+        if (Platform.OS === "web") {
+          router.replace(`/patient/${selectedPatientId}` as never);
+          return;
+        }
+
+        Alert.alert(
+          "Charted visit saved",
+          `Visit, dental chart, billing, follow-up, and queue updates were saved together under ${
+            selectedDoctor?.name || "the selected doctor"
+          }.`,
+          [
+            {
+              text: "Open Patient",
+              onPress: () =>
+                router.replace(`/patient/${selectedPatientId}` as never),
+            },
+          ]
+        );
+        return;
+      }
+
       const visit = await createVisit({
         patient_id: selectedPatientId,
         doctor_id: selectedDoctorId,
@@ -953,6 +1065,85 @@ export default function AddVisitScreen() {
           </View>
         ) : null}
       </SectionCard>
+
+      {toothChartEnabled && selectedPatient ? (
+        <SectionCard
+          title="Dental Chart"
+          subtitle="Optional FDI tooth findings. When charted, this visit saves through one atomic clinical transaction."
+        >
+          <ToothChartSummary findings={visitDraft.findings} compact />
+          <AppButton
+            title={
+              visitDraft.findings.length > 0
+                ? "Review dental chart"
+                : "Open dental chart"
+            }
+            icon="grid-outline"
+            variant="secondary"
+            onPress={() =>
+              router.push(
+                `/patient/tooth-chart?patient_id=${encodeURIComponent(
+                  selectedPatientId
+                )}&draft_id=${VISIT_DRAFT_ID}` as never
+              )
+            }
+          />
+
+          {visitDraft.findings.length > 0 ? (
+            <View style={{ gap: 8 }}>
+              <Text style={{ color: colors.text, fontWeight: "900" }}>
+                Explicit treatment state
+              </Text>
+              <Text
+                style={{ color: colors.muted, fontSize: 12, lineHeight: 17 }}
+              >
+                This state is saved exactly as selected and is not inferred
+                from whether a follow-up is booked.
+              </Text>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                {(["planned", "ongoing", "completed"] as const).map(
+                  (status) => {
+                    const selected = chartTreatmentStatus === status;
+                    return (
+                      <Pressable
+                        key={status}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected }}
+                        onPress={() => setChartTreatmentStatus(status)}
+                        style={{
+                          flex: 1,
+                          minHeight: 46,
+                          borderRadius: 14,
+                          alignItems: "center",
+                          justifyContent: "center",
+                          borderWidth: 1,
+                          borderColor: selected
+                            ? colors.primary
+                            : colors.border,
+                          backgroundColor: selected
+                            ? colors.primary
+                            : colors.background,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: selected ? colors.white : colors.text,
+                            fontSize: 12,
+                            fontWeight: "900",
+                            textTransform: "capitalize",
+                          }}
+                        >
+                          {status}
+                        </Text>
+                      </Pressable>
+                    );
+                  }
+                )}
+              </View>
+            </View>
+          ) : null}
+        </SectionCard>
+      ) : null}
 
       <SectionCard
         title="Treatment & Billing"

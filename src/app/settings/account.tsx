@@ -10,6 +10,10 @@ import { SectionCard } from "@/components/SectionCard";
 import { colors } from "@/constants/colors";
 import { useAuth } from "@/lib/auth";
 import {
+  PAYMENT_PUSH_GLOBALLY_ENABLED,
+  TOOTH_CHART_GLOBALLY_ENABLED,
+} from "@/lib/featureFlags";
+import {
   canManageClinicFeatureSettings,
   cleanClinicOpFee,
   ClinicFeatureSettings,
@@ -258,6 +262,28 @@ export default function AccountSettingsScreen() {
             setFeature("enable_prescription_medications", value)
           }
         />
+
+        {PAYMENT_PUSH_GLOBALLY_ENABLED ? (
+          <FeatureSwitch
+            title="Owner payment notifications"
+            subtitle="Notify eligible owner devices after a clinic payment is saved. The payment never waits for notification delivery."
+            value={settings.payment_push_enabled}
+            onValueChange={(value) =>
+              setFeature("payment_push_enabled", value)
+            }
+          />
+        ) : null}
+
+        {TOOTH_CHART_GLOBALLY_ENABLED ? (
+          <FeatureSwitch
+            title="Interactive dental chart"
+            subtitle="Allow dentists to record structured FDI tooth findings during visits."
+            value={settings.tooth_chart_enabled}
+            onValueChange={(value) =>
+              setFeature("tooth_chart_enabled", value)
+            }
+          />
+        ) : null}
 
         <AppButton
           title="Save Clinic Settings"

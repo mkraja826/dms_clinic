@@ -3,6 +3,11 @@ project_id = "dms"
 [functions.send-staff-invite-email]
 verify_jwt = true
 
+[functions.send-payment-notification]
+# Database Webhooks and scheduled maintenance authenticate with the separate
+# PAYMENT_NOTIFICATION_WEBHOOK_SECRET header validated inside the function.
+verify_jwt = false
+
 [functions.hello-world]
 enabled = true
 verify_jwt = false

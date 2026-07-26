@@ -23,6 +23,7 @@ import {
   shouldForceSignedOut,
   supabase,
 } from "@/lib/supabase";
+import { deactivateCurrentDevicePushToken } from "@/lib/paymentNotifications";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -313,6 +314,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       async signOut() {
         try {
+          await deactivateCurrentDevicePushToken(session?.user.id);
           const { error } = await withTimeout(supabase.auth.signOut({ scope: "local" }), 8000);
           if (error) console.warn("Sign out request failed:", error.message);
         } catch (error) {

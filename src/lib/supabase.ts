@@ -1514,6 +1514,72 @@ export async function createVisit(input: {
   return visit;
 }
 
+export type AtomicVisitTreatmentInput = {
+  treatment_name: string;
+  category?: string | null;
+  description?: string | null;
+  cost: number;
+  paid_amount: number;
+  payment_method?: string;
+  status: "planned" | "ongoing" | "completed";
+};
+
+export async function saveVisitWithToothChart(input: {
+  patient_id: string;
+  doctor_id: string;
+  chief_complaint: string;
+  doctor_notes?: string | null;
+  next_appointment_date?: string | null;
+  followup_notes?: string | null;
+  existing_treatment_id?: string | null;
+  existing_treatment_status?: "planned" | "ongoing" | "completed" | null;
+  existing_payment_amount?: number;
+  existing_payment_method?: string | null;
+  treatments: AtomicVisitTreatmentInput[];
+  chart_entries: Record<string, unknown>[];
+}) {
+  const profile = await getCurrentProfile();
+  if (!profile?.clinic_id) throw new Error("Clinic profile not found");
+
+  const { data, error } = await supabase.rpc(
+    "save_visit_with_tooth_chart",
+    {
+      p_patient_id: input.patient_id,
+      p_doctor_id: input.doctor_id,
+      p_chief_complaint: input.chief_complaint,
+      p_doctor_notes: input.doctor_notes ?? null,
+      p_next_appointment_date: input.next_appointment_date ?? null,
+      p_followup_notes: input.followup_notes ?? null,
+      p_existing_treatment_id: input.existing_treatment_id ?? null,
+      p_existing_treatment_status:
+        input.existing_treatment_status ?? null,
+      p_existing_payment_amount: Number(
+        input.existing_payment_amount ?? 0
+      ),
+      p_existing_payment_method:
+        input.existing_payment_method ?? "Cash",
+      p_treatments: input.treatments,
+      p_chart_entries: input.chart_entries,
+    }
+  );
+
+  if (error) throw error;
+  invalidateAppDataScopes([
+    "dashboard",
+    "patients",
+    "appointments",
+    "payments",
+  ]);
+  return data as {
+    visit_id: string;
+    treatment_ids: string[];
+    invoice_ids: string[];
+    appointment_id: string | null;
+    queue_rows_completed: number;
+    chart_entries_created: number;
+  };
+}
+
 export async function getPatientVisits(patientId: string) {
   const { data, error } = await supabase
     .from("patient_visits")

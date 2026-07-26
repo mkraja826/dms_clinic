@@ -3,7 +3,7 @@
     "name": "CapDent",
     "slug": "dmsdms",
     "scheme": "dms",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "icon": "./assets/icon.png",
@@ -29,6 +29,12 @@
         }
       ],
       [
+        "expo-notifications",
+        {
+          "defaultChannel": "payments"
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "android": {
@@ -39,11 +45,12 @@
       ],
       "expo-font",
       "expo-image",
-      "expo-status-bar"
+      "expo-status-bar",
+      "expo-web-browser"
     ],
     "android": {
       "package": "com.dms.clinic",
-      "versionCode": 20,
+      "versionCode": 21,
       "allowBackup": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",

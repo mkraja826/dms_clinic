@@ -14,11 +14,14 @@
         "EXPO_PUBLIC_ENABLE_PAID_PLANS": "false",
         "EXPO_PUBLIC_ENABLE_PRICING_V2_OBSERVATION": "true",
         "EXPO_PUBLIC_ENABLE_REALTIME": "true",
+        "EXPO_PUBLIC_ENABLE_PAYMENT_PUSH": "false",
+        "EXPO_PUBLIC_ENABLE_TOOTH_CHART": "false",
         "EXPO_PUBLIC_USE_SIGNED_STORAGE_URLS": "true"
       },
       "android": {
         "buildType": "apk"
-      }
+      },
+      "autoIncrement": false
     },
     "preview": {
       "credentialsSource": "local",
@@ -29,11 +32,14 @@
         "EXPO_PUBLIC_ENABLE_PAID_PLANS": "false",
         "EXPO_PUBLIC_ENABLE_PRICING_V2_OBSERVATION": "true",
         "EXPO_PUBLIC_ENABLE_REALTIME": "true",
+        "EXPO_PUBLIC_ENABLE_PAYMENT_PUSH": "false",
+        "EXPO_PUBLIC_ENABLE_TOOTH_CHART": "false",
         "EXPO_PUBLIC_USE_SIGNED_STORAGE_URLS": "true"
       },
       "android": {
         "buildType": "apk"
-      }
+      },
+      "autoIncrement": false
     },
     "production": {
       "credentialsSource": "local",
@@ -44,6 +50,8 @@
         "EXPO_PUBLIC_ENABLE_PAID_PLANS": "false",
         "EXPO_PUBLIC_ENABLE_PRICING_V2_OBSERVATION": "false",
         "EXPO_PUBLIC_ENABLE_REALTIME": "true",
+        "EXPO_PUBLIC_ENABLE_PAYMENT_PUSH": "false",
+        "EXPO_PUBLIC_ENABLE_TOOTH_CHART": "false",
         "EXPO_PUBLIC_USE_SIGNED_STORAGE_URLS": "true"
       },
       "android": {
@@ -59,6 +67,8 @@
         "EXPO_PUBLIC_ENABLE_PAID_PLANS": "true",
         "EXPO_PUBLIC_ENABLE_PRICING_V2_OBSERVATION": "true",
         "EXPO_PUBLIC_ENABLE_REALTIME": "true",
+        "EXPO_PUBLIC_ENABLE_PAYMENT_PUSH": "false",
+        "EXPO_PUBLIC_ENABLE_TOOTH_CHART": "false",
         "EXPO_PUBLIC_USE_SIGNED_STORAGE_URLS": "true"
       },
       "android": {
