@@ -2,11 +2,12 @@ import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert, Image, Pressable, Text, View } from "react-native";
+import { Alert, Pressable, Text, View } from "react-native";
 import { AppButton } from "@/components/AppButton";
 import { AppInput } from "@/components/AppInput";
 import { Screen } from "@/components/Screen";
 import { SectionCard } from "@/components/SectionCard";
+import { SecureStorageImage } from "@/components/SecureStorageImage";
 import { colors } from "@/constants/colors";
 import { ClinicBrand, getClinicBrand, updateClinicBrand } from "@/lib/clinicBranding";
 
@@ -45,7 +46,7 @@ export default function ClinicBrandingScreen() {
   async function pickLogo() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.9,
+      quality: 1,
       allowsEditing: true,
       aspect: [1, 1],
     });
@@ -128,10 +129,10 @@ export default function ClinicBrandingScreen() {
             }}
           >
             {logoPreview ? (
-              <Image
-                source={{ uri: logoPreview }}
+              <SecureStorageImage
+                uri={logoPreview}
                 style={{ width: "100%", height: "100%" }}
-                resizeMode="cover"
+                contentFit="cover"
               />
             ) : (
               <Ionicons name="medkit-outline" size={32} color={colors.primary} />

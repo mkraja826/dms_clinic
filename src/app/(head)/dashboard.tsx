@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ComponentProps,
   type ReactNode,
@@ -21,6 +22,7 @@ import { Screen } from "@/components/Screen";
 import { WaitingAppointmentActions } from "@/components/WaitingAppointmentActions";
 import { colors } from "@/constants/colors";
 import { useAuth } from "@/lib/auth";
+import { subscribeClinicDashboardRealtime } from "@/lib/realtime";
 import {
   formatClinicMoney,
   getDefaultClinicPreferences,
@@ -81,6 +83,7 @@ export default function HeadDashboard() {
   const [loading, setLoading] = useState(true);
   const [busyAppointmentId, setBusyAppointmentId] = useState<string | null>(null);
   const [rescheduleItem, setRescheduleItem] = useState<AppointmentRow | null>(null);
+  const completionLocksRef = useRef(new Set<string>());
   const metricBasis = width < 380 ? "100%" : "47%";
   const money = (value?: number | null) =>
     formatClinicMoney(value, currencyCode);
@@ -113,6 +116,21 @@ export default function HeadDashboard() {
     void load();
   }, []);
 
+  async function refreshWorkflow(force = false) {
+    const [data, row] = await Promise.all([
+      getDashboardStats({ force }),
+      getWorkflowDashboardSummary({ force }),
+    ]);
+    setStats(data);
+    setSummary(row);
+  }
+
+  useEffect(() => subscribeClinicDashboardRealtime({
+    clinicId: profile?.clinic_id,
+    channelKey: "head-dashboard",
+    onChange: () => refreshWorkflow(true),
+  }), [profile?.clinic_id]);
+
   async function performReschedule(item: AppointmentRow, nextTime: Date) {
     try {
       setBusyAppointmentId(item.id);
@@ -124,7 +142,7 @@ export default function HeadDashboard() {
         )} to ${appointmentDateTime(nextTime.toISOString())}.`
       );
       setRescheduleItem(null);
-      await load(true);
+      await refreshWorkflow(true);
     } catch (error) {
       Alert.alert(
         "Reschedule failed",
@@ -136,16 +154,29 @@ export default function HeadDashboard() {
   }
 
   async function performComplete(item: AppointmentRow) {
+    if (completionLocksRef.current.has(item.id)) return;
+    completionLocksRef.current.add(item.id);
+    const previousStats = stats;
+    const previousSummary = summary;
+    setBusyAppointmentId(item.id);
+    setStats((current) => current ? {
+      ...current,
+      todayAppointmentList: ((current.todayAppointmentList ?? []) as AppointmentRow[]).filter((row) => row.id !== item.id) as any,
+    } : current);
+    setSummary((current) => current ? {
+      ...current,
+      waiting_count: Math.max(Number(current.waiting_count || 0) - 1, 0),
+      completed_count: Number(current.completed_count || 0) + 1,
+    } : current);
     try {
-      setBusyAppointmentId(item.id);
       await updateAppointmentStatus(item.id, "completed");
-      await load(true);
+      await refreshWorkflow(true);
     } catch (error) {
-      Alert.alert(
-        "Complete failed",
-        error instanceof Error ? error.message : "Please try again."
-      );
+      setStats(previousStats);
+      setSummary(previousSummary);
+      Alert.alert("Complete failed", error instanceof Error ? error.message : "Please try again.");
     } finally {
+      completionLocksRef.current.delete(item.id);
       setBusyAppointmentId(null);
     }
   }

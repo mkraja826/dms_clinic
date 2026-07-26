@@ -3,7 +3,7 @@
     "name": "CapDent",
     "slug": "dmsdms",
     "scheme": "dms",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "icon": "./assets/icon.png",
@@ -33,16 +33,17 @@
         {
           "android": {
             "compileSdkVersion": 36,
-            "targetSdkVersion": 35,
-            "buildToolsVersion": "35.0.0"
+            "targetSdkVersion": 36
           }
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-image",
+      "expo-status-bar"
     ],
     "android": {
       "package": "com.dms.clinic",
-      "versionCode": 16,
+      "versionCode": 20,
       "allowBackup": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -64,7 +65,7 @@
       "bundleIdentifier": "com.dms.clinic",
       "buildNumber": "2",
       "infoPlist": {
-        "NSCameraUsageDescription": "CapDent needs camera access to take patient photos, prescription photos, and X-ray images.",
+        "NSCameraUsageDescription": "CapDent needs camera access to take patient photos, prescription photos, X-rays, and reports.",
         "NSPhotoLibraryUsageDescription": "CapDent needs photo library access to upload patient photos, prescriptions, X-rays, and reports.",
         "ITSAppUsesNonExemptEncryption": false
       }

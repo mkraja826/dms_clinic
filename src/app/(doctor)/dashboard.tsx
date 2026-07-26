@@ -11,6 +11,7 @@ import { WorkflowBottomNav } from "@/components/WorkflowBottomNav";
 import { colors } from "@/constants/colors";
 import { doctorWorkflowNavItems } from "@/constants/workflowNav";
 import { useAuth } from "@/lib/auth";
+import { subscribeClinicDashboardRealtime } from "@/lib/realtime";
 import {
   DashboardStats,
   WorkflowDashboardSummary,
@@ -77,6 +78,21 @@ export default function DoctorDashboard() {
   useEffect(() => {
     void load();
   }, []);
+
+  async function refreshWorkflow(force = false) {
+    const [data, row] = await Promise.all([
+      getDashboardStats({ force }),
+      getWorkflowDashboardSummary({ force }),
+    ]);
+    setStats(data);
+    setSummary(row);
+  }
+
+  useEffect(() => subscribeClinicDashboardRealtime({
+    clinicId: profile?.clinic_id,
+    channelKey: "doctor-dashboard",
+    onChange: () => refreshWorkflow(true),
+  }), [profile?.clinic_id]);
 
   const appointments = useMemo<AppointmentRow[]>(
     () => ((stats?.todayAppointmentList ?? []) as AppointmentRow[]),

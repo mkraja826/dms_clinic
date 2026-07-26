@@ -21,7 +21,7 @@ export type GooglePlaySubscriptionStatus =
 
 export const FREE_PLAN_AMOUNT = 0;
 export const SUBSCRIPTION_PROFESSIONAL_AMOUNT = 799;
-export const SUBSCRIPTION_INTELLIGENCE_AMOUNT = 1500;
+export const SUBSCRIPTION_INTELLIGENCE_AMOUNT = 1499;
 export const SUBSCRIPTION_MONTHLY_AMOUNT = SUBSCRIPTION_PROFESSIONAL_AMOUNT;
 export const SUBSCRIPTION_YEARLY_AMOUNT = SUBSCRIPTION_PROFESSIONAL_AMOUNT * 12;
 
@@ -116,8 +116,8 @@ export function getClinicPlanName(subscription: ClinicSubscription | null): Clin
 }
 
 export function getClinicPlanLabel(plan: ClinicPlanName) {
-  if (plan === "clinic_intelligence") return "Clinic Intelligence";
-  if (plan === "professional") return "Professional";
+  if (plan === "clinic_intelligence") return "Intelligence";
+  if (plan === "professional") return "Cloud";
   return "Free";
 }
 

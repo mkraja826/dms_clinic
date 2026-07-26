@@ -1,6 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { Image, Linking, Pressable, Text, View } from "react-native";
+import { Linking, Pressable, Text, View } from "react-native";
+import { SecureStorageImage } from "@/components/SecureStorageImage";
+import { useResolvedStorageUrl } from "@/lib/storageUrls";
 
 export default function ImageViewerScreen() {
   const params = useLocalSearchParams<{
@@ -9,7 +11,8 @@ export default function ImageViewerScreen() {
     type?: string;
   }>();
 
-  const url = typeof params.url === "string" ? params.url : "";
+  const originalUrl = typeof params.url === "string" ? params.url : "";
+  const url = useResolvedStorageUrl(originalUrl);
   const name = typeof params.name === "string" ? params.name : "File";
   const type = typeof params.type === "string" ? params.type : "";
 
@@ -81,10 +84,10 @@ export default function ImageViewerScreen() {
 
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
         {url && looksLikeImage ? (
-          <Image
-            source={{ uri: url }}
+          <SecureStorageImage
+            uri={url}
             style={{ width: "100%", height: "100%" }}
-            resizeMode="contain"
+            contentFit="contain"
           />
         ) : (
           <View style={{ alignItems: "center", gap: 12, padding: 24 }}>

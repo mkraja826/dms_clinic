@@ -1,12 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, Text, TextInput, View } from "react-native";
 import { AppButton } from "@/components/AppButton";
 import { EmptyState } from "@/components/EmptyState";
 import { SectionCard } from "@/components/SectionCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { colors } from "@/constants/colors";
+import { useAuth } from "@/lib/auth";
+import { subscribeClinicOngoingTreatmentsRealtime } from "@/lib/realtime";
 import {
   getOngoingTreatments,
   updateOngoingTreatmentStatus,
@@ -70,35 +72,50 @@ export function OngoingTreatmentsSection({
   limit?: number;
 }) {
   const [items, setItems] = useState<OngoingTreatmentItem[]>([]);
+  const { profile } = useAuth();
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const updateLocksRef = useRef(new Set<string>());
 
-  async function load() {
+  async function load(showLoading = true) {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       const rows = await getOngoingTreatments({ limit, doctorOnly });
       setItems(rows);
     } catch (error) {
       console.warn("Ongoing treatments load failed:", error);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   }
 
   useEffect(() => {
-    load();
+    void load();
   }, [doctorOnly, limit]);
 
+  useEffect(() => subscribeClinicOngoingTreatmentsRealtime({
+    clinicId: profile?.clinic_id,
+    onChange: () => load(false),
+  }), [profile?.clinic_id, doctorOnly, limit]);
+
   async function updateStatus(item: OngoingTreatmentItem, status: OngoingTreatmentStatus) {
+    if (updateLocksRef.current.has(item.id)) return;
+    updateLocksRef.current.add(item.id);
+    const previousItems = items;
+    setUpdatingId(item.id);
+    setItems((current) => status === "completed" || status === "cancelled"
+      ? current.filter((row) => row.id !== item.id)
+      : current.map((row) => row.id === item.id ? { ...row, status } : row));
     try {
-      setUpdatingId(item.id);
       await updateOngoingTreatmentStatus(item.id, status);
-      await load();
+      await load(false);
       Alert.alert("Treatment updated", `${item.treatmentName} is now ${statusLabel(status).toLowerCase()}.`);
     } catch (error) {
+      setItems(previousItems);
       Alert.alert("Update failed", error instanceof Error ? error.message : "Please try again.");
     } finally {
+      updateLocksRef.current.delete(item.id);
       setUpdatingId(null);
     }
   }

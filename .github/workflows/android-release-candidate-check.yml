@@ -1,0 +1,44 @@
+name: Android release candidate check
+
+on:
+  push:
+    branches:
+      - android-release-candidate-2026-07-17
+  pull_request:
+    paths:
+      - "scripts/apply-android-rc-2026-07-17.mjs"
+      - "src/**"
+      - "app.json"
+      - "eas.json"
+      - "package.json"
+      - "package-lock.json"
+      - ".env.example"
+      - ".github/workflows/android-release-candidate-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out release candidate
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.1
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply grouped Android RC updates
+        run: node scripts/apply-android-rc-2026-07-17.mjs
+
+      - name: Check generated diff
+        run: git diff --check
+
+      - name: Validate Expo Android configuration
+        run: npx expo config --type public > /tmp/capdent-expo-config.txt

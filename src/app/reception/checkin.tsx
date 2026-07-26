@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Pressable, Text, TextInput, View } from "react-native";
+import { Alert, Image, Pressable, Text, TextInput, View } from "react-native";
 import { AppButton } from "@/components/AppButton";
 import { AppInput } from "@/components/AppInput";
 import { EmptyState } from "@/components/EmptyState";
@@ -9,8 +10,13 @@ import { Screen } from "@/components/Screen";
 import { SectionCard } from "@/components/SectionCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { colors } from "@/constants/colors";
-import { DEFAULT_OP_FEE_AMOUNT, getClinicFeatureSettings } from "@/lib/clinicOptions";
+import {
+  DEFAULT_CLINIC_FEATURE_SETTINGS,
+  DEFAULT_OP_FEE_AMOUNT,
+  getClinicFeatureSettings,
+} from "@/lib/clinicOptions";
 import { searchPatientsPage } from "@/lib/patientDirectory";
+import { uploadPatientProfilePhoto } from "@/lib/patientProfilePhoto";
 import { getClinicPatientLimitStatus, Patient, supabase } from "@/lib/supabase";
 
 type Mode = "existing" | "new";
@@ -53,6 +59,10 @@ export default function ReceptionCheckinScreen() {
   const [age, setAge] = useState("");
   const [gender, setGender] = useState("");
   const [address, setAddress] = useState("");
+  const [patientPhotosEnabled, setPatientPhotosEnabled] = useState(
+    DEFAULT_CLINIC_FEATURE_SETTINGS.enable_patient_photos
+  );
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
 
   const [clinicOpFee, setClinicOpFee] = useState(DEFAULT_OP_FEE_AMOUNT);
   const [opAmount, setOpAmount] = useState(String(DEFAULT_OP_FEE_AMOUNT));
@@ -64,6 +74,7 @@ export default function ReceptionCheckinScreen() {
   const [saving, setSaving] = useState(false);
   const patientRequestRef = useRef(0);
   const patientSearchMountedRef = useRef(false);
+  const checkInLockRef = useRef(false);
 
   async function loadPatients(searchText = patientSearch, refreshSettings = false) {
     const requestId = patientRequestRef.current + 1;
@@ -78,7 +89,7 @@ export default function ReceptionCheckinScreen() {
           pageSize: 12,
         }),
         refreshSettings
-          ? getClinicFeatureSettings().catch(() => ({ op_fee_amount: DEFAULT_OP_FEE_AMOUNT }))
+          ? getClinicFeatureSettings().catch(() => DEFAULT_CLINIC_FEATURE_SETTINGS)
           : Promise.resolve(null),
       ]);
 
@@ -88,6 +99,7 @@ export default function ReceptionCheckinScreen() {
         const nextOpFee = Math.round(Number(clinicSettings.op_fee_amount || DEFAULT_OP_FEE_AMOUNT));
         setClinicOpFee(nextOpFee);
         setOpAmount(String(nextOpFee));
+        setPatientPhotosEnabled(Boolean(clinicSettings.enable_patient_photos));
       }
 
       setPatients(patientResult.patients);
@@ -122,10 +134,23 @@ export default function ReceptionCheckinScreen() {
 
   const filteredPatients = patients;
 
+  async function pickPatientPhoto() {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+      allowsEditing: true,
+      aspect: [1, 1],
+    });
+
+    if (result.canceled) return;
+    setPhotoUri(result.assets[0].uri);
+  }
+
   function resetPatientSelection(nextMode: Mode) {
     setMode(nextMode);
     setSelectedPatientId("");
     setPatientSearch("");
+    setPhotoUri(null);
   }
 
   function clearForm() {
@@ -136,6 +161,7 @@ export default function ReceptionCheckinScreen() {
     setAge("");
     setGender("");
     setAddress("");
+    setPhotoUri(null);
     setOpAmount(String(clinicOpFee));
     setOpStatus("paid");
     setWaiverReason("Doctor waived");
@@ -144,6 +170,8 @@ export default function ReceptionCheckinScreen() {
   }
 
   async function checkIn(skipLimitWarning = false) {
+    if (saving || checkInLockRef.current) return;
+
     const fee = toNumber(opAmount);
 
     if (opStatus !== "waived" && fee <= 0) {
@@ -165,6 +193,9 @@ export default function ReceptionCheckinScreen() {
       Alert.alert("Name required", "Enter patient name.");
       return;
     }
+
+    checkInLockRef.current = true;
+    setSaving(true);
 
     try {
       if (mode === "new" && !skipLimitWarning) {
@@ -210,6 +241,17 @@ export default function ReceptionCheckinScreen() {
       const result = Array.isArray(data) ? data[0] : data;
       const patientId = result?.patient_id || selectedPatientId;
       let limitNotice = "";
+      let photoNotice = "";
+
+      if (mode === "new" && patientPhotosEnabled && photoUri && patientId) {
+        try {
+          await uploadPatientProfilePhoto(patientId, photoUri);
+          photoNotice = "\n\nPatient photo added.";
+        } catch (photoError) {
+          console.warn("Reception patient photo upload failed:", photoError);
+          photoNotice = "\n\nPatient checked in, but the photo could not upload. Add it later from Edit details.";
+        }
+      }
 
       if (mode === "new") {
         const nextUsage = await getClinicPatientLimitStatus();
@@ -220,10 +262,10 @@ export default function ReceptionCheckinScreen() {
 
       const message =
         opStatus === "paid"
-          ? `OP fee ${money(fee)} collected. Patient is now in doctor's waiting queue.${limitNotice}`
+          ? `OP fee ${money(fee)} collected. Patient is now in doctor's waiting queue.${photoNotice}${limitNotice}`
           : opStatus === "pending"
-          ? `OP fee ${money(fee)} marked pending. Patient is now in doctor's waiting queue.${limitNotice}`
-          : `OP fee waived: ${waiverReason}. Patient is now in doctor's waiting queue.${limitNotice}`;
+          ? `OP fee ${money(fee)} marked pending. Patient is now in doctor's waiting queue.${photoNotice}${limitNotice}`
+          : `OP fee waived: ${waiverReason}. Patient is now in doctor's waiting queue.${photoNotice}${limitNotice}`;
 
       Alert.alert("Patient checked in", message, [
         {
@@ -238,6 +280,7 @@ export default function ReceptionCheckinScreen() {
     } catch (error) {
       Alert.alert("Check-in failed", getErrorMessage(error));
     } finally {
+      checkInLockRef.current = false;
       setSaving(false);
     }
   }
@@ -323,6 +366,36 @@ export default function ReceptionCheckinScreen() {
         </SectionCard>
       ) : (
         <SectionCard title="Register New Patient" subtitle="Enter only the minimum details needed for quick clinic entry.">
+          {patientPhotosEnabled ? (
+            <View style={{ alignItems: "flex-end" }}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={photoUri ? "Change patient photo" : "Add patient photo"}
+                onPress={pickPatientPhoto}
+                style={({ pressed }) => ({
+                  width: 52,
+                  height: 52,
+                  borderRadius: 18,
+                  borderWidth: 1,
+                  borderColor: photoUri ? colors.primary : colors.border,
+                  backgroundColor: pressed ? colors.surfaceSoft : colors.primarySoft,
+                  overflow: "hidden",
+                  alignItems: "center",
+                  justifyContent: "center",
+                })}
+              >
+                {photoUri ? (
+                  <Image
+                    source={{ uri: photoUri }}
+                    style={{ width: "100%", height: "100%" }}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Ionicons name="person-add-outline" size={25} color={colors.primary} />
+                )}
+              </Pressable>
+            </View>
+          ) : null}
           <AppInput label="Patient Name" value={name} onChangeText={setName} placeholder="Patient name" />
           <AppInput label="Phone" value={phone} onChangeText={setPhone} placeholder="Phone number" keyboardType="phone-pad" />
           <AppInput label="Age" value={age} onChangeText={setAge} placeholder="Age" keyboardType="numeric" />

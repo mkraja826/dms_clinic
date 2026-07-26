@@ -3,15 +3,13 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system/legacy";
 import { createClient, processLock } from "@supabase/supabase-js";
 import { AppState, Platform } from "react-native";
+import { optimizeUploadImage, withImageExtension } from "@/lib/imageCompression";
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey =
   process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
   process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ??
   "";
-const uploadProvider = (process.env.EXPO_PUBLIC_UPLOAD_PROVIDER ?? "supabase").toLowerCase();
-const shouldUseR2Storage = uploadProvider === "r2";
-const shouldRequireR2Storage = process.env.EXPO_PUBLIC_UPLOAD_STRICT_R2 === "true";
 
 const hasRealSupabaseUrl =
   /^https:\/\/[a-zA-Z0-9-]+\.supabase\.co$/.test(supabaseUrl) &&
@@ -57,9 +55,10 @@ const STAFF_CACHE_TTL_MS = 60_000;
 export const FREE_PATIENT_LIMIT = 100;
 export const FREE_PATIENT_NOTICE_REMAINING = 50;
 export const FREE_PATIENT_WARNING_REMAINING = 10;
+export const CAPDENT_CURRENTLY_FREE_MESSAGE = "CapDent is currently free for all clinics.";
 
 type CacheOptions = { force?: boolean };
-type AppDataCacheScope = "dashboard" | "patients" | "appointments" | "payments" | "staff";
+type AppDataCacheScope = "dashboard" | "patients" | "appointments" | "payments" | "treatments" | "staff";
 type QueryCacheEntry<T> = {
   data: T;
   expiresAt: number;
@@ -235,19 +234,9 @@ export type UploadProgressState = {
 };
 
 type StorageUploadResult = {
-  provider: "supabase" | "r2";
+  provider: "supabase";
   storagePath: string;
   publicUrl: string;
-};
-
-type R2SignedUpload = {
-  provider: "r2";
-  uploadUrl: string;
-  publicUrl: string;
-  objectKey: string;
-  bucket: string;
-  expiresIn: number;
-  headers: Record<string, string>;
 };
 
 export type Profile = {
@@ -349,6 +338,11 @@ export type PatientFile = {
   xray_amount?: number | null;
   xray_fee_status?: "not_applicable" | "pending" | "paid" | "waived" | null;
   uploaded_by: string | null;
+  storage_bucket?: string | null;
+  storage_path?: string | null;
+  mime_type?: string | null;
+  original_size_bytes?: number | null;
+  stored_size_bytes?: number | null;
   created_at: string;
 };
 
@@ -579,38 +573,6 @@ function storageUploadError(status: number, body: string) {
   }
 }
 
-function unknownErrorMessage(error: unknown) {
-  if (error instanceof Error) return error.message;
-  if (typeof error === "string") return error;
-  if (typeof error === "object" && error && "message" in error) {
-    return String((error as { message?: unknown }).message);
-  }
-  return "Unknown error";
-}
-
-function isResponseLike(value: unknown): value is { status: number; text: () => Promise<string> } {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "status" in value &&
-    "text" in value &&
-    typeof (value as { text?: unknown }).text === "function"
-  );
-}
-
-async function edgeFunctionErrorMessage(error: unknown) {
-  const context = typeof error === "object" && error && "context" in error
-    ? (error as { context?: unknown }).context
-    : null;
-
-  if (isResponseLike(context)) {
-    const body = await context.text().catch(() => "");
-    return storageUploadError(context.status, body);
-  }
-
-  return unknownErrorMessage(error);
-}
-
 async function readFileBlob(uri: string) {
   const fileResponse = await fetch(uri);
   if (!fileResponse.ok) {
@@ -709,7 +671,7 @@ async function uploadSupabaseStorageObjectWithProgress(input: {
       headers: {
         apikey: supabaseAnonKey,
         Authorization: `Bearer ${bearerToken}`,
-        "cache-control": "max-age=3600",
+        "cache-control": "max-age=31536000, immutable",
         "content-type": input.mimeType || body.type || "application/octet-stream",
         "x-upsert": "false",
       },
@@ -734,6 +696,7 @@ async function uploadSupabaseStorageObjectWithProgress(input: {
       .from(input.bucket)
       .upload(input.storagePath, bytes, {
         contentType: input.mimeType ?? "application/octet-stream",
+        cacheControl: "31536000",
       });
 
     if (uploadError) {
@@ -757,81 +720,6 @@ async function uploadSupabaseStorageObjectWithProgress(input: {
     provider: "supabase",
     storagePath: input.storagePath,
     publicUrl: publicUrl.publicUrl,
-  };
-}
-
-async function uploadR2StorageObjectWithProgress(input: {
-  patient_id: string;
-  file_type: FileType;
-  uri: string;
-  file_name: string;
-  mimeType?: string | null;
-  onProgress?: (progress: UploadProgressState) => void;
-}): Promise<StorageUploadResult> {
-  emitUploadProgress(input.onProgress, {
-    phase: "preparing",
-    percent: 0,
-    message: "Preparing selected file",
-  });
-
-  const body = await readFileBlob(input.uri);
-  const mimeType = input.mimeType || body.type || "application/octet-stream";
-
-  emitUploadProgress(input.onProgress, {
-    phase: "preparing",
-    percent: 4,
-    bytesSent: 0,
-    totalBytes: body.size,
-    message: "Requesting R2 upload link",
-  });
-
-  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-  const accessToken = sessionData.session?.access_token;
-
-  if (sessionError || !accessToken) {
-    throw new Error("Login session expired. Please sign out and sign in again before uploading.");
-  }
-
-  const { data, error } = await supabase.functions.invoke<R2SignedUpload>("create-r2-upload-url", {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-    body: {
-      patient_id: input.patient_id,
-      file_type: input.file_type,
-      file_name: input.file_name,
-      mime_type: mimeType,
-    },
-  });
-
-  if (error) throw new Error(await edgeFunctionErrorMessage(error));
-  if (!data?.uploadUrl || !data.publicUrl || !data.objectKey) {
-    throw new Error("R2 upload link was not returned.");
-  }
-
-  emitUploadProgress(input.onProgress, {
-    phase: "uploading",
-    percent: 8,
-    bytesSent: 0,
-    totalBytes: body.size,
-    message: "Uploading file to Cloudflare R2",
-  });
-
-  await uploadBlobToUrlWithProgress({
-    url: data.uploadUrl,
-    method: "PUT",
-    body,
-    headers: data.headers || { "Content-Type": mimeType },
-    onProgress: input.onProgress,
-    startPercent: 8,
-    endPercent: 93,
-    message: "Uploading file to Cloudflare R2",
-  });
-
-  return {
-    provider: "r2",
-    storagePath: data.objectKey,
-    publicUrl: data.publicUrl,
   };
 }
 
@@ -1088,7 +976,7 @@ export async function getPatients(options?: CacheOptions) {
     async () => {
       const { data, error } = await supabase
         .from("patients")
-        .select("*")
+        .select("id,clinic_id,patient_code,name,gender,age,dob,phone,email,address,emergency_contact,created_at")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -1099,14 +987,15 @@ export async function getPatients(options?: CacheOptions) {
 }
 
 export async function searchPatients(query: string) {
-  const term = query.trim();
+  const term = query.trim().replace(/[,()%]/g, " ").replace(/\s+/g, " ").slice(0, 80);
   if (!term) return getPatients();
 
   const { data, error } = await supabase
     .from("patients")
-    .select("*")
+    .select("id,clinic_id,patient_code,name,gender,age,dob,phone,email,address,emergency_contact,created_at")
     .or(`name.ilike.%${term}%,phone.ilike.%${term}%`)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(100);
 
   if (error) throw error;
   return data as Patient[];
@@ -1196,79 +1085,23 @@ export async function searchPatientsAdvanced(input: {
   return data as Patient[];
 }
 
-function paidSubscriptionAllowsUnlimitedPatients(subscription: any) {
-  if (!subscription) return false;
+async function getClinicPatientLimitStatusForClinic(
+  clinicId: string
+): Promise<ClinicPatientLimitStatus> {
+  const { count, error } = await supabase
+    .from("patients")
+    .select("id", { count: "exact", head: true })
+    .eq("clinic_id", clinicId);
 
-  const planName = String(subscription.plan_name || "").toLowerCase();
-  const status = String(subscription.status || "").toLowerCase();
-  const googleStatus = String(subscription.google_play_status || "").toLowerCase();
-
-  if (status !== "active" && status !== "grace_period") return false;
-  if (googleStatus === "cancelled" || googleStatus === "expired" || googleStatus === "account_hold") return false;
-
-  return planName !== "free";
-}
-
-function patientLimitMessage(remaining: number) {
-  if (remaining <= 0) {
-    return "Free patient limit reached. Start the Professional 3-month free trial to continue adding new patients.";
-  }
-
-  if (remaining <= FREE_PATIENT_WARNING_REMAINING) {
-    return `Only ${remaining} patient slot${remaining === 1 ? "" : "s"} remaining on Free. Start the Professional 3-month free trial to continue without limits.`;
-  }
-
-  if (remaining <= FREE_PATIENT_NOTICE_REMAINING) {
-    return `${remaining} patient slots remaining on Free. Professional gives unlimited patient records after the 3-month free trial.`;
-  }
-
-  return `${remaining} patient slots remaining on Free.`;
-}
-
-async function getClinicPatientLimitStatusForClinic(clinicId: string): Promise<ClinicPatientLimitStatus> {
-  const [{ count, error: countError }, { data: subscription, error: subscriptionError }] = await Promise.all([
-    supabase.from("patients").select("id", { count: "exact", head: true }).eq("clinic_id", clinicId),
-    supabase
-      .from("clinic_subscriptions")
-      .select("plan_name,status,google_play_status")
-      .eq("clinic_id", clinicId)
-      .maybeSingle(),
-  ]);
-
-  if (countError) throw countError;
-  if (subscriptionError) throw subscriptionError;
-
-  const patientCount = count ?? 0;
-  const unlimited = paidSubscriptionAllowsUnlimitedPatients(subscription);
-
-  if (unlimited) {
-    return {
-      count: patientCount,
-      limit: FREE_PATIENT_LIMIT,
-      remaining: null,
-      unlimited: true,
-      level: "none",
-      message: "Paid plan active. Patient records are unlimited.",
-    };
-  }
-
-  const remaining = Math.max(FREE_PATIENT_LIMIT - patientCount, 0);
-  const level =
-    remaining <= 0
-      ? "blocked"
-      : remaining <= FREE_PATIENT_WARNING_REMAINING
-      ? "warning"
-      : remaining <= FREE_PATIENT_NOTICE_REMAINING
-      ? "notice"
-      : "none";
+  if (error) throw error;
 
   return {
-    count: patientCount,
+    count: count ?? 0,
     limit: FREE_PATIENT_LIMIT,
-    remaining,
-    unlimited: false,
-    level,
-    message: patientLimitMessage(remaining),
+    remaining: null,
+    unlimited: true,
+    level: "none",
+    message: CAPDENT_CURRENTLY_FREE_MESSAGE,
   };
 }
 
@@ -1751,49 +1584,22 @@ export async function uploadPatientFile(input: {
   const profile = await getCurrentProfile();
   if (!profile?.clinic_id) throw new Error("Clinic profile not found");
 
-  const storagePath = `${profile.clinic_id}/${input.patient_id}/${Date.now()}-${input.file_name}`;
-  let storageResult: StorageUploadResult;
+  emitUploadProgress(input.onProgress, {
+    phase: "preparing",
+    percent: 1,
+    message: "Optimizing image without visible quality loss",
+  });
 
-  if (shouldUseR2Storage) {
-    try {
-      storageResult = await uploadR2StorageObjectWithProgress({
-        patient_id: input.patient_id,
-        file_type: input.file_type,
-        uri: input.uri,
-        file_name: input.file_name,
-        mimeType: input.mimeType,
-        onProgress: input.onProgress,
-      });
-    } catch (r2UploadError) {
-      const r2Message = r2UploadError instanceof Error ? r2UploadError.message : "Unknown R2 upload error";
-
-      if (shouldRequireR2Storage) {
-        throw new Error(`Cloudflare R2 upload failed: ${r2Message}`);
-      }
-
-      emitUploadProgress(input.onProgress, {
-        phase: "uploading",
-        percent: 20,
-        message: `R2 unavailable, retrying Supabase Storage: ${r2Message}`,
-      });
-
-      storageResult = await uploadSupabaseStorageObjectWithProgress({
-        bucket: input.bucket,
-        storagePath,
-        uri: input.uri,
-        mimeType: input.mimeType,
-        onProgress: input.onProgress,
-      });
-    }
-  } else {
-    storageResult = await uploadSupabaseStorageObjectWithProgress({
-      bucket: input.bucket,
-      storagePath,
-      uri: input.uri,
-      mimeType: input.mimeType,
-      onProgress: input.onProgress,
-    });
-  }
+  const optimized = await optimizeUploadImage(input.uri, input.file_type);
+  const optimizedFileName = withImageExtension(input.file_name, optimized.extension);
+  const storagePath = `${profile.clinic_id}/${input.patient_id}/${Date.now()}-${optimizedFileName}`;
+  const storageResult = await uploadSupabaseStorageObjectWithProgress({
+    bucket: input.bucket,
+    storagePath,
+    uri: optimized.uri,
+    mimeType: optimized.mimeType,
+    onProgress: input.onProgress,
+  });
 
   emitUploadProgress(input.onProgress, {
     phase: "saving",
@@ -1807,7 +1613,12 @@ export async function uploadPatientFile(input: {
     visit_id: input.visit_id ?? null,
     file_type: input.file_type,
     file_url: storageResult.publicUrl,
-    file_name: input.file_name,
+    file_name: optimizedFileName,
+    storage_bucket: input.bucket,
+    storage_path: storageResult.storagePath,
+    mime_type: optimized.mimeType,
+    original_size_bytes: optimized.originalSizeBytes,
+    stored_size_bytes: optimized.storedSizeBytes,
     uploaded_by: profile.id,
     file_note: input.file_note ?? null,
     xray_amount: input.file_type === "xray" ? Number(input.xray_amount ?? 0) : 0,
@@ -1830,14 +1641,29 @@ export async function uploadPatientFile(input: {
         visit_id: input.visit_id ?? null,
         file_type: input.file_type,
         file_url: storageResult.publicUrl,
-        file_name: input.file_name,
+        file_name: optimizedFileName,
+        storage_bucket: input.bucket,
+        storage_path: storageResult.storagePath,
+        mime_type: optimized.mimeType,
+        original_size_bytes: optimized.originalSizeBytes,
+        stored_size_bytes: optimized.storedSizeBytes,
         uploaded_by: profile.id,
       })
       .select("*")
       .single<PatientFile>();
   }
 
-  if (response.error) throw response.error;
+  if (response.error) {
+    const { error: cleanupError } = await supabase.storage
+      .from(input.bucket)
+      .remove([storageResult.storagePath]);
+
+    if (cleanupError) {
+      console.warn("Unable to remove orphaned Storage upload:", cleanupError.message);
+    }
+
+    throw response.error;
+  }
 
   const xrayAmount = Number(input.xray_amount ?? 0);
   if (input.file_type === "xray" && xrayAmount > 0 && input.xray_fee_status !== "waived") {
@@ -1885,7 +1711,95 @@ async function deletePatientFileDirect(fileId: string) {
   }
 }
 
+type PatientFileDeletionTarget = Pick<
+  PatientFile,
+  "id" | "file_type" | "file_url" | "storage_bucket" | "storage_path"
+>;
+
+function defaultPatientFileBucket(fileType: FileType) {
+  if (fileType === "xray") return "xrays";
+  if (fileType === "prescription") return "prescriptions";
+  return "patient-files";
+}
+
+function decodeStorageUrlPart(value: string) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function storageReferenceFromPatientFile(file: PatientFileDeletionTarget) {
+  if (file.storage_bucket && file.storage_path) {
+    return { bucket: file.storage_bucket, path: file.storage_path };
+  }
+
+  const value = file.file_url?.trim();
+  if (!value) return null;
+
+  if (value.startsWith("supabase://")) {
+    const objectReference = value.slice("supabase://".length).split("?")[0];
+    const separator = objectReference.indexOf("/");
+    if (separator > 0) {
+      return {
+        bucket: decodeStorageUrlPart(objectReference.slice(0, separator)),
+        path: decodeStorageUrlPart(objectReference.slice(separator + 1)),
+      };
+    }
+  }
+
+  const markers = [
+    "/storage/v1/object/public/",
+    "/storage/v1/object/sign/",
+    "/storage/v1/object/authenticated/",
+  ];
+
+  for (const marker of markers) {
+    const markerIndex = value.indexOf(marker);
+    if (markerIndex === -1) continue;
+
+    const objectReference = value.slice(markerIndex + marker.length).split("?")[0];
+    const separator = objectReference.indexOf("/");
+    if (separator <= 0) continue;
+
+    return {
+      bucket: decodeStorageUrlPart(objectReference.slice(0, separator)),
+      path: decodeStorageUrlPart(objectReference.slice(separator + 1)),
+    };
+  }
+
+  return null;
+}
+
+async function deletePatientFileStorageObject(file: PatientFileDeletionTarget) {
+  const reference = storageReferenceFromPatientFile(file);
+  const bucket = reference?.bucket || defaultPatientFileBucket(file.file_type);
+  const path = reference?.path;
+
+  // Legacy external links do not point to Supabase Storage and have no object to remove.
+  if (!path) return;
+
+  const { error } = await supabase.storage.from(bucket).remove([path]);
+  if (error) {
+    throw new Error(`Stored file could not be deleted: ${error.message}`);
+  }
+}
+
 export async function deletePatientFileRecord(fileId: string) {
+  const { data: file, error: lookupError } = await supabase
+    .from("files")
+    .select("id,file_type,file_url,storage_bucket,storage_path")
+    .eq("id", fileId)
+    .maybeSingle<PatientFileDeletionTarget>();
+
+  if (lookupError) throw lookupError;
+  if (!file) {
+    throw new Error("File not found or you do not have permission to delete it.");
+  }
+
+  await deletePatientFileStorageObject(file);
+
   const { data, error } = await supabase.rpc("delete_patient_file", {
     p_file_id: fileId,
   });

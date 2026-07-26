@@ -41,6 +41,7 @@ expo-env.d.ts
 credentials.json
 .codex-remote-attachments/
 *.tgz
+.codex-v18-export/
 # Local secrets and generated files
 *.jks
 credentials.json

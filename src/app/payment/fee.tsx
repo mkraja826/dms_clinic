@@ -134,6 +134,7 @@ export default function ReceptionFeeScreen() {
   const [saving, setSaving] = useState(false);
   const patientRequestRef = useRef(0);
   const patientSearchMountedRef = useRef(false);
+  const collectFeeLockRef = useRef(false);
 
   const config = getFeeConfig(feeType);
   const money = (value: string | number) =>
@@ -232,6 +233,8 @@ export default function ReceptionFeeScreen() {
   }
 
   async function collectFee() {
+    if (saving || collectFeeLockRef.current) return;
+
     if (!selectedPatientId) {
       Alert.alert("Patient missing", "Select patient first.");
       return;
@@ -243,6 +246,7 @@ export default function ReceptionFeeScreen() {
       return;
     }
 
+    collectFeeLockRef.current = true;
     setSaving(true);
     setSuccessMessage("");
 
@@ -280,6 +284,7 @@ export default function ReceptionFeeScreen() {
     } catch (error) {
       Alert.alert("Collection failed", getErrorMessage(error));
     } finally {
+      collectFeeLockRef.current = false;
       setSaving(false);
     }
   }

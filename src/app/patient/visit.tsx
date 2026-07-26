@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Alert, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { AppButton } from "@/components/AppButton";
 import { AppInput } from "@/components/AppInput";
 import { EmptyState } from "@/components/EmptyState";
@@ -183,6 +183,7 @@ export default function AddVisitScreen() {
   );
   const patientRequestRef = useRef(0);
   const patientSearchMountedRef = useRef(false);
+  const saveVisitLockRef = useRef(false);
   const formatMoney = (value: string | number | null | undefined) =>
     formatClinicMoney(value, currencyCode);
 
@@ -398,8 +399,12 @@ export default function AddVisitScreen() {
   const selectedTime = TIME_SLOTS[selectedTimeIndex] || TIME_SLOTS[0];
   const treatmentCostValue = toNumber(treatmentCost);
   const paidNowValue = toNumber(paidAmount);
-  const balanceAfterVisit = Math.max(pendingBalance + treatmentCostValue - paidNowValue, 0);
+  const ongoingPaidValue = toNumber(ongoingPaidAmount);
   const hasActiveTreatment = activeTreatments.length > 0;
+  const balanceAfterVisit =
+    hasActiveTreatment && treatmentFlow === "ongoing"
+      ? Math.max(pendingBalance - ongoingPaidValue, 0)
+      : Math.max(pendingBalance + treatmentCostValue - paidNowValue, 0);
   const primaryActiveTreatment = activeTreatments[0] || null;
   const activeTreatmentKey = `${selectedPatientId}:${activeTreatments.map((item) => item.id).join(",")}`;
   const hasNewTreatmentEntry = Boolean(treatmentName.trim() || treatmentCategory.trim() || treatmentCostValue > 0 || paidNowValue > 0);
@@ -486,7 +491,7 @@ export default function AddVisitScreen() {
   }, [selectedPatientId, loadingActiveTreatments, hasActiveTreatment, activeTreatmentKey, promptedTreatmentKey]);
 
   async function saveVisit(options?: { confirmedSeparateTreatment?: boolean; flow?: TreatmentFlow }) {
-    if (saving) return;
+    if (saving || saveVisitLockRef.current) return;
 
     if (!selectedPatientId) {
       Alert.alert("Patient missing", "Select the patient first.");
@@ -506,7 +511,7 @@ export default function AddVisitScreen() {
     const followupDateTime = bookFollowup ? makeDateTime(selectedDate.date, selectedTime) : null;
 
     if (followupDateTime && followupDateTime.getTime() <= Date.now()) {
-      Alert.alert("Invalid appointment", "Follow-up must be within clinic hours and in the future.");
+      Alert.alert("Invalid appointment", "Follow-up must be in the future.");
       return;
     }
 
@@ -517,12 +522,8 @@ export default function AddVisitScreen() {
     const continuingExistingTreatment = hasActiveTreatment && selectedFlow === "ongoing";
     const creatingSeparateTreatment = hasActiveTreatment && selectedFlow === "new";
     const shouldCreateTreatment = !continuingExistingTreatment && Boolean(treatmentName.trim() || cost > 0);
-    const newTreatmentDueAfterVisit = shouldCreateTreatment ? Math.max(cost - paid, 0) : 0;
-    const existingTreatmentDueAfterVisit = continuingExistingTreatment
-      ? Math.max(activeTreatmentDue - ongoingCollected, 0)
-      : 0;
-    const shouldCompleteNewTreatment = shouldCreateTreatment && !followupDateTime && newTreatmentDueAfterVisit <= 0;
-    const shouldCompleteExistingTreatment = continuingExistingTreatment && !followupDateTime && existingTreatmentDueAfterVisit <= 0;
+    const shouldCompleteNewTreatment = shouldCreateTreatment && !followupDateTime;
+    const shouldCompleteExistingTreatment = continuingExistingTreatment && !followupDateTime;
 
     if (hasActiveTreatment && selectedFlow === "undecided") {
       Alert.alert("Choose treatment type", "Select Ongoing Treatment or New Treatment from the Ongoing treatment check card, then press Save again.");
@@ -561,6 +562,7 @@ export default function AddVisitScreen() {
       return;
     }
 
+    saveVisitLockRef.current = true;
     setSaving(true);
 
     try {
@@ -573,16 +575,18 @@ export default function AddVisitScreen() {
           ? `Ongoing treatment visit: ${primaryActiveTreatment?.treatment_name || "existing treatment"}. ${
               followupDateTime
                 ? "Follow-up planned; treatment remains ongoing."
-                : shouldCompleteExistingTreatment
-                  ? "No due and no follow-up; treatment marked completed."
-                  : "Pending due remains; treatment stays ongoing."
+                : "No follow-up; treatment marked completed. Any pending payment remains separate."
             }`
           : undefined,
         next_appointment_date: followupDateTime ? followupDateTime.toISOString() : null,
         treatment_name: shouldCreateTreatment ? treatmentName.trim() : undefined,
         treatment_cost: shouldCreateTreatment ? cost : undefined,
         treatment_category: shouldCreateTreatment ? treatmentCategory.trim() || undefined : undefined,
-        treatment_status: shouldCompleteNewTreatment ? "completed" : undefined,
+        treatment_status: shouldCreateTreatment
+          ? shouldCompleteNewTreatment
+            ? "completed"
+            : "ongoing"
+          : undefined,
       });
 
 
@@ -632,20 +636,24 @@ export default function AddVisitScreen() {
         p_patient_id: selectedPatientId,
       });
 
+      if (Platform.OS === "web") {
+        router.replace(`/patient/${selectedPatientId}` as never);
+        return;
+      }
+
       Alert.alert(
         continuingExistingTreatment ? "Ongoing visit saved" : "Visit saved",
         continuingExistingTreatment
           ? followupDateTime
             ? "Visit saved under the existing treatment. Follow-up added, so treatment remains ongoing."
-            : shouldCompleteExistingTreatment
-              ? "Visit saved under the existing treatment. No due and no follow-up, so treatment is marked completed."
-              : "Visit saved under the existing treatment. Pending due remains, so treatment stays ongoing."
+            : "Visit saved under the existing treatment. No follow-up, so treatment is marked completed. Any pending payment remains separate."
           : `Visit saved under ${selectedDoctor?.name || "selected doctor"} and patient removed from waiting queue.`,
         [{ text: "Open Patient", onPress: () => router.replace(`/patient/${selectedPatientId}` as never) }]
       );
     } catch (error) {
       Alert.alert("Save visit failed", getErrorMessage(error));
     } finally {
+      saveVisitLockRef.current = false;
       setSaving(false);
     }
   }
@@ -781,7 +789,7 @@ export default function AddVisitScreen() {
 
                 <Text style={{ color: colors.text, fontWeight: "900" }}>Treatment pending: {formatMoney(activeTreatmentDue)}</Text>
                 <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 18 }}>
-                  Ongoing + no due + no follow-up = completed. Pending due or follow-up keeps it ongoing.
+                  Follow-up keeps treatment ongoing. No follow-up marks treatment completed; any pending payment remains separate.
                 </Text>
               </View>
 
@@ -1038,7 +1046,7 @@ export default function AddVisitScreen() {
         ) : null}
       </SectionCard>
 
-      <SectionCard title="Follow-up Appointment" subtitle="Optional. Allowed timings: 11:00 AM-1:30 PM and 5:00 PM-7:30 PM only.">
+      <SectionCard title="Follow-up Appointment" subtitle="Optional. Choose a future date and one of the suggested time slots.">
         <Pressable
           onPress={() => setBookFollowup((current) => !current)}
           style={{

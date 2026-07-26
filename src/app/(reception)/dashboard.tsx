@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
-import { Alert, Image, Pressable, Text, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Alert, Pressable, Text, View } from "react-native";
 import { ActionCard } from "@/components/ActionCard";
 import { AppButton } from "@/components/AppButton";
 import { ClinicBrandHeader } from "@/components/ClinicBrandHeader";
@@ -9,12 +9,14 @@ import { EmptyState } from "@/components/EmptyState";
 import { RescheduleAppointmentModal } from "@/components/RescheduleAppointmentModal";
 import { Screen } from "@/components/Screen";
 import { SectionCard } from "@/components/SectionCard";
+import { SecureStorageImage } from "@/components/SecureStorageImage";
 import { StatCard } from "@/components/StatCard";
 import { WaitingAppointmentActions } from "@/components/WaitingAppointmentActions";
 import { WorkflowBottomNav } from "@/components/WorkflowBottomNav";
 import { colors } from "@/constants/colors";
 import { receptionWorkflowNavItems } from "@/constants/workflowNav";
 import { useAuth } from "@/lib/auth";
+import { subscribeClinicDashboardRealtime } from "@/lib/realtime";
 import {
   ClinicFeatureSettings,
   DEFAULT_CLINIC_FEATURE_SETTINGS,
@@ -86,6 +88,7 @@ export default function ReceptionDashboard() {
   const [loading, setLoading] = useState(true);
   const [busyAppointmentId, setBusyAppointmentId] = useState<string | null>(null);
   const [rescheduleItem, setRescheduleItem] = useState<AppointmentRow | null>(null);
+  const completionLocksRef = useRef(new Set<string>());
 
   async function load(force = false) {
     try {
@@ -129,6 +132,28 @@ export default function ReceptionDashboard() {
     void load();
   }, []);
 
+  async function refreshWorkflow(force = false) {
+    const [data, row] = await Promise.all([
+      getDashboardStats({ force }),
+      getWorkflowDashboardSummary({ force }),
+    ]);
+    const { data: appointmentRows, error } = await supabase
+      .from("appointments")
+      .select("id,patient_id,appointment_time,status,patients(id,name,phone,photo_url)")
+      .gte("appointment_time", startOfToday())
+      .lte("appointment_time", endOfToday())
+      .in("status", ["scheduled", "waiting", "checked_in", "booked"])
+      .order("appointment_time", { ascending: true });
+    setStats(!error && Array.isArray(appointmentRows) ? { ...data, todayAppointmentList: appointmentRows as any } : data);
+    if (row) setSummary(row);
+  }
+
+  useEffect(() => subscribeClinicDashboardRealtime({
+    clinicId: profile?.clinic_id,
+    channelKey: "reception-dashboard",
+    onChange: () => refreshWorkflow(true),
+  }), [profile?.clinic_id]);
+
   async function performReschedule(item: AppointmentRow, nextTime: Date) {
     try {
       setBusyAppointmentId(item.id);
@@ -138,7 +163,7 @@ export default function ReceptionDashboard() {
         `Rescheduled by reception from ${appointmentDateTime(item.appointment_time)} to ${appointmentDateTime(nextTime.toISOString())}.`
       );
       setRescheduleItem(null);
-      await load(true);
+      await refreshWorkflow(true);
     } catch (error) {
       Alert.alert("Reschedule failed", error instanceof Error ? error.message : "Please try again.");
     } finally {
@@ -147,13 +172,29 @@ export default function ReceptionDashboard() {
   }
 
   async function performComplete(item: AppointmentRow) {
+    if (completionLocksRef.current.has(item.id)) return;
+    completionLocksRef.current.add(item.id);
+    const previousStats = stats;
+    const previousSummary = summary;
+    setBusyAppointmentId(item.id);
+    setStats((current) => current ? {
+      ...current,
+      todayAppointmentList: ((current.todayAppointmentList ?? []) as AppointmentRow[]).filter((row) => row.id !== item.id) as any,
+    } : current);
+    setSummary((current: any) => current ? {
+      ...current,
+      waiting_count: Math.max(Number(current.waiting_count || 0) - 1, 0),
+      completed_count: Number(current.completed_count || 0) + 1,
+    } : current);
     try {
-      setBusyAppointmentId(item.id);
       await updateAppointmentStatus(item.id, "completed");
-      await load(true);
+      await refreshWorkflow(true);
     } catch (error) {
+      setStats(previousStats);
+      setSummary(previousSummary);
       Alert.alert("Complete failed", error instanceof Error ? error.message : "Please try again.");
     } finally {
+      completionLocksRef.current.delete(item.id);
       setBusyAppointmentId(null);
     }
   }
@@ -461,7 +502,7 @@ function PatientAvatar({
       }}
     >
       {photoUrl ? (
-        <Image source={{ uri: photoUrl }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+        <SecureStorageImage uri={photoUrl} style={{ width: "100%", height: "100%" }} contentFit="cover" />
       ) : (
         <Ionicons name={warning ? "time-outline" : "person-outline"} size={22} color={warning ? colors.warning : colors.primary} />
       )}
