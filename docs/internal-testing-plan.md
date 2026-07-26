@@ -8,6 +8,10 @@ Use `release/capdent-v18`.
 
 Do not merge to main until testing is complete.
 
+The next Android artifact must use version code `20`. Before starting any EAS
+Android build, run `npm run verify:android-signing`; the approved upload
+certificate SHA-1 begins with `EC:7F`.
+
 ## Test tenant
 
 Use the Supabase clinic stored as `Pavani dental` for v18 application and

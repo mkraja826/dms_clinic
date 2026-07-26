@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 
 const VERSION_NAME = "1.2.0";
-const VERSION_CODE = 18;
+const VERSION_CODE = 20;
 
 function updateJson(path, transform) {
   if (!existsSync(path)) return;
@@ -32,16 +32,23 @@ updateJson("package-lock.json", (config) => {
 const nativeGradlePath = "android/app/build.gradle";
 if (existsSync(nativeGradlePath)) {
   const original = readFileSync(nativeGradlePath, "utf8");
-  const updated = original
-    .replace(/versionCode\s+\d+/, `versionCode ${VERSION_CODE}`)
-    .replace(/versionName\s+["'][^"']+["']/, `versionName "${VERSION_NAME}"`);
+  const versionCodePattern = /versionCode\s+\d+/;
+  const versionNamePattern = /versionName\s+["'][^"']+["']/;
 
-  if (updated === original) {
+  if (!versionCodePattern.test(original) || !versionNamePattern.test(original)) {
     throw new Error("Native Android version fields were not found.");
   }
 
-  writeFileSync(nativeGradlePath, updated, "utf8");
-  console.log(`${nativeGradlePath}: synced`);
+  const updated = original
+    .replace(versionCodePattern, `versionCode ${VERSION_CODE}`)
+    .replace(versionNamePattern, `versionName "${VERSION_NAME}"`);
+
+  if (updated === original) {
+    console.log(`${nativeGradlePath}: already synced`);
+  } else {
+    writeFileSync(nativeGradlePath, updated, "utf8");
+    console.log(`${nativeGradlePath}: synced`);
+  }
 }
 
 console.log(`CapDent version ${VERSION_NAME} (${VERSION_CODE}) is ready.`);

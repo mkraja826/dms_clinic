@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 
 const VERSION_NAME = "1.2.0";
-const VERSION_CODE = 18;
+const VERSION_CODE = 20;
 
 function updateJson(path, transform) {
   if (!existsSync(path)) throw new Error(`Missing required file: ${path}`);
@@ -28,12 +28,14 @@ updateJson("eas.json", (config) => {
 
   for (const profileName of ["development", "preview"]) {
     config.build[profileName] ??= {};
+    config.build[profileName].credentialsSource = "local";
     config.build[profileName].env ??= {};
     config.build[profileName].env.EXPO_PUBLIC_ENABLE_PRICING_V2_OBSERVATION = "true";
     config.build[profileName].env.EXPO_PUBLIC_ENABLE_PAID_PLANS = "false";
   }
 
   config.build.production.env ??= {};
+  config.build.production.credentialsSource = "local";
   config.build.production.env.EXPO_PUBLIC_ENABLE_PRICING_V2_OBSERVATION = "false";
   config.build.production.env.EXPO_PUBLIC_ENABLE_PAID_PLANS = "false";
 
@@ -67,4 +69,4 @@ if (existsSync("package-lock.json")) {
   });
 }
 
-console.log("CapDent v18 build configuration is deterministic and ready.");
+console.log("CapDent v18 build configuration is ready with Android code 20.");

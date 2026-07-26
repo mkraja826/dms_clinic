@@ -5,6 +5,7 @@
   },
   "build": {
     "development": {
+      "credentialsSource": "local",
       "developmentClient": true,
       "distribution": "internal",
       "env": {
@@ -20,6 +21,7 @@
       }
     },
     "preview": {
+      "credentialsSource": "local",
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://mzjtdcpbvoximdukpukd.supabase.co",
@@ -34,6 +36,7 @@
       }
     },
     "production": {
+      "credentialsSource": "local",
       "autoIncrement": false,
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://mzjtdcpbvoximdukpukd.supabase.co",
@@ -48,6 +51,7 @@
       }
     },
     "play-internal": {
+      "credentialsSource": "local",
       "autoIncrement": false,
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://mzjtdcpbvoximdukpukd.supabase.co",
