@@ -1,7 +1,18 @@
 import { existsSync, readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 
 const readJson = (path) => JSON.parse(readFileSync(path, "utf8"));
 const readText = (path) => readFileSync(path, "utf8");
+const isGitTracked = (path) => {
+  try {
+    execFileSync("git", ["ls-files", "--error-unmatch", path], {
+      stdio: "ignore",
+    });
+    return true;
+  } catch {
+    return false;
+  }
+};
 const failures = [];
 const expect = (condition, message) => {
   if (!condition) failures.push(message);
@@ -33,6 +44,9 @@ const dispatchMigration = readText(
 const googlePlaySyncMigration = readText(
   "supabase/migrations/20260726221134_capdent_v21_google_play_subscription_sync.sql"
 );
+const v22ActivationMigration = readText(
+  "supabase/migrations/20260727012628_activate_capdent_v22_features.sql"
+);
 const paymentFunction = readText(
   "supabase/functions/send-payment-notification/index.ts"
 );
@@ -49,9 +63,9 @@ expect(
   app.expo?.android?.package === "com.dms.clinic",
   "Android package must remain com.dms.clinic."
 );
-expect(app.expo?.version === "1.2.1", "Expo version must be 1.2.1.");
-expect(app.expo?.android?.versionCode === 21, "Android versionCode must be 21.");
-expect(pkg.version === "1.2.1", "package.json version must be 1.2.1.");
+expect(app.expo?.version === "1.2.2", "Expo version must be 1.2.2.");
+expect(app.expo?.android?.versionCode === 22, "Android versionCode must be 22.");
+expect(pkg.version === "1.2.2", "package.json version must be 1.2.2.");
 expect(
   eas.cli?.appVersionSource === "local",
   "EAS local app versioning must remain authoritative."
@@ -90,7 +104,7 @@ for (const profileName of [
   );
   expect(
     profile?.autoIncrement === false,
-    `${profileName} must keep deterministic version code 21.`
+    `${profileName} must keep deterministic version code 22.`
   );
   expect(
     profile?.environment ===
@@ -101,9 +115,13 @@ for (const profileName of [
     "EXPO_PUBLIC_ENABLE_PAYMENT_PUSH",
     "EXPO_PUBLIC_ENABLE_TOOTH_CHART",
   ]) {
+    const expectedValue =
+      profileName === "production" || profileName === "play-internal"
+        ? "true"
+        : "false";
     expect(
-      profile?.env?.[flag] === "false",
-      `${flag} must be false in ${profileName}.`
+      profile?.env?.[flag] === expectedValue,
+      `${flag} must be ${expectedValue} in ${profileName}.`
     );
   }
 }
@@ -307,6 +325,17 @@ expect(
   "Chart migration must default disabled, preserve append-only history, and add the atomic RPC."
 );
 expect(
+  v22ActivationMigration.includes(
+    "alter column payment_push_enabled set default true"
+  ) &&
+    v22ActivationMigration.includes(
+      "alter column tooth_chart_enabled set default true"
+    ) &&
+    v22ActivationMigration.includes("payment_push_enabled = true") &&
+    v22ActivationMigration.includes("tooth_chart_enabled = true"),
+  "CapDent v22 must activate payment push and tooth charting for every existing and future clinic."
+);
+expect(
   chartMigration.includes("p_treatments jsonb") &&
     chartMigration.includes("Every treatment requires an explicit valid status") &&
     !chartMigration.includes("p_next_appointment_date is null then 'completed'"),
@@ -335,7 +364,7 @@ expect(
   "Android FCM config must use the EAS secret file with a local ignored fallback."
 );
 expect(
-  !existsSync("android/app/google-services.json"),
+  !isGitTracked("android/app/google-services.json"),
   "Generated native Firebase config must not be committed."
 );
 if (existsSync("google-services.json")) {
@@ -362,5 +391,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  "CapDent v21 version, dependencies, signing policy, and disabled staged-feature checks passed."
+  "CapDent v22 version, dependencies, signing policy, and production feature checks passed."
 );

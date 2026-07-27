@@ -1,10 +1,14 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 
-const VERSION_NAME = "1.2.1";
-const VERSION_CODE = 21;
-const STAGED_FLAGS = {
+const VERSION_NAME = "1.2.2";
+const VERSION_CODE = 22;
+const DISABLED_FLAGS = {
   EXPO_PUBLIC_ENABLE_PAYMENT_PUSH: "false",
   EXPO_PUBLIC_ENABLE_TOOTH_CHART: "false",
+};
+const RELEASE_FLAGS = {
+  EXPO_PUBLIC_ENABLE_PAYMENT_PUSH: "true",
+  EXPO_PUBLIC_ENABLE_TOOTH_CHART: "true",
 };
 
 function updateJson(path, transform) {
@@ -38,7 +42,12 @@ updateJson("eas.json", (config) => {
     profile.credentialsSource = "local";
     profile.autoIncrement = false;
     profile.env ??= {};
-    Object.assign(profile.env, STAGED_FLAGS);
+    Object.assign(
+      profile.env,
+      profileName === "production" || profileName === "play-internal"
+        ? RELEASE_FLAGS
+        : DISABLED_FLAGS
+    );
   }
 
   config.build.development.environment = "development";
@@ -72,5 +81,5 @@ if (existsSync("package-lock.json")) {
 }
 
 console.log(
-  "CapDent v21 production profile enables verified Google Play billing; payment push and tooth chart remain globally disabled."
+  "CapDent v22 release profiles enable verified Google Play billing, payment push, and tooth charting for production."
 );

@@ -2,9 +2,9 @@
 
 Project: `mzjtdcpbvoximdukpukd` (`MDMS`, Tokyo)
 
-Status on 2026-07-27: all four additive v21 migrations and three supporting
-Edge Functions are active in production. The retired R2 upload function has
-been removed together with its obsolete Edge secrets.
+Status on 2026-07-27: all v21 backend components and the v22 production-wide
+activation are active. The retired R2 upload function has been removed
+together with its obsolete Edge secrets.
 
 ## Applied components
 
@@ -45,19 +45,19 @@ been removed together with its obsolete Edge secrets.
     purchase token.
 - `send-payment-notification`
   - accepts only the Vault-matched dispatcher secret;
-  - remains server-disabled until FCM and signed-device tests pass;
+  - is server-enabled with EAS FCM v1 credentials configured;
   - excludes the payment collector;
   - records Expo tickets/receipts, retries transient errors, and retires invalid
     tokens.
 
 ## Current kill switches
 
-- `PAYMENT_PUSH_ENABLED=false`
-- all `clinics.payment_push_enabled=false`
-- all `clinics.tooth_chart_enabled=false`
+- `PAYMENT_PUSH_ENABLED=true`
+- all `clinics.payment_push_enabled=true`
+- all `clinics.tooth_chart_enabled=true`
 - `GOOGLE_PLAY_SYNC_ENABLED=true`
 
-No production clinic was enabled during schema or backend deployment.
+Both clinic feature columns now default to `true` for future clinics.
 
 The Google Cloud `capdent` project has
 `androidpublisher.googleapis.com` enabled. Supabase uses the dedicated
@@ -80,25 +80,21 @@ Hosted verification must confirm:
 - both cron jobs are active;
 - dispatcher functions are not executable by `anon` or `authenticated`;
 - all new tables have RLS;
-- payment push clinic count is zero before FCM approval;
+- payment push and tooth chart enabled counts match the total clinic count;
 - Edge smoke responses are HTTP 200;
 - no service-role or custom webhook secret appears in app configuration.
 
-## Activation order for payment push
+## v22 activation
 
-1. Restore access to the existing EAS project.
-2. Upload the validated `mi-dms` Firebase Android file as the production EAS
-   secret file `GOOGLE_SERVICES_JSON`.
-3. Upload the validated Firebase Admin SDK key as the FCM v1 service
-   credential.
-4. Produce a signed internal version-code 21 build with the app flag enabled.
-5. Register an eligible Pavani Dental Clinic owner/head-doctor device.
-6. Send synthetic payments and complete the delivery/retry/logout test matrix.
-7. Set `PAYMENT_PUSH_ENABLED=true`.
-8. Enable only the verified Pavani clinic UUID.
-9. Observe jobs, deliveries, receipts, Edge logs, and payment success.
-10. Expand clinic flags in reviewed batches; do not match clinics by display
-   name.
+1. EAS access restored for the existing project.
+2. `GOOGLE_SERVICES_JSON` uploaded as a production secret file.
+3. Matching `mi-dms` FCM v1 service credential attached to `com.dms.clinic`.
+4. Version `1.2.2`, code `22`, enables billing, push, and charting in release
+   profiles.
+5. `PAYMENT_PUSH_ENABLED=true`.
+6. All existing clinics enabled; future clinic defaults set to enabled.
+7. Signed-device delivery and licensed Google Play transaction tests remain
+   release verification steps.
 
 If any stage fails, turn off the server flag first. Payment records are
 independent from notification delivery.

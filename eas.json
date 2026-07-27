@@ -53,8 +53,8 @@
         "EXPO_PUBLIC_ENABLE_PAID_PLANS": "true",
         "EXPO_PUBLIC_ENABLE_PRICING_V2_OBSERVATION": "false",
         "EXPO_PUBLIC_ENABLE_REALTIME": "true",
-        "EXPO_PUBLIC_ENABLE_PAYMENT_PUSH": "false",
-        "EXPO_PUBLIC_ENABLE_TOOTH_CHART": "false",
+        "EXPO_PUBLIC_ENABLE_PAYMENT_PUSH": "true",
+        "EXPO_PUBLIC_ENABLE_TOOTH_CHART": "true",
         "EXPO_PUBLIC_USE_SIGNED_STORAGE_URLS": "true"
       },
       "android": {
@@ -71,8 +71,8 @@
         "EXPO_PUBLIC_ENABLE_PAID_PLANS": "true",
         "EXPO_PUBLIC_ENABLE_PRICING_V2_OBSERVATION": "true",
         "EXPO_PUBLIC_ENABLE_REALTIME": "true",
-        "EXPO_PUBLIC_ENABLE_PAYMENT_PUSH": "false",
-        "EXPO_PUBLIC_ENABLE_TOOTH_CHART": "false",
+        "EXPO_PUBLIC_ENABLE_PAYMENT_PUSH": "true",
+        "EXPO_PUBLIC_ENABLE_TOOTH_CHART": "true",
         "EXPO_PUBLIC_USE_SIGNED_STORAGE_URLS": "true"
       },
       "android": {

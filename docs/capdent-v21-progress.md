@@ -159,3 +159,23 @@ production identifiers.
 - Copied the ignored artifact to
   `dist/CapDent-v1.2.1-v21-production.aab` (90,302,241 bytes; SHA-256
   `1BD30DE9CD2499366452C8DF571B36B2B51258C9310E56221781AD13B54F597C`).
+
+## 2026-07-27: v22 production-wide activation
+
+- Advanced the release to CapDent `1.2.2`, Android version code `22`.
+- Enabled Google Play Billing, payment push, and tooth charting in Production
+  and Play Internal profiles.
+- Restored Admin access to the existing EAS project and configured the
+  production Firebase client file plus matching `mi-dms` FCM v1 credential.
+- Enabled the payment push server switch.
+- Enabled payment push and tooth charting for all 12 existing clinics and set
+  both defaults to enabled for future clinics.
+- Re-ran TypeScript, v22 configuration validation, and approved Android signing
+  verification successfully.
+- Built and validated the signed production AAB. Its manifest is
+  `com.dms.clinic` version `1.2.2` (version code `22`), it contains ARM64 and
+  ARMv7 native libraries, and its signing SHA-1 matches the approved
+  `EC:7F...` certificate.
+- Copied the ignored artifact to
+  `dist/CapDent-v1.2.2-v22-production.aab` (56,115,061 bytes; SHA-256
+  `C85691E586C8ADE07B958890F3D5A3B20540C445C8BECF1D7A3B712B83BE6462`).
