@@ -475,7 +475,7 @@ export default function SubscriptionScreen() {
             />
             <FeatureRow
               icon="cloud-outline"
-              label="Cloud: ₹799/month, 5 GB storage, unlimited patient records, backup and sync for one clinic."
+              label="Cloud: ₹800/month, 5 GB storage, unlimited patient records, backup and sync for one clinic."
             />
             <FeatureRow
               icon="analytics-outline"

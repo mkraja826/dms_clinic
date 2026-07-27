@@ -8,6 +8,7 @@ const expect = (condition, message) => {
 };
 
 const app = readJson("app.json");
+const dynamicAppConfig = readText("app.config.js");
 const eas = readJson("eas.json");
 const pkg = readJson("package.json");
 const environmentExample = readText(".env.example");
@@ -26,8 +27,20 @@ const paymentMigration = readText(
 const chartMigration = readText(
   "supabase/migrations/20260726205851_capdent_v21_dental_chart_atomic_visit.sql"
 );
+const dispatchMigration = readText(
+  "supabase/migrations/20260726220338_capdent_v21_payment_notification_dispatch.sql"
+);
+const googlePlaySyncMigration = readText(
+  "supabase/migrations/20260726221134_capdent_v21_google_play_subscription_sync.sql"
+);
 const paymentFunction = readText(
   "supabase/functions/send-payment-notification/index.ts"
+);
+const googlePlayVerifier = readText(
+  "supabase/functions/verify-google-play-subscription/index.ts"
+);
+const googlePlaySync = readText(
+  "supabase/functions/sync-google-play-subscriptions/index.ts"
 );
 const supabaseConfig = readText("supabase/config.toml");
 
@@ -79,6 +92,11 @@ for (const profileName of [
     profile?.autoIncrement === false,
     `${profileName} must keep deterministic version code 21.`
   );
+  expect(
+    profile?.environment ===
+      (profileName === "play-internal" ? "production" : profileName),
+    `${profileName} must resolve the intended EAS environment.`
+  );
   for (const flag of [
     "EXPO_PUBLIC_ENABLE_PAYMENT_PUSH",
     "EXPO_PUBLIC_ENABLE_TOOTH_CHART",
@@ -91,12 +109,31 @@ for (const profileName of [
 }
 
 expect(
+  eas.build?.development?.env?.EXPO_PUBLIC_ENABLE_PAID_PLANS === "false" &&
+    eas.build?.preview?.env?.EXPO_PUBLIC_ENABLE_PAID_PLANS === "false",
+  "Development and preview builds must not expose paid checkout."
+);
+expect(
+  eas.build?.production?.env?.EXPO_PUBLIC_ENABLE_PAID_PLANS === "true" &&
+    eas.build?.["play-internal"]?.env?.EXPO_PUBLIC_ENABLE_PAID_PLANS ===
+      "true",
+  "Play Internal and Production profiles must enable server-verified Google Play billing."
+);
+expect(
   eas.build?.["play-internal"]?.android?.buildType === "app-bundle",
   "Play Internal must produce an Android App Bundle."
 );
 expect(
+  eas.build?.production?.android?.buildType === "app-bundle",
+  "Play Production must produce an Android App Bundle."
+);
+expect(
   eas.submit?.["play-internal"]?.android?.track === "internal",
   "Submissions must target the internal testing track."
+);
+expect(
+  eas.submit?.production?.android?.track === "production",
+  "The production submission profile must target Google Play Production."
 );
 expect(
   environmentExample.includes("EXPO_PUBLIC_ENABLE_PAYMENT_PUSH=false") &&
@@ -121,8 +158,14 @@ expect(
   pkg.scripts?.["build:android:play-internal"]?.includes(
     "--profile play-internal"
   ) &&
+    pkg.scripts?.["build:android:production"]?.includes(
+      "--profile production"
+    ) &&
+    pkg.scripts?.["submit:android:production"]?.includes(
+      "--profile production"
+    ) &&
     pkg.scripts?.["build:android"] === "npm run build:android:play-internal",
-  "Default v21 Android builds must target only Internal Testing."
+  "Production build/submit commands must exist while the safe default remains Internal Testing."
 );
 expect(
   paymentClient.includes("getExpoPushTokenAsync({ projectId })") &&
@@ -167,6 +210,56 @@ expect(
   "The Edge Function must use a custom secret, server kill switch, and server-only service role."
 );
 expect(
+  dispatchMigration.includes("create extension if not exists pg_net") &&
+    dispatchMigration.includes("create extension if not exists pg_cron") &&
+    dispatchMigration.includes(
+      "capdent_payment_notification_webhook_secret"
+    ) &&
+    dispatchMigration.includes(
+      "payment_notification_jobs_dispatch_after_insert"
+    ) &&
+    dispatchMigration.includes(
+      "capdent-payment-notification-maintenance"
+    ),
+  "Production notification dispatch must be post-commit, Vault-authenticated, and scheduled for retries."
+);
+expect(
+  dispatchMigration.includes("dental_chart_entries_patient_id_idx") &&
+    dispatchMigration.includes(
+      "payment_notification_deliveries_recipient_user_id_idx"
+    ) &&
+    dispatchMigration.includes(
+      "payment_notification_deliveries_device_token_id_idx"
+    ),
+  "All v21 foreign keys identified by the production advisor need covering indexes."
+);
+expect(
+  googlePlaySyncMigration.includes(
+    "capdent_google_play_sync_secret"
+  ) &&
+    googlePlaySyncMigration.includes(
+      "capdent-google-play-subscription-sync"
+    ) &&
+    googlePlaySyncMigration.includes("'17 * * * *'"),
+  "Google Play lifecycle reconciliation must use Vault and run hourly."
+);
+expect(
+  googlePlaySync.includes('requiredEnv("GOOGLE_PLAY_SYNC_SECRET")') &&
+    googlePlaySync.includes('Deno.env.get("GOOGLE_PLAY_SYNC_ENABLED")') &&
+    googlePlaySync.includes("/purchases/subscriptionsv2/tokens/") &&
+    googlePlaySync.includes("capdent-health-check-invalid-token") &&
+    googlePlaySync.includes(
+      "urn:ietf:params:oauth:grant-type:jwt-bearer"
+    ) &&
+    googlePlaySync.includes("google_play_last_verified_at"),
+  "Billing lifecycle sync must be server-authenticated, health-checkable, and refresh subscription state from Google."
+);
+expect(
+  googlePlayVerifier.includes("monthlyPrice: 800") &&
+    readText("src/lib/googlePlayBilling.ts").includes("monthlyAmount: 800"),
+  "CapDent Cloud fallback and verified billing metadata must match the live India price."
+);
+expect(
   paymentFunction.includes('.neq("id", collectorId') &&
     paymentFunction.includes("DeviceNotRegistered") === false &&
     readText(
@@ -176,8 +269,9 @@ expect(
 );
 expect(
   supabaseConfig.includes("[functions.send-payment-notification]") &&
-    supabaseConfig.includes("verify_jwt = false"),
-  "The Database Webhook function must use its documented custom-secret authentication."
+    supabaseConfig.includes("[functions.sync-google-play-subscriptions]") &&
+    supabaseConfig.match(/verify_jwt = false/g)?.length >= 2,
+  "Server-dispatched Edge Functions must use their documented custom-secret authentication."
 );
 expect(
   chart.includes("FDI_ARCHES") &&
@@ -226,13 +320,39 @@ expect(
 );
 expect(
   existsSync("scripts/test-capdent-v21-supabase.ps1") &&
-    existsSync("supabase/tests/fixtures/capdent_v21_minimal_schema.sql"),
+    existsSync("supabase/tests/fixtures/capdent_v21_minimal_schema.sql") &&
+    existsSync(
+      "supabase/tests/database/capdent_v21_payment_dispatch_test.sql"
+    ) &&
+    existsSync(
+      "supabase/tests/database/capdent_v21_google_play_sync_test.sql"
+    ),
   "A guarded disposable local Supabase test harness must exist."
 );
 expect(
-  !existsSync("google-services.json") &&
-    !existsSync("android/app/google-services.json"),
-  "Firebase credential files must not be added before approval."
+  dynamicAppConfig.includes("process.env.GOOGLE_SERVICES_JSON") &&
+    dynamicAppConfig.includes("./google-services.json"),
+  "Android FCM config must use the EAS secret file with a local ignored fallback."
+);
+expect(
+  !existsSync("android/app/google-services.json"),
+  "Generated native Firebase config must not be committed."
+);
+if (existsSync("google-services.json")) {
+  const googleServices = readJson("google-services.json");
+  const androidPackages = (googleServices.client ?? []).map(
+    (client) => client?.client_info?.android_client_info?.package_name
+  );
+  expect(
+    googleServices?.project_info?.project_id === "mi-dms" &&
+      androidPackages.includes("com.dms.clinic"),
+    "Local Firebase client config must be project mi-dms for com.dms.clinic."
+  );
+}
+expect(
+  readText(".gitignore").includes("google-services.json") &&
+    readText(".gitignore").includes("*-firebase-adminsdk-*.json"),
+  "Firebase client and Admin SDK files must remain outside version control."
 );
 
 if (failures.length > 0) {

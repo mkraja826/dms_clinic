@@ -115,10 +115,10 @@ production identifiers.
   findings are in the inherited Expo/Xcode build-tool dependency chain; the
   available forced remediation would downgrade/break the Expo SDK and was not
   applied.
-- A read-only hosted-project check confirms neither v21 migration nor
-  `send-payment-notification` is deployed. A pre-existing
-  `create-r2-upload-url` function is still hosted and requires a separate,
-  explicitly approved production cleanup.
+- At this local-validation checkpoint, a read-only hosted-project check
+  confirmed neither v21 migration nor `send-payment-notification` was
+  deployed. The later production-rollout section below supersedes this
+  historical checkpoint.
 - The protected version-code 20 AAB remains at 85,736,347 bytes with SHA-256
   `3A771ACEF95944762F0AC3D92EA097035EA4A1954340EF3063FE0C6884F60851`.
 - No v21 AAB was generated in the protected working directory. Its isolated
@@ -134,7 +134,28 @@ production identifiers.
 - Migrations: created and locally verified
 - Local automated release checks: complete
 - Internal Testing AAB: not built
-- Migrations applied: no
-- Edge Functions deployed: no
+- Migrations applied: yes
+- Edge Functions deployed: yes
 - Feature flags enabled: no
 - Build 20 disturbed: no
+
+## 2026-07-27: production rollout continuation
+
+- Applied all four additive v21 migrations to the MDMS Supabase project.
+- Deployed the payment dispatcher, authenticated purchase verifier, and hourly
+  Google Play lifecycle synchronizer.
+- Enabled the Android Publisher API in Google Cloud project `capdent` and
+  rotated Supabase to the dedicated CapDent Play service account.
+- Passed the hosted Google Play access health probe and a zero-row lifecycle
+  maintenance invocation.
+- Deleted the retired `create-r2-upload-url` function and its five obsolete
+  Edge secrets. Supabase Storage is the only upload backend.
+- Kept payment push, tooth chart, and every clinic-scoped rollout flag
+  disabled pending signed-device testing.
+- Built and independently validated the signed production AAB from an isolated
+  short-path workspace. Its manifest is `com.dms.clinic` version `1.2.1`
+  (version code `21`), its signing SHA-1 matches the approved `EC:7F...`
+  certificate, and Google bundletool validation passes.
+- Copied the ignored artifact to
+  `dist/CapDent-v1.2.1-v21-production.aab` (90,302,241 bytes; SHA-256
+  `1BD30DE9CD2499366452C8DF571B36B2B51258C9310E56221781AD13B54F597C`).

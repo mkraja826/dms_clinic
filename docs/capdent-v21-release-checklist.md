@@ -1,152 +1,154 @@
-# CapDent v21 Internal Testing Release Checklist
+# CapDent v21 Production Rollout Checklist
 
 Target: CapDent `1.2.1`, Android version code `21`
 
 Branch: `feature/capdent-v21-clinical-notifications`
 
-Distribution: Google Play Internal Testing only
-
-This is an approval-gated checklist. Commands under the manual rollout section
-are documentation only and have not been run against a hosted Supabase project.
+Status on 2026-07-27: the production Supabase backend and Google Play billing
+integration are prepared. Public Google Play and FCM rollout are blocked only
+by the external account gates described below.
 
 ## Protected release invariants
 
-- [x] `release/capdent-v18` still points to
+- [x] `release/capdent-v18` remains unchanged at
   `e920d709d8b40133edbbcd4d1fffb17a46efc295`.
-- [x] PR #9, the version-code 20 AAB, tags, and protected artifacts are
-  unchanged.
-- [x] Android package is still `com.dms.clinic`.
-- [x] Release signing SHA-1 is still
+- [x] Android package remains `com.dms.clinic`.
+- [x] Android version code is `21`.
+- [x] Release signing SHA-1 is
   `EC:7F:C4:82:FA:0B:AA:0F:8F:06:12:6D:D3:75:9B:99:2C:6D:1E:E6`.
-- [x] No generated native directory, credential, keystore, Firebase file,
-  patient data, or AAB is staged for Git.
+- [x] No keystore, service-account JSON, Firebase file, patient data, or AAB
+  is committed.
 
-## Code and local validation gates
+## Automated validation
 
-- [x] `npm ci`
 - [x] `npm run check:v21`
 - [x] `npm run verify:android-signing`
-- [x] `npx expo config --type public`
-- [x] `npx expo-doctor` (20/20 checks)
-- [x] Android production JavaScript export (1,714 modules)
-- [x] `deno test --unstable-sloppy-imports src/lib/toothChart.test.ts`
-- [x] `deno test supabase/functions/send-payment-notification/helpers_test.ts`
-- [x] `deno check supabase/functions/send-payment-notification/index.ts`
-- [x] Guarded disposable Supabase v21 fixture/migration run succeeds.
-- [x] Both pgTAP suites under `supabase/tests/database` pass locally (45/45).
+- [x] `npx expo-doctor` (20/20)
+- [x] `deno check` for the purchase verifier and lifecycle synchronizer
+- [x] Disposable local Supabase migration run and schema lint
+- [x] Four pgTAP suites, 60/60 assertions
 - [x] `git diff --check`
-- [ ] Manual Android development-build test covers permission denied,
-  offline token registration, foreground notification, notification tap, and
-  logout deactivation.
-- [ ] Manual chart test covers permanent/primary modes, single edit,
-  multi-selection, draft restoration, atomic save, history, receptionist
-  restriction, and failure preserving the draft.
+- [x] Isolated signed production AAB build
+- [x] Google `bundletool validate`
+- [x] AAB manifest independently confirms `com.dms.clinic`, version `1.2.1`,
+  and version code `21`
+- [x] AAB signing certificate independently confirms the approved SHA-1
 
-The protected repository predates a CLI-replayable baseline: its early
-date-only migration files assume `supabase/schema.sql` was already installed.
-For the two new migrations, use the guarded local-only fixture runner:
+Verified local artifact (ignored by Git):
+
+- `dist/CapDent-v1.2.1-v21-production.aab`
+- 90,302,241 bytes
+- SHA-256
+  `1BD30DE9CD2499366452C8DF571B36B2B51258C9310E56221781AD13B54F597C`
+
+## Production Supabase state
+
+- [x] Payment notification tables/trigger/RLS migration applied.
+- [x] Atomic dental chart migration applied.
+- [x] Post-commit payment dispatcher migration applied.
+- [x] Google Play lifecycle reconciliation migration applied.
+- [x] `send-payment-notification` version 3 is active.
+- [x] `verify-google-play-subscription` version 6 is active with JWT auth.
+- [x] `sync-google-play-subscriptions` version 6 is active.
+- [x] Payment dispatcher secret is stored separately in Edge secrets and Vault.
+- [x] Payment push server kill switch remains `false`.
+- [x] Google Play lifecycle sync is enabled and runs hourly.
+- [x] Android Publisher API is enabled in Google Cloud project `capdent`.
+- [x] The dedicated Play service account is active, limited to CapDent, and
+  stored in Supabase Edge secrets.
+- [x] Production billing health check reached `subscriptionsv2` and returned
+  `authorized: true`.
+- [x] Payment retry/receipt maintenance runs every five minutes.
+- [x] Both server dispatchers returned HTTP 200 in production smoke tests.
+- [x] The retired `create-r2-upload-url` Edge Function is deleted; production
+  uploads use Supabase Storage only.
+- [x] All five obsolete R2 Edge secret values are removed from Supabase.
+- [x] All 12 existing clinics remain opted out of payment push and tooth chart.
+- [x] Production currently has zero linked Google Play subscriptions.
+
+The production advisor's three missing foreign-key indexes were added. Its
+remaining v21 security warning is intentional: the authenticated
+`save_visit_with_tooth_chart` RPC is `SECURITY DEFINER`, has a fixed search
+path, and validates the authenticated active profile, clinic, role, patient,
+doctor, and payload before performing the atomic transaction.
+
+## App release configuration
+
+- [x] Production and Play Internal profiles enable server-verified Google Play
+  billing.
+- [x] Production submission profile targets the Google Play Production track.
+- [x] Cloud fallback price is aligned with the live India price: ₹800/month.
+- [x] Intelligence remains ₹1,499/month.
+- [x] Payment push and tooth chart remain globally disabled in every app build.
+- [x] The default build command remains Play Internal as a safety guard.
+- [x] Explicit production build and submit commands exist.
+
+## External blockers
+
+### Google Play production access
+
+Google Play reports 12 opted-in closed testers, but only 6 continuous days.
+Production access requires at least 12 testers for 14 continuous days, followed
+by Google's production-access review. The Apply button is currently disabled.
+No code or Supabase change can bypass this gate.
+
+### Android push credential upload
+
+The Firebase client file has been validated for project `mi-dms` and package
+`com.dms.clinic`, is installed locally, and is Git-ignored. The matching
+Firebase Admin SDK service account was validated without exposing its private
+key; Google OAuth succeeds and the account has
+`cloudmessaging.messages.create`.
+
+Dynamic Expo config uses the EAS secret file `GOOGLE_SERVICES_JSON` with the
+ignored local file as a fallback. The current Expo login (`astromicirql`) is
+still not authorized for EAS project
+`666248db-ff00-4a45-bbbf-65455c109dad`, owned by `mk261098s-team`. FCM v1
+credentials therefore cannot yet be uploaded to that EAS project.
+
+Payment push must remain disabled until both are corrected:
+
+1. Sign into an Expo account with access to the existing EAS project, or grant
+   the current account access.
+2. Create the EAS production secret-file variable `GOOGLE_SERVICES_JSON` from
+   the validated client file.
+3. Upload the validated FCM v1 Admin SDK credential through EAS Credentials.
+4. Build a signed version-code 21 development/internal artifact.
+5. Test permission denied, offline registration, foreground/background push,
+   notification tap, logout token retirement, retries, and invalid-token
+   retirement using Pavani Dental Clinic and synthetic payments only.
+6. Enable the app push flag, then the server flag, then clinic flags in that
+   order. Expand only after production telemetry is clean.
+
+## Release commands
+
+Internal safety build:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\test-capdent-v21-supabase.ps1
+npm run build:android:play-internal
 ```
 
-It verifies the exact local Docker project label and port before recreating
-only the disposable local `public` schema. It never links to or modifies a
-hosted project.
-
-## Disabled-by-default gates
-
-- [ ] `EXPO_PUBLIC_ENABLE_PAYMENT_PUSH=false` in every committed EAS profile.
-- [ ] `EXPO_PUBLIC_ENABLE_TOOTH_CHART=false` in every committed EAS profile.
-- [ ] `PAYMENT_PUSH_ENABLED=false` when Edge Function secrets are first set.
-- [ ] `clinics.payment_push_enabled` defaults to `false`.
-- [ ] `clinics.tooth_chart_enabled` defaults to `false`.
-- [ ] No existing clinic is backfilled or enabled by either migration.
-
-## Manual hosted Supabase rollout - stop for approval
-
-Do not use the production project for the first run. Substitute an approved
-staging or Supabase preview-branch reference.
-
-1. Confirm a recoverable database backup and record the migration list.
-2. Link the CLI to the approved non-production project.
-3. Run a migration dry run and review the exact SQL.
-4. Apply, in order:
-   - `20260726204205_capdent_v21_payment_notifications.sql`
-   - `20260726205851_capdent_v21_dental_chart_atomic_visit.sql`
-5. Run the pgTAP suites and Supabase security/performance advisors.
-6. Create a strong `PAYMENT_NOTIFICATION_WEBHOOK_SECRET` outside the
-   repository. Set function secrets with `PAYMENT_PUSH_ENABLED=false`.
-7. Deploy `send-payment-notification`; keep it server-disabled.
-8. In Database Webhooks, add an `INSERT` webhook for
-   `public.payment_notification_jobs` to the function URL and send the secret
-   in `x-capdent-webhook-secret`. Database Webhooks use asynchronous `pg_net`
-   delivery after the database change, so payment success is not coupled to
-   the HTTP request.
-9. Configure a scheduled maintenance invocation using the same protected
-   header and body `{"mode":"maintenance"}`. This processes due retries and
-   Expo receipts. Store the header secret in Supabase Vault or another approved
-   secret store.
-10. Configure Android FCM v1 credentials through the approved Expo/EAS
-    credential workflow. Never commit service-account JSON or
-    `google-services.json`.
-11. Smoke-test the unchanged app with both build flags still false.
-12. For a dedicated version-code 21 Internal Testing build only, enable one
-    global flag at a time. Do not change the production build profile.
-13. Enable the matching clinic flag only for the approved testing clinic,
-    Pavani Dental Clinic, after confirming its exact clinic UUID. Do not match
-    or update by display name alone.
-14. For payment push, enable `PAYMENT_PUSH_ENABLED=true` only after the webhook,
-    FCM credentials, device registration, and disabled-state tests pass.
-15. Complete the Internal Testing matrix before enabling the second feature.
-16. Disable the clinic flag and server flag immediately after the controlled
-    test until rollout approval.
-
-## Exact isolated PowerShell AAB build
-
-Build in a detached worktree so the protected version-code 20 output under the
-current ignored `android` directory cannot be overwritten. Replace
-`<v21-commit>` with the reviewed commit SHA.
+Production build after both external gates and the push test matrix are clear:
 
 ```powershell
-$BuildRoot = "C:\dms-v21-build"
-$ArtifactRoot = "C:\dms-v21-artifacts"
-
-Set-Location C:\dms
-git worktree add --detach $BuildRoot <v21-commit>
-
-Copy-Item -LiteralPath C:\dms\credentials.json -Destination $BuildRoot\credentials.json
-Copy-Item -LiteralPath C:\dms\credentials -Destination $BuildRoot\credentials -Recurse
-
-Set-Location $BuildRoot
-npm ci
-npm run check:v21
-npm run verify:android-signing
-npx expo prebuild --platform android --clean
-npm run sync:v21-version
-
-Set-Location "$BuildRoot\android"
-.\gradlew.bat clean bundleRelease
-
-New-Item -ItemType Directory -Path $ArtifactRoot -Force | Out-Null
-Copy-Item -LiteralPath "$BuildRoot\android\app\build\outputs\bundle\release\app-release.aab" `
-  -Destination "$ArtifactRoot\CapDent-1.2.1-versionCode21-internal.aab"
+npm run build:android:production
+npm run submit:android:production
 ```
 
-After verifying the AAB version, package, signing certificate, and hashes,
-remove the detached worktree with `git worktree remove C:\dms-v21-build`.
-Upload only to Google Play Internal Testing. Do not promote it.
+Do not run the production submit command while Google Play Production access is
+inactive. Android cannot replace a published version with the same or a lower
+version code.
 
-## Stop conditions
+## Manual gates still required
 
-Stop immediately if any of these occur:
-
-- migration dry run contains destructive SQL or touches existing patient rows;
-- either clinic feature flag defaults to true;
-- payment insertion fails while notification processing is unavailable;
-- an unauthorized role can read tooth-level chart entries;
-- a mobile role can insert/update/delete chart history outside the RPC;
-- notification payload contains patient name, diagnosis, or chart details;
-- signing SHA-1 differs;
-- the artifact reports any version code other than 21;
-- the target track is not Internal Testing.
+- [ ] Production-access application becomes available and is approved.
+- [ ] Correct Expo/EAS project access is restored.
+- [x] Firebase Android client and FCM Admin SDK files are validated locally.
+- [ ] FCM v1 and client-file credentials are uploaded to the existing EAS
+  project.
+- [ ] Billing purchase/renewal/cancel/grace/hold/expiry tests pass with licensed
+  Google Play testers.
+- [ ] Push device and delivery matrix passes on a signed Android build.
+- [ ] Pavani Dental Clinic UUID is verified before any clinic-scoped toggle.
+- [x] Production AAB package, version, signing certificate, and hashes are
+  independently verified before upload.

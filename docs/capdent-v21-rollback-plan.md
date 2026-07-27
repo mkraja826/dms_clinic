@@ -15,12 +15,26 @@ Apply in this order:
 1. Set `PAYMENT_PUSH_ENABLED=false`.
 2. Set `payment_push_enabled=false` for only the affected approved test clinic,
    identified by UUID.
-3. Disable the Database Webhook and scheduled maintenance invocation.
+3. Unschedule `capdent-payment-notification-maintenance` if repeated invocation
+   is contributing to the incident. The post-commit trigger may remain because
+   the server kill switch returns without delivery.
 4. Leave queued jobs, delivery audit rows, and device tokens in place for
    investigation. Do not delete them during an incident.
 5. If needed, deactivate affected device-token rows with a reviewed,
    clinic-scoped statement.
 6. Roll the internal app build back to both global flags false.
+
+## Google Play billing rollback
+
+1. Ship the next valid version code with
+   `EXPO_PUBLIC_ENABLE_PAID_PLANS=false` to stop new checkout.
+2. Keep `sync-google-play-subscriptions` enabled so existing customers retain
+   accurate renewal, cancellation, grace, hold, and expiry state.
+3. If Google API reconciliation itself is faulty, set
+   `GOOGLE_PLAY_SYNC_ENABLED=false` and preserve the last verified entitlement
+   state for investigation.
+4. Never revoke an active paid entitlement solely because Google returned a
+   transient API or network error.
 
 Payment inserts continue independently because the database trigger performs
 only local outbox work and catches notification-side enqueue exceptions.

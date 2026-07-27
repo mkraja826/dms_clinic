@@ -6,6 +6,7 @@
   "build": {
     "development": {
       "credentialsSource": "local",
+      "environment": "development",
       "developmentClient": true,
       "distribution": "internal",
       "env": {
@@ -25,6 +26,7 @@
     },
     "preview": {
       "credentialsSource": "local",
+      "environment": "preview",
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://mzjtdcpbvoximdukpukd.supabase.co",
@@ -43,11 +45,12 @@
     },
     "production": {
       "credentialsSource": "local",
+      "environment": "production",
       "autoIncrement": false,
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://mzjtdcpbvoximdukpukd.supabase.co",
         "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_3krFoyWgVzrZP1g_pUy32g_iIn1AdYb",
-        "EXPO_PUBLIC_ENABLE_PAID_PLANS": "false",
+        "EXPO_PUBLIC_ENABLE_PAID_PLANS": "true",
         "EXPO_PUBLIC_ENABLE_PRICING_V2_OBSERVATION": "false",
         "EXPO_PUBLIC_ENABLE_REALTIME": "true",
         "EXPO_PUBLIC_ENABLE_PAYMENT_PUSH": "false",
@@ -60,6 +63,7 @@
     },
     "play-internal": {
       "credentialsSource": "local",
+      "environment": "production",
       "autoIncrement": false,
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://mzjtdcpbvoximdukpukd.supabase.co",
@@ -79,7 +83,7 @@
   "submit": {
     "production": {
       "android": {
-        "track": "internal"
+        "track": "production"
       }
     },
     "play-internal": {

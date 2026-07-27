@@ -37,6 +37,8 @@ function Invoke-LocalSqlFile {
 Invoke-LocalSqlFile "supabase/tests/fixtures/capdent_v21_minimal_schema.sql"
 Invoke-LocalSqlFile "supabase/migrations/20260726204205_capdent_v21_payment_notifications.sql"
 Invoke-LocalSqlFile "supabase/migrations/20260726205851_capdent_v21_dental_chart_atomic_visit.sql"
+Invoke-LocalSqlFile "supabase/migrations/20260726220338_capdent_v21_payment_notification_dispatch.sql"
+Invoke-LocalSqlFile "supabase/migrations/20260726221134_capdent_v21_google_play_subscription_sync.sql"
 
 npx supabase db lint --local --schema public --level error --fail-on error
 if ($LASTEXITCODE -ne 0) {
@@ -45,9 +47,11 @@ if ($LASTEXITCODE -ne 0) {
 
 npx supabase test db --local `
   supabase/tests/database/capdent_v21_payment_notifications_test.sql `
-  supabase/tests/database/capdent_v21_dental_chart_atomic_visit_test.sql
+  supabase/tests/database/capdent_v21_dental_chart_atomic_visit_test.sql `
+  supabase/tests/database/capdent_v21_payment_dispatch_test.sql `
+  supabase/tests/database/capdent_v21_google_play_sync_test.sql
 if ($LASTEXITCODE -ne 0) {
   throw "CapDent v21 database tests failed."
 }
 
-Write-Output "CapDent v21 local Supabase migrations and 45 pgTAP assertions passed."
+Write-Output "CapDent v21 local Supabase migrations and 60 pgTAP assertions passed."

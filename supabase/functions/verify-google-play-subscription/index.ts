@@ -26,7 +26,7 @@ const productCatalog: Record<string, PlanConfig> = {
   midms_monthly_799: {
     planName: "professional",
     planLabel: "CapDent Cloud",
-    monthlyPrice: 799,
+    monthlyPrice: 800,
   },
   midms_clinic_intelligence_monthly: {
     planName: "clinic_intelligence",
@@ -326,9 +326,9 @@ Deno.serve(async (req) => {
 
     const replacingActiveToken =
       Boolean(existingSubscription?.google_play_purchase_token) &&
-      existingSubscription.google_play_purchase_token !== purchaseToken;
+      existingSubscription?.google_play_purchase_token !== purchaseToken;
 
-    let subscription = existingSubscription;
+    let subscription: any = existingSubscription;
 
     if (entitlementGranted) {
       const row = {

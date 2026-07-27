@@ -41,6 +41,13 @@ expo-env.d.ts
 credentials.json
 .codex-remote-attachments/
 *.tgz
+
+# Supabase CLI local state
+supabase/.branches/
+
+# Firebase files are supplied locally/EAS and never committed
+google-services.json
+*-firebase-adminsdk-*.json
 .codex-v18-export/
 # Local secrets and generated files
 *.jks

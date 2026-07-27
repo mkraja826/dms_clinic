@@ -41,9 +41,22 @@ updateJson("eas.json", (config) => {
     Object.assign(profile.env, STAGED_FLAGS);
   }
 
+  config.build.development.environment = "development";
+  config.build.preview.environment = "preview";
+  config.build.production.environment = "production";
+  config.build["play-internal"].environment = "production";
+
+  config.build.development.env.EXPO_PUBLIC_ENABLE_PAID_PLANS = "false";
+  config.build.preview.env.EXPO_PUBLIC_ENABLE_PAID_PLANS = "false";
+  config.build.production.env.EXPO_PUBLIC_ENABLE_PAID_PLANS = "true";
+  config.build["play-internal"].env.EXPO_PUBLIC_ENABLE_PAID_PLANS = "true";
+
+  config.build.production.android ??= {};
+  config.build.production.android.buildType = "app-bundle";
   config.build["play-internal"].android ??= {};
   config.build["play-internal"].android.buildType = "app-bundle";
   config.submit ??= {};
+  config.submit.production = { android: { track: "production" } };
   config.submit["play-internal"] = { android: { track: "internal" } };
 });
 
@@ -59,5 +72,5 @@ if (existsSync("package-lock.json")) {
 }
 
 console.log(
-  "CapDent v21 is staged for Internal Testing with payment push and tooth chart globally disabled."
+  "CapDent v21 production profile enables verified Google Play billing; payment push and tooth chart remain globally disabled."
 );

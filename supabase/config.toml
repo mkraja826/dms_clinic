@@ -8,6 +8,10 @@ verify_jwt = true
 # PAYMENT_NOTIFICATION_WEBHOOK_SECRET header validated inside the function.
 verify_jwt = false
 
+[functions.sync-google-play-subscriptions]
+# The pg_cron/pg_net caller authenticates with a separate Vault-held secret.
+verify_jwt = false
+
 [functions.hello-world]
 enabled = true
 verify_jwt = false
