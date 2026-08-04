@@ -3,7 +3,7 @@
     "name": "CapDent",
     "slug": "dmsdms",
     "scheme": "dms",
-    "version": "1.2.2",
+    "version": "1.2.3",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "icon": "./assets/icon.png",
@@ -50,7 +50,7 @@
     ],
     "android": {
       "package": "com.dms.clinic",
-      "versionCode": 23,
+      "versionCode": 24,
       "allowBackup": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",

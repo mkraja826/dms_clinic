@@ -64,9 +64,9 @@ expect(
   app.expo?.android?.package === "com.dms.clinic",
   "Android package must remain com.dms.clinic."
 );
-expect(app.expo?.version === "1.2.2", "Expo version must be 1.2.2.");
-expect(app.expo?.android?.versionCode === 23, "Android versionCode must be 23.");
-expect(pkg.version === "1.2.2", "package.json version must be 1.2.2.");
+expect(app.expo?.version === "1.2.3", "Expo version must be 1.2.3.");
+expect(app.expo?.android?.versionCode === 24, "Android versionCode must be 24.");
+expect(pkg.version === "1.2.3", "package.json version must be 1.2.3.");
 expect(
   eas.cli?.appVersionSource === "local",
   "EAS local app versioning must remain authoritative."
@@ -105,7 +105,7 @@ for (const profileName of [
   );
   expect(
     profile?.autoIncrement === false,
-    `${profileName} must keep deterministic version code 23.`
+    `${profileName} must keep deterministic version code 24.`
   );
   expect(
     profile?.environment ===
