@@ -229,7 +229,7 @@ export default function SubscriptionScreen() {
     }
   }
 
-  async function loadBillingPlans() {
+  async function loadBillingPlans(options?: { throwOnError?: boolean }) {
     if (!PAID_PLANS_ENABLED) {
       setBillingPlans([]);
       setBillingError(null);
@@ -257,7 +257,12 @@ export default function SubscriptionScreen() {
 
       return plans;
     } catch (error) {
-      setBillingError(error instanceof Error ? error.message : "Google Play Billing could not load subscription plans.");
+      const message =
+        error instanceof Error ? error.message : "Google Play Billing could not load subscription plans.";
+      setBillingError(message);
+      if (options?.throwOnError) {
+        throw error instanceof Error ? error : new Error(message);
+      }
       return [] as GooglePlayBillingPlan[];
     } finally {
       setLoadingBilling(false);
@@ -325,7 +330,7 @@ export default function SubscriptionScreen() {
     try {
       setStartingPlan(planKey);
       let plans = billingPlans;
-      if (!plans.length) plans = await loadBillingPlans();
+      if (!plans.length) plans = await loadBillingPlans({ throwOnError: true });
 
       const plan = plans.find((item) => item.key === planKey);
       if (!plan) {

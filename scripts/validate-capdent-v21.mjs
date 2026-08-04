@@ -31,6 +31,7 @@ const paymentCoordinator = readText(
   "src/components/PaymentNotificationCoordinator.tsx"
 );
 const chart = readText("src/lib/toothChart.ts");
+const googlePlayBillingClient = readText("src/lib/googlePlayBilling.ts");
 const visitDraft = readText("src/lib/visitDraft.tsx");
 const paymentMigration = readText(
   "supabase/migrations/20260726204205_capdent_v21_payment_notifications.sql"
@@ -64,7 +65,7 @@ expect(
   "Android package must remain com.dms.clinic."
 );
 expect(app.expo?.version === "1.2.2", "Expo version must be 1.2.2.");
-expect(app.expo?.android?.versionCode === 22, "Android versionCode must be 22.");
+expect(app.expo?.android?.versionCode === 23, "Android versionCode must be 23.");
 expect(pkg.version === "1.2.2", "package.json version must be 1.2.2.");
 expect(
   eas.cli?.appVersionSource === "local",
@@ -104,7 +105,7 @@ for (const profileName of [
   );
   expect(
     profile?.autoIncrement === false,
-    `${profileName} must keep deterministic version code 22.`
+    `${profileName} must keep deterministic version code 23.`
   );
   expect(
     profile?.environment ===
@@ -274,8 +275,14 @@ expect(
 );
 expect(
   googlePlayVerifier.includes("monthlyPrice: 800") &&
-    readText("src/lib/googlePlayBilling.ts").includes("monthlyAmount: 800"),
+    googlePlayBillingClient.includes("monthlyAmount: 800"),
   "CapDent Cloud fallback and verified billing metadata must match the live India price."
+);
+expect(
+  googlePlayBillingClient.includes("iap.fetchProducts") &&
+    googlePlayBillingClient.includes('type: "subs"') &&
+    googlePlayBillingClient.includes("iap.getSubscriptions"),
+  "Google Play subscription loading must support react-native-iap 14 and legacy native builds."
 );
 expect(
   paymentFunction.includes('.neq("id", collectorId') &&

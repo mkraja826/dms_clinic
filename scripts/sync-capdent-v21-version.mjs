@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 
 const VERSION_NAME = "1.2.2";
-const VERSION_CODE = 22;
+const VERSION_CODE = 23;
 
 function updateJson(path, transform) {
   if (!existsSync(path)) return;

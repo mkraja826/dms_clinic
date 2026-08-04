@@ -102,7 +102,18 @@ export async function endGooglePlayBilling() {
 
 async function getSubscriptionsCompat(skus: string[]) {
   const iap = getIapModule();
-  if (!iap?.getSubscriptions) throw new Error("Google Play Billing is not available.");
+  if (!iap) throw new Error("Google Play Billing is not available.");
+
+  // react-native-iap 14 uses the OpenIAP fetchProducts API. Keep the legacy
+  // fallback so older native builds can still load subscriptions safely.
+  if (typeof iap.fetchProducts === "function") {
+    const products = await iap.fetchProducts({ skus, type: "subs" });
+    return Array.isArray(products) ? products : [];
+  }
+
+  if (typeof iap.getSubscriptions !== "function") {
+    throw new Error("This build does not include a compatible Google Play Billing product API.");
+  }
 
   try {
     return await iap.getSubscriptions({ skus });
@@ -128,7 +139,7 @@ function productOffers(product: any) {
       offerToken: offer?.offerTokenAndroid || offer?.offerToken || null,
       basePlanId: offer?.basePlanIdAndroid || offer?.basePlanId || null,
       offerId: offer?.id || offer?.offerId || null,
-      offerTags: offer?.offerTags || offer?.tags || [],
+      offerTags: offer?.offerTagsAndroid || offer?.offerTags || offer?.tags || [],
       displayPrice: offer?.displayPrice || null,
       pricingPhases:
         offer?.pricingPhasesAndroid?.pricingPhaseList ||
