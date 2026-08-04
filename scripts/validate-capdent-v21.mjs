@@ -398,5 +398,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  "CapDent v22 version, dependencies, signing policy, and production feature checks passed."
+  "CapDent v24 version, dependencies, signing policy, and production feature checks passed."
 );
