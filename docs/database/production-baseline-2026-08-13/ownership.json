@@ -1,0 +1,35 @@
+{
+  "owner_web_portal": {
+    "repository": "mkraja826/micirql-dms",
+    "migration_range": {
+      "first": "20260807180754",
+      "last": "20260807222138",
+      "count": 14
+    },
+    "frozen_database_objects": [
+      "public.capdent_ai_conversations",
+      "public.get_capdent_ai_*"
+    ],
+    "frozen_edge_functions": [
+      "capdent-ai",
+      "capdent-ai-agent",
+      "capdent-ai-core",
+      "capdent-ai-provider-test",
+      "capdent-ai-raw-core"
+    ]
+  },
+  "shared_contracts": [
+    "public.clinics",
+    "public.profiles",
+    "public.patients",
+    "public.appointments",
+    "public.patient_visits",
+    "public.treatments",
+    "public.files",
+    "public.payments",
+    "public.invoices",
+    "public.financial_adjustments",
+    "public.dental_chart_entries"
+  ],
+  "android_v25_rule": "Additive-only changes; no rename, drop, incompatible type change, role-semantics change, or RPC removal without portal regression review."
+}

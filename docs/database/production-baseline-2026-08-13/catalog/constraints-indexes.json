@@ -1,0 +1,2856 @@
+{
+  "project_ref": "mzjtdcpbvoximdukpukd",
+  "captured_at_utc": "2026-08-12T21:16:20.757596",
+  "constraints": [
+    {
+      "schema": "public",
+      "table": "admin_audit_logs",
+      "name": "admin_audit_logs_clinic_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "admin_audit_logs",
+      "name": "admin_audit_logs_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "public",
+      "table": "admin_client_error_logs",
+      "name": "admin_client_error_logs_clinic_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "admin_client_error_logs",
+      "name": "admin_client_error_logs_user_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "admin_client_error_logs",
+      "name": "admin_client_error_logs_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "public",
+      "table": "appointment_audit_logs",
+      "name": "appointment_audit_logs_appointment_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "appointment_audit_logs",
+      "name": "appointment_audit_logs_changed_by_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (changed_by) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "appointment_audit_logs",
+      "name": "appointment_audit_logs_clinic_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "appointment_audit_logs",
+      "name": "appointment_audit_logs_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "public",
+      "table": "appointments",
+      "name": "appointments_op_fee_status_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (op_fee_status = ANY (ARRAY['paid'::text, 'pending'::text, 'waived'::text]))"
+    },
+    {
+      "schema": "public",
+      "table": "appointments",
+      "name": "appointments_reminder_status_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (reminder_status = ANY (ARRAY['pending'::text, 'message_sent'::text, 'patient_confirmed'::text, 'not_reachable'::text, 'completed'::text]))"
+    },
+    {
+      "schema": "public",
+      "table": "appointments",
+      "name": "appointments_status_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (status = ANY (ARRAY['scheduled'::text, 'waiting'::text, 'checked_in'::text, 'booked'::text, 'completed'::text, 'done'::text, 'cancelled'::text, 'canceled'::text, 'no_show'::text, 'followup'::text, 'reminded'::text]))"
+    },
+    {
+      "schema": "public",
+      "table": "appointments",
+      "name": "appointments_clinic_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "appointments",
+      "name": "appointments_doctor_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (doctor_id) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "appointments",
+      "name": "appointments_patient_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "appointments",
+      "name": "appointments_updated_by_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (updated_by) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "appointments",
+      "name": "appointments_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "public",
+      "table": "capdent_ai_conversations",
+      "name": "capdent_ai_conversations_clinic_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "capdent_ai_conversations",
+      "name": "capdent_ai_conversations_last_patient_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (last_patient_id) REFERENCES patients(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "capdent_ai_conversations",
+      "name": "capdent_ai_conversations_user_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "capdent_ai_conversations",
+      "name": "capdent_ai_conversations_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "public",
+      "table": "capdent_ai_conversations",
+      "name": "capdent_ai_conversations_user_id_conversation_key_key",
+      "type": "u",
+      "validated": true,
+      "definition": "UNIQUE (user_id, conversation_key)"
+    },
+    {
+      "schema": "public",
+      "table": "capdent_plan_catalog",
+      "name": "capdent_plan_catalog_clinic_limit_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (clinic_limit > 0)"
+    },
+    {
+      "schema": "public",
+      "table": "capdent_plan_catalog",
+      "name": "capdent_plan_catalog_code_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (code = ANY (ARRAY['free'::text, 'cloud'::text, 'intelligence'::text]))"
+    },
+    {
+      "schema": "public",
+      "table": "capdent_plan_catalog",
+      "name": "capdent_plan_catalog_monthly_price_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (monthly_price >= 0::numeric)"
+    },
+    {
+      "schema": "public",
+      "table": "capdent_plan_catalog",
+      "name": "capdent_plan_catalog_patient_limit_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (patient_limit IS NULL OR patient_limit > 0)"
+    },
+    {
+      "schema": "public",
+      "table": "capdent_plan_catalog",
+      "name": "capdent_plan_catalog_storage_limit_bytes_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (storage_limit_bytes > 0)"
+    },
+    {
+      "schema": "public",
+      "table": "capdent_plan_catalog",
+      "name": "capdent_plan_catalog_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (code)"
+    },
+    {
+      "schema": "public",
+      "table": "capdent_pricing_flags",
+      "name": "capdent_pricing_flags_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (key)"
+    },
+    {
+      "schema": "public",
+      "table": "capdent_pricing_shadow_events",
+      "name": "capdent_pricing_shadow_events_patient_count_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (patient_count >= 0)"
+    },
+    {
+      "schema": "public",
+      "table": "capdent_pricing_shadow_events",
+      "name": "capdent_pricing_shadow_events_clinic_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "capdent_pricing_shadow_events",
+      "name": "capdent_pricing_shadow_events_profile_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "capdent_pricing_shadow_events",
+      "name": "capdent_pricing_shadow_events_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "public",
+      "table": "charges",
+      "name": "charges_payment_status_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (payment_status = ANY (ARRAY['pending'::text, 'partial'::text, 'paid'::text]))"
+    },
+    {
+      "schema": "public",
+      "table": "charges",
+      "name": "charges_clinic_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "charges",
+      "name": "charges_patient_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "charges",
+      "name": "charges_visit_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (visit_id) REFERENCES patient_visits(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "charges",
+      "name": "charges_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "public",
+      "table": "clinic_pricing_settings",
+      "name": "clinic_pricing_settings_pricing_policy_version_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (pricing_policy_version > 0)"
+    },
+    {
+      "schema": "public",
+      "table": "clinic_pricing_settings",
+      "name": "clinic_pricing_settings_clinic_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "clinic_pricing_settings",
+      "name": "clinic_pricing_settings_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (clinic_id)"
+    },
+    {
+      "schema": "public",
+      "table": "clinic_subscriptions",
+      "name": "clinic_subscriptions_billing_provider_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (billing_provider = ANY (ARRAY['google_play'::text, 'manual'::text]))"
+    },
+    {
+      "schema": "public",
+      "table": "clinic_subscriptions",
+      "name": "clinic_subscriptions_google_play_status_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (google_play_status = ANY (ARRAY['not_started'::text, 'trial_started'::text, 'active'::text, 'grace_period'::text, 'account_hold'::text, 'expired'::text, 'cancelled'::text, 'pending_verification'::text]))"
+    },
+    {
+      "schema": "public",
+      "table": "clinic_subscriptions",
+      "name": "clinic_subscriptions_status_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (status = ANY (ARRAY['free'::text, 'trial'::text, 'active'::text, 'expired'::text, 'cancelled'::text, 'grace_period'::text]))"
+    },
+    {
+      "schema": "public",
+      "table": "clinic_subscriptions",
+      "name": "clinic_subscriptions_clinic_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "clinic_subscriptions",
+      "name": "clinic_subscriptions_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "public",
+      "table": "clinic_subscriptions",
+      "name": "clinic_subscriptions_clinic_id_key",
+      "type": "u",
+      "validated": true,
+      "definition": "UNIQUE (clinic_id)"
+    },
+    {
+      "schema": "public",
+      "table": "clinical_audit_logs",
+      "name": "clinical_audit_target_type_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (target_type = ANY (ARRAY['visit'::text, 'treatment'::text, 'dental_chart_entry'::text]))"
+    },
+    {
+      "schema": "public",
+      "table": "clinical_audit_logs",
+      "name": "clinical_audit_logs_changed_by_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (changed_by) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "clinical_audit_logs",
+      "name": "clinical_audit_logs_clinic_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "clinical_audit_logs",
+      "name": "clinical_audit_logs_patient_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "clinical_audit_logs",
+      "name": "clinical_audit_logs_visit_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (visit_id) REFERENCES patient_visits(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "clinical_audit_logs",
+      "name": "clinical_audit_logs_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "public",
+      "table": "clinics",
+      "name": "clinics_country_code_format",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (country_code ~ '^[A-Z]{2}$'::text)"
+    },
+    {
+      "schema": "public",
+      "table": "clinics",
+      "name": "clinics_currency_code_format",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (currency_code ~ '^[A-Z]{3}$'::text)"
+    },
+    {
+      "schema": "public",
+      "table": "clinics",
+      "name": "clinics_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "public",
+      "table": "dental_chart_entries",
+      "name": "dental_chart_entries_condition_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (condition = ANY (ARRAY['healthy'::text, 'caries'::text, 'filled'::text, 'missing'::text, 'crown'::text, 'root_canal'::text, 'implant'::text, 'extraction_planned'::text, 'unerupted'::text]))"
+    },
+    {
+      "schema": "public",
+      "table": "dental_chart_entries",
+      "name": "dental_chart_entries_dentition_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (dentition = ANY (ARRAY['permanent'::text, 'primary'::text]))"
+    },
+    {
+      "schema": "public",
+      "table": "dental_chart_entries",
+      "name": "dental_chart_entries_fdi_matches_dentition",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (dentition = 'permanent'::text AND tooth_code ~ '^[1-4][1-8]$'::text OR dentition = 'primary'::text AND tooth_code ~ '^[5-8][1-5]$'::text)"
+    },
+    {
+      "schema": "public",
+      "table": "dental_chart_entries",
+      "name": "dental_chart_entries_notes_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (notes IS NULL OR char_length(notes) <= 1000)"
+    },
+    {
+      "schema": "public",
+      "table": "dental_chart_entries",
+      "name": "dental_chart_entries_surfaces_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (surfaces <@ ARRAY['mesial'::text, 'distal'::text, 'occlusal'::text, 'buccal'::text, 'lingual'::text] AND cardinality(surfaces) <= 5)"
+    },
+    {
+      "schema": "public",
+      "table": "dental_chart_entries",
+      "name": "dental_chart_entries_treatment_name_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (treatment_name IS NULL OR char_length(treatment_name) <= 160)"
+    },
+    {
+      "schema": "public",
+      "table": "dental_chart_entries",
+      "name": "dental_chart_entries_treatment_status_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (treatment_status = ANY (ARRAY['planned'::text, 'ongoing'::text, 'completed'::text]))"
+    },
+    {
+      "schema": "public",
+      "table": "dental_chart_entries",
+      "name": "dental_chart_entries_clinic_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "dental_chart_entries",
+      "name": "dental_chart_entries_patient_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "dental_chart_entries",
+      "name": "dental_chart_entries_recorded_by_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (recorded_by) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "dental_chart_entries",
+      "name": "dental_chart_entries_visit_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (visit_id) REFERENCES patient_visits(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "dental_chart_entries",
+      "name": "dental_chart_entries_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "public",
+      "table": "dental_chart_entries",
+      "name": "dental_chart_entries_visit_id_dentition_tooth_code_key",
+      "type": "u",
+      "validated": true,
+      "definition": "UNIQUE (visit_id, dentition, tooth_code)"
+    },
+    {
+      "schema": "public",
+      "table": "device_push_tokens",
+      "name": "device_push_tokens_expo_push_token_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (expo_push_token ~ '^Expo(nent)?PushToken\\[[A-Za-z0-9_-]+\\]$'::text)"
+    },
+    {
+      "schema": "public",
+      "table": "device_push_tokens",
+      "name": "device_push_tokens_install_id_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (char_length(install_id) >= 12 AND char_length(install_id) <= 160)"
+    },
+    {
+      "schema": "public",
+      "table": "device_push_tokens",
+      "name": "device_push_tokens_platform_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (platform = ANY (ARRAY['android'::text, 'ios'::text]))"
+    },
+    {
+      "schema": "public",
+      "table": "device_push_tokens",
+      "name": "device_push_tokens_clinic_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "device_push_tokens",
+      "name": "device_push_tokens_user_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "device_push_tokens",
+      "name": "device_push_tokens_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "public",
+      "table": "device_push_tokens",
+      "name": "device_push_tokens_user_id_install_id_key",
+      "type": "u",
+      "validated": true,
+      "definition": "UNIQUE (user_id, install_id)"
+    },
+    {
+      "schema": "public",
+      "table": "file_audit_logs",
+      "name": "file_audit_logs_action_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (action = ANY (ARRAY['archive'::text, 'restore'::text]))"
+    },
+    {
+      "schema": "public",
+      "table": "file_audit_logs",
+      "name": "file_audit_logs_changed_by_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (changed_by) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "file_audit_logs",
+      "name": "file_audit_logs_clinic_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "file_audit_logs",
+      "name": "file_audit_logs_file_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "file_audit_logs",
+      "name": "file_audit_logs_patient_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "file_audit_logs",
+      "name": "file_audit_logs_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "public",
+      "table": "files",
+      "name": "files_file_type_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (file_type = ANY (ARRAY['before_photo'::text, 'after_photo'::text, 'xray'::text, 'prescription'::text, 'report'::text, 'other'::text]))"
+    },
+    {
+      "schema": "public",
+      "table": "files",
+      "name": "files_original_size_bytes_check",
+      "type": "c",
+      "validated": false,
+      "definition": "CHECK (original_size_bytes IS NULL OR original_size_bytes >= 0) NOT VALID"
+    },
+    {
+      "schema": "public",
+      "table": "files",
+      "name": "files_storage_bucket_check",
+      "type": "c",
+      "validated": false,
+      "definition": "CHECK (storage_bucket IS NULL OR (storage_bucket = ANY (ARRAY['patient-files'::text, 'prescriptions'::text, 'xrays'::text]))) NOT VALID"
+    },
+    {
+      "schema": "public",
+      "table": "files",
+      "name": "files_stored_size_bytes_check",
+      "type": "c",
+      "validated": false,
+      "definition": "CHECK (stored_size_bytes IS NULL OR stored_size_bytes >= 0) NOT VALID"
+    },
+    {
+      "schema": "public",
+      "table": "files",
+      "name": "files_xray_fee_status_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (xray_fee_status = ANY (ARRAY['not_applicable'::text, 'pending'::text, 'paid'::text, 'waived'::text]))"
+    },
+    {
+      "schema": "public",
+      "table": "files",
+      "name": "files_archived_by_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (archived_by) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "files",
+      "name": "files_clinic_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "files",
+      "name": "files_patient_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "files",
+      "name": "files_uploaded_by_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (uploaded_by) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "files",
+      "name": "files_visit_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (visit_id) REFERENCES patient_visits(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "files",
+      "name": "files_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "public",
+      "table": "financial_adjustments",
+      "name": "financial_adjustments_adjustment_type_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (adjustment_type = ANY (ARRAY['payment_correction'::text, 'payment_void'::text, 'refund'::text, 'refund_void'::text, 'discount'::text, 'waiver'::text]))"
+    },
+    {
+      "schema": "public",
+      "table": "financial_adjustments",
+      "name": "financial_adjustments_amount_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (amount >= 0::numeric)"
+    },
+    {
+      "schema": "public",
+      "table": "financial_adjustments",
+      "name": "financial_adjustments_clinic_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "financial_adjustments",
+      "name": "financial_adjustments_created_by_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (created_by) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "financial_adjustments",
+      "name": "financial_adjustments_invoice_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE RESTRICT"
+    },
+    {
+      "schema": "public",
+      "table": "financial_adjustments",
+      "name": "financial_adjustments_patient_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE RESTRICT"
+    },
+    {
+      "schema": "public",
+      "table": "financial_adjustments",
+      "name": "financial_adjustments_payment_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "financial_adjustments",
+      "name": "financial_adjustments_related_payment_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (related_payment_id) REFERENCES payments(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "financial_adjustments",
+      "name": "financial_adjustments_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "public",
+      "table": "google_play_subscription_events",
+      "name": "google_play_subscription_events_clinic_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "google_play_subscription_events",
+      "name": "google_play_subscription_events_profile_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "google_play_subscription_events",
+      "name": "google_play_subscription_events_subscription_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (subscription_id) REFERENCES clinic_subscriptions(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "google_play_subscription_events",
+      "name": "google_play_subscription_events_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "public",
+      "table": "invoice_versions",
+      "name": "invoice_versions_adjustment_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (adjustment_id) REFERENCES financial_adjustments(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "invoice_versions",
+      "name": "invoice_versions_clinic_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "invoice_versions",
+      "name": "invoice_versions_created_by_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (created_by) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "invoice_versions",
+      "name": "invoice_versions_invoice_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE RESTRICT"
+    },
+    {
+      "schema": "public",
+      "table": "invoice_versions",
+      "name": "invoice_versions_patient_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE RESTRICT"
+    },
+    {
+      "schema": "public",
+      "table": "invoice_versions",
+      "name": "invoice_versions_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "public",
+      "table": "invoice_versions",
+      "name": "invoice_versions_invoice_id_version_number_key",
+      "type": "u",
+      "validated": true,
+      "definition": "UNIQUE (invoice_id, version_number)"
+    },
+    {
+      "schema": "public",
+      "table": "invoices",
+      "name": "invoices_financial_amounts_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (original_total_amount >= 0::numeric AND total_amount >= 0::numeric AND paid_amount >= 0::numeric AND due_amount >= 0::numeric AND discount_amount >= 0::numeric AND waived_amount >= 0::numeric AND refunded_amount >= 0::numeric AND version_number >= 1)"
+    },
+    {
+      "schema": "public",
+      "table": "invoices",
+      "name": "invoices_payment_category_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (payment_category = ANY (ARRAY['op_fee'::text, 'xray_fee'::text, 'medication_fee'::text, 'treatment_fee'::text, 'pending_collection'::text, 'other'::text]))"
+    },
+    {
+      "schema": "public",
+      "table": "invoices",
+      "name": "invoices_status_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (status = ANY (ARRAY['unpaid'::text, 'partial'::text, 'paid'::text]))"
+    },
+    {
+      "schema": "public",
+      "table": "invoices",
+      "name": "invoices_clinic_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "invoices",
+      "name": "invoices_created_by_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (created_by) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "invoices",
+      "name": "invoices_patient_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "invoices",
+      "name": "invoices_updated_by_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (updated_by) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "invoices",
+      "name": "invoices_visit_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (visit_id) REFERENCES patient_visits(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "invoices",
+      "name": "invoices_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "public",
+      "table": "management_audit_logs",
+      "name": "management_audit_logs_target_type_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (target_type = ANY (ARRAY['staff'::text, 'staff_invite'::text, 'clinic'::text]))"
+    },
+    {
+      "schema": "public",
+      "table": "management_audit_logs",
+      "name": "management_audit_logs_changed_by_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (changed_by) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "management_audit_logs",
+      "name": "management_audit_logs_clinic_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "management_audit_logs",
+      "name": "management_audit_logs_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "public",
+      "table": "medical_history",
+      "name": "medical_history_clinic_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "medical_history",
+      "name": "medical_history_patient_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "medical_history",
+      "name": "medical_history_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "public",
+      "table": "medical_history",
+      "name": "medical_history_patient_id_key",
+      "type": "u",
+      "validated": true,
+      "definition": "UNIQUE (patient_id)"
+    },
+    {
+      "schema": "public",
+      "table": "medication_catalog",
+      "name": "medication_catalog_clinic_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "medication_catalog",
+      "name": "medication_catalog_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "public",
+      "table": "medication_catalog",
+      "name": "medication_catalog_clinic_id_normalized_name_key",
+      "type": "u",
+      "validated": true,
+      "definition": "UNIQUE (clinic_id, normalized_name)"
+    },
+    {
+      "schema": "public",
+      "table": "patient_audit_logs",
+      "name": "patient_audit_logs_changed_by_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (changed_by) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "patient_audit_logs",
+      "name": "patient_audit_logs_clinic_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "patient_audit_logs",
+      "name": "patient_audit_logs_patient_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "patient_audit_logs",
+      "name": "patient_audit_logs_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "public",
+      "table": "patient_medications",
+      "name": "patient_medications_clinic_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "patient_medications",
+      "name": "patient_medications_patient_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "patient_medications",
+      "name": "patient_medications_prescribed_by_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (prescribed_by) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "patient_medications",
+      "name": "patient_medications_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "public",
+      "table": "patient_visits",
+      "name": "patient_visits_clinic_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "patient_visits",
+      "name": "patient_visits_created_by_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (created_by) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "patient_visits",
+      "name": "patient_visits_doctor_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (doctor_id) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "patient_visits",
+      "name": "patient_visits_patient_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "patient_visits",
+      "name": "patient_visits_updated_by_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (updated_by) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "patient_visits",
+      "name": "patient_visits_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "public",
+      "table": "patients",
+      "name": "patients_age_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (age IS NULL OR age >= 0 AND age <= 130)"
+    },
+    {
+      "schema": "public",
+      "table": "patients",
+      "name": "patients_archived_by_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (archived_by) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "patients",
+      "name": "patients_clinic_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "patients",
+      "name": "patients_created_by_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (created_by) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "patients",
+      "name": "patients_updated_by_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (updated_by) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "patients",
+      "name": "patients_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "public",
+      "table": "payment_notification_deliveries",
+      "name": "payment_notification_deliveries_attempt_count_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (attempt_count >= 0 AND attempt_count <= 20)"
+    },
+    {
+      "schema": "public",
+      "table": "payment_notification_deliveries",
+      "name": "payment_notification_deliveries_status_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (status = ANY (ARRAY['pending'::text, 'ticket_ok'::text, 'ticket_error'::text, 'delivered'::text, 'receipt_error'::text, 'retry'::text, 'invalid'::text]))"
+    },
+    {
+      "schema": "public",
+      "table": "payment_notification_deliveries",
+      "name": "payment_notification_deliveries_clinic_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "payment_notification_deliveries",
+      "name": "payment_notification_deliveries_device_token_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (device_token_id) REFERENCES device_push_tokens(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "payment_notification_deliveries",
+      "name": "payment_notification_deliveries_job_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (job_id) REFERENCES payment_notification_jobs(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "payment_notification_deliveries",
+      "name": "payment_notification_deliveries_recipient_user_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (recipient_user_id) REFERENCES profiles(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "payment_notification_deliveries",
+      "name": "payment_notification_deliveries_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "public",
+      "table": "payment_notification_deliveries",
+      "name": "payment_notification_deliveries_job_id_expo_push_token_key",
+      "type": "u",
+      "validated": true,
+      "definition": "UNIQUE (job_id, expo_push_token)"
+    },
+    {
+      "schema": "public",
+      "table": "payment_notification_jobs",
+      "name": "payment_notification_jobs_attempts_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (attempts >= 0 AND attempts <= 20)"
+    },
+    {
+      "schema": "public",
+      "table": "payment_notification_jobs",
+      "name": "payment_notification_jobs_status_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (status = ANY (ARRAY['queued'::text, 'processing'::text, 'sent'::text, 'retry'::text, 'failed'::text, 'skipped'::text]))"
+    },
+    {
+      "schema": "public",
+      "table": "payment_notification_jobs",
+      "name": "payment_notification_jobs_clinic_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "payment_notification_jobs",
+      "name": "payment_notification_jobs_payment_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "payment_notification_jobs",
+      "name": "payment_notification_jobs_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "public",
+      "table": "payment_notification_jobs",
+      "name": "payment_notification_jobs_payment_id_key",
+      "type": "u",
+      "validated": true,
+      "definition": "UNIQUE (payment_id)"
+    },
+    {
+      "schema": "public",
+      "table": "payments",
+      "name": "payments_payment_category_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (payment_category = ANY (ARRAY['op_fee'::text, 'xray_fee'::text, 'medication_fee'::text, 'treatment_fee'::text, 'pending_collection'::text, 'other'::text]))"
+    },
+    {
+      "schema": "public",
+      "table": "payments",
+      "name": "payments_status_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (status = ANY (ARRAY['active'::text, 'corrected'::text, 'voided'::text, 'refund'::text]))"
+    },
+    {
+      "schema": "public",
+      "table": "payments",
+      "name": "payments_clinic_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "payments",
+      "name": "payments_collected_by_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (collected_by) REFERENCES profiles(id)"
+    },
+    {
+      "schema": "public",
+      "table": "payments",
+      "name": "payments_invoice_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "payments",
+      "name": "payments_original_payment_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (original_payment_id) REFERENCES payments(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "payments",
+      "name": "payments_patient_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "payments",
+      "name": "payments_updated_by_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (updated_by) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "payments",
+      "name": "payments_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "public",
+      "table": "profiles",
+      "name": "profiles_role_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (role = ANY (ARRAY['owner'::text, 'head_doctor'::text, 'doctor'::text, 'working_doctor'::text, 'receptionist'::text]))"
+    },
+    {
+      "schema": "public",
+      "table": "profiles",
+      "name": "profiles_clinic_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "profiles",
+      "name": "profiles_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "profiles",
+      "name": "profiles_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "public",
+      "table": "report_export_logs",
+      "name": "report_export_logs_row_count_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (row_count >= 0)"
+    },
+    {
+      "schema": "public",
+      "table": "report_export_logs",
+      "name": "report_export_logs_clinic_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "report_export_logs",
+      "name": "report_export_logs_exported_by_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (exported_by) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "report_export_logs",
+      "name": "report_export_logs_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "public",
+      "table": "staff_invites",
+      "name": "staff_invites_role_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (role = ANY (ARRAY['doctor'::text, 'working_doctor'::text, 'receptionist'::text]))"
+    },
+    {
+      "schema": "public",
+      "table": "staff_invites",
+      "name": "staff_invites_cancelled_by_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (cancelled_by) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "staff_invites",
+      "name": "staff_invites_clinic_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "staff_invites",
+      "name": "staff_invites_invited_by_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (invited_by) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "staff_invites",
+      "name": "staff_invites_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "public",
+      "table": "staff_invites",
+      "name": "staff_invites_clinic_id_email_key",
+      "type": "u",
+      "validated": true,
+      "definition": "UNIQUE (clinic_id, email)"
+    },
+    {
+      "schema": "public",
+      "table": "staff_invites",
+      "name": "staff_invites_invite_code_key",
+      "type": "u",
+      "validated": true,
+      "definition": "UNIQUE (invite_code)"
+    },
+    {
+      "schema": "public",
+      "table": "treatments",
+      "name": "treatments_status_check",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK (status = ANY (ARRAY['planned'::text, 'ongoing'::text, 'completed'::text, 'cancelled'::text]))"
+    },
+    {
+      "schema": "public",
+      "table": "treatments",
+      "name": "treatments_clinic_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "treatments",
+      "name": "treatments_patient_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "public",
+      "table": "treatments",
+      "name": "treatments_updated_by_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (updated_by) REFERENCES profiles(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "treatments",
+      "name": "treatments_visit_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (visit_id) REFERENCES patient_visits(id) ON DELETE SET NULL"
+    },
+    {
+      "schema": "public",
+      "table": "treatments",
+      "name": "treatments_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "public",
+      "table": "website_appointments",
+      "name": "website_appointments_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "storage",
+      "table": "buckets",
+      "name": "buckets_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "storage",
+      "table": "buckets_analytics",
+      "name": "buckets_analytics_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "storage",
+      "table": "buckets_vectors",
+      "name": "buckets_vectors_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "storage",
+      "table": "migrations",
+      "name": "migrations_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "storage",
+      "table": "migrations",
+      "name": "migrations_name_key",
+      "type": "u",
+      "validated": true,
+      "definition": "UNIQUE (name)"
+    },
+    {
+      "schema": "storage",
+      "table": "objects",
+      "name": "objects_bucketId_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (bucket_id) REFERENCES storage.buckets(id)"
+    },
+    {
+      "schema": "storage",
+      "table": "objects",
+      "name": "objects_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "storage",
+      "table": "s3_multipart_uploads",
+      "name": "s3_multipart_uploads_bucket_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (bucket_id) REFERENCES storage.buckets(id)"
+    },
+    {
+      "schema": "storage",
+      "table": "s3_multipart_uploads",
+      "name": "s3_multipart_uploads_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "storage",
+      "table": "s3_multipart_uploads_parts",
+      "name": "s3_multipart_uploads_parts_bucket_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (bucket_id) REFERENCES storage.buckets(id)"
+    },
+    {
+      "schema": "storage",
+      "table": "s3_multipart_uploads_parts",
+      "name": "s3_multipart_uploads_parts_upload_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (upload_id) REFERENCES storage.s3_multipart_uploads(id) ON DELETE CASCADE"
+    },
+    {
+      "schema": "storage",
+      "table": "s3_multipart_uploads_parts",
+      "name": "s3_multipart_uploads_parts_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "schema": "storage",
+      "table": "vector_indexes",
+      "name": "vector_indexes_bucket_id_fkey",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (bucket_id) REFERENCES storage.buckets_vectors(id)"
+    },
+    {
+      "schema": "storage",
+      "table": "vector_indexes",
+      "name": "vector_indexes_pkey",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    }
+  ],
+  "indexes": [
+    {
+      "schema": "public",
+      "table": "admin_audit_logs",
+      "name": "admin_audit_logs_clinic_id_idx",
+      "definition": "CREATE INDEX admin_audit_logs_clinic_id_idx ON public.admin_audit_logs USING btree (clinic_id, created_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "admin_audit_logs",
+      "name": "admin_audit_logs_created_at_idx",
+      "definition": "CREATE INDEX admin_audit_logs_created_at_idx ON public.admin_audit_logs USING btree (created_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "admin_audit_logs",
+      "name": "admin_audit_logs_pkey",
+      "definition": "CREATE UNIQUE INDEX admin_audit_logs_pkey ON public.admin_audit_logs USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "admin_client_error_logs",
+      "name": "admin_client_error_logs_clinic_created_idx",
+      "definition": "CREATE INDEX admin_client_error_logs_clinic_created_idx ON public.admin_client_error_logs USING btree (clinic_id, created_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "admin_client_error_logs",
+      "name": "admin_client_error_logs_pkey",
+      "definition": "CREATE UNIQUE INDEX admin_client_error_logs_pkey ON public.admin_client_error_logs USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "admin_client_error_logs",
+      "name": "admin_client_error_logs_user_created_idx",
+      "definition": "CREATE INDEX admin_client_error_logs_user_created_idx ON public.admin_client_error_logs USING btree (user_id, created_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "appointment_audit_logs",
+      "name": "appointment_audit_logs_appointment_created_idx",
+      "definition": "CREATE INDEX appointment_audit_logs_appointment_created_idx ON public.appointment_audit_logs USING btree (appointment_id, created_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "appointment_audit_logs",
+      "name": "appointment_audit_logs_changed_by_idx",
+      "definition": "CREATE INDEX appointment_audit_logs_changed_by_idx ON public.appointment_audit_logs USING btree (changed_by)"
+    },
+    {
+      "schema": "public",
+      "table": "appointment_audit_logs",
+      "name": "appointment_audit_logs_clinic_created_idx",
+      "definition": "CREATE INDEX appointment_audit_logs_clinic_created_idx ON public.appointment_audit_logs USING btree (clinic_id, created_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "appointment_audit_logs",
+      "name": "appointment_audit_logs_pkey",
+      "definition": "CREATE UNIQUE INDEX appointment_audit_logs_pkey ON public.appointment_audit_logs USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "appointments",
+      "name": "appointments_clinic_status_time_idx",
+      "definition": "CREATE INDEX appointments_clinic_status_time_idx ON public.appointments USING btree (clinic_id, status, appointment_time DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "appointments",
+      "name": "appointments_clinic_time_idx",
+      "definition": "CREATE INDEX appointments_clinic_time_idx ON public.appointments USING btree (clinic_id, appointment_time)"
+    },
+    {
+      "schema": "public",
+      "table": "appointments",
+      "name": "appointments_created_by_idx",
+      "definition": "CREATE INDEX appointments_created_by_idx ON public.appointments USING btree (created_by)"
+    },
+    {
+      "schema": "public",
+      "table": "appointments",
+      "name": "appointments_doctor_id_idx",
+      "definition": "CREATE INDEX appointments_doctor_id_idx ON public.appointments USING btree (doctor_id)"
+    },
+    {
+      "schema": "public",
+      "table": "appointments",
+      "name": "appointments_patient_id_idx",
+      "definition": "CREATE INDEX appointments_patient_id_idx ON public.appointments USING btree (patient_id)"
+    },
+    {
+      "schema": "public",
+      "table": "appointments",
+      "name": "appointments_pkey",
+      "definition": "CREATE UNIQUE INDEX appointments_pkey ON public.appointments USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "appointments",
+      "name": "appointments_reminder_idx",
+      "definition": "CREATE INDEX appointments_reminder_idx ON public.appointments USING btree (clinic_id, reminder_status, appointment_time)"
+    },
+    {
+      "schema": "public",
+      "table": "appointments",
+      "name": "appointments_status_idx",
+      "definition": "CREATE INDEX appointments_status_idx ON public.appointments USING btree (status)"
+    },
+    {
+      "schema": "public",
+      "table": "appointments",
+      "name": "appointments_updated_by_idx",
+      "definition": "CREATE INDEX appointments_updated_by_idx ON public.appointments USING btree (updated_by)"
+    },
+    {
+      "schema": "public",
+      "table": "appointments",
+      "name": "appointments_waived_op_idx",
+      "definition": "CREATE INDEX appointments_waived_op_idx ON public.appointments USING btree (clinic_id, created_at DESC) WHERE (op_fee_status = 'waived'::text)"
+    },
+    {
+      "schema": "public",
+      "table": "capdent_ai_conversations",
+      "name": "capdent_ai_conversations_clinic_user_idx",
+      "definition": "CREATE INDEX capdent_ai_conversations_clinic_user_idx ON public.capdent_ai_conversations USING btree (clinic_id, user_id)"
+    },
+    {
+      "schema": "public",
+      "table": "capdent_ai_conversations",
+      "name": "capdent_ai_conversations_pkey",
+      "definition": "CREATE UNIQUE INDEX capdent_ai_conversations_pkey ON public.capdent_ai_conversations USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "capdent_ai_conversations",
+      "name": "capdent_ai_conversations_user_id_conversation_key_key",
+      "definition": "CREATE UNIQUE INDEX capdent_ai_conversations_user_id_conversation_key_key ON public.capdent_ai_conversations USING btree (user_id, conversation_key)"
+    },
+    {
+      "schema": "public",
+      "table": "capdent_plan_catalog",
+      "name": "capdent_plan_catalog_pkey",
+      "definition": "CREATE UNIQUE INDEX capdent_plan_catalog_pkey ON public.capdent_plan_catalog USING btree (code)"
+    },
+    {
+      "schema": "public",
+      "table": "capdent_pricing_flags",
+      "name": "capdent_pricing_flags_pkey",
+      "definition": "CREATE UNIQUE INDEX capdent_pricing_flags_pkey ON public.capdent_pricing_flags USING btree (key)"
+    },
+    {
+      "schema": "public",
+      "table": "capdent_pricing_shadow_events",
+      "name": "capdent_pricing_shadow_events_clinic_id_idx",
+      "definition": "CREATE INDEX capdent_pricing_shadow_events_clinic_id_idx ON public.capdent_pricing_shadow_events USING btree (clinic_id)"
+    },
+    {
+      "schema": "public",
+      "table": "capdent_pricing_shadow_events",
+      "name": "capdent_pricing_shadow_events_pkey",
+      "definition": "CREATE UNIQUE INDEX capdent_pricing_shadow_events_pkey ON public.capdent_pricing_shadow_events USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "capdent_pricing_shadow_events",
+      "name": "capdent_pricing_shadow_events_profile_id_idx",
+      "definition": "CREATE INDEX capdent_pricing_shadow_events_profile_id_idx ON public.capdent_pricing_shadow_events USING btree (profile_id)"
+    },
+    {
+      "schema": "public",
+      "table": "charges",
+      "name": "charges_clinic_id_idx",
+      "definition": "CREATE INDEX charges_clinic_id_idx ON public.charges USING btree (clinic_id)"
+    },
+    {
+      "schema": "public",
+      "table": "charges",
+      "name": "charges_patient_id_idx",
+      "definition": "CREATE INDEX charges_patient_id_idx ON public.charges USING btree (patient_id)"
+    },
+    {
+      "schema": "public",
+      "table": "charges",
+      "name": "charges_pkey",
+      "definition": "CREATE UNIQUE INDEX charges_pkey ON public.charges USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "charges",
+      "name": "charges_visit_id_idx",
+      "definition": "CREATE INDEX charges_visit_id_idx ON public.charges USING btree (visit_id)"
+    },
+    {
+      "schema": "public",
+      "table": "clinic_pricing_settings",
+      "name": "clinic_pricing_settings_pkey",
+      "definition": "CREATE UNIQUE INDEX clinic_pricing_settings_pkey ON public.clinic_pricing_settings USING btree (clinic_id)"
+    },
+    {
+      "schema": "public",
+      "table": "clinic_subscriptions",
+      "name": "clinic_subscriptions_clinic_id_key",
+      "definition": "CREATE UNIQUE INDEX clinic_subscriptions_clinic_id_key ON public.clinic_subscriptions USING btree (clinic_id)"
+    },
+    {
+      "schema": "public",
+      "table": "clinic_subscriptions",
+      "name": "clinic_subscriptions_clinic_idx",
+      "definition": "CREATE INDEX clinic_subscriptions_clinic_idx ON public.clinic_subscriptions USING btree (clinic_id)"
+    },
+    {
+      "schema": "public",
+      "table": "clinic_subscriptions",
+      "name": "clinic_subscriptions_google_play_token_unique",
+      "definition": "CREATE UNIQUE INDEX clinic_subscriptions_google_play_token_unique ON public.clinic_subscriptions USING btree (google_play_purchase_token) WHERE ((google_play_purchase_token IS NOT NULL) AND (btrim(google_play_purchase_token) <> ''::text))"
+    },
+    {
+      "schema": "public",
+      "table": "clinic_subscriptions",
+      "name": "clinic_subscriptions_pkey",
+      "definition": "CREATE UNIQUE INDEX clinic_subscriptions_pkey ON public.clinic_subscriptions USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "clinical_audit_logs",
+      "name": "clinical_audit_logs_changed_by_idx",
+      "definition": "CREATE INDEX clinical_audit_logs_changed_by_idx ON public.clinical_audit_logs USING btree (changed_by)"
+    },
+    {
+      "schema": "public",
+      "table": "clinical_audit_logs",
+      "name": "clinical_audit_logs_clinic_created_idx",
+      "definition": "CREATE INDEX clinical_audit_logs_clinic_created_idx ON public.clinical_audit_logs USING btree (clinic_id, created_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "clinical_audit_logs",
+      "name": "clinical_audit_logs_patient_created_idx",
+      "definition": "CREATE INDEX clinical_audit_logs_patient_created_idx ON public.clinical_audit_logs USING btree (patient_id, created_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "clinical_audit_logs",
+      "name": "clinical_audit_logs_pkey",
+      "definition": "CREATE UNIQUE INDEX clinical_audit_logs_pkey ON public.clinical_audit_logs USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "clinical_audit_logs",
+      "name": "clinical_audit_logs_visit_created_idx",
+      "definition": "CREATE INDEX clinical_audit_logs_visit_created_idx ON public.clinical_audit_logs USING btree (visit_id, created_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "clinics",
+      "name": "clinics_pkey",
+      "definition": "CREATE UNIQUE INDEX clinics_pkey ON public.clinics USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "dental_chart_entries",
+      "name": "dental_chart_entries_patient_current_idx",
+      "definition": "CREATE INDEX dental_chart_entries_patient_current_idx ON public.dental_chart_entries USING btree (clinic_id, patient_id, dentition, tooth_code, created_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "dental_chart_entries",
+      "name": "dental_chart_entries_patient_id_idx",
+      "definition": "CREATE INDEX dental_chart_entries_patient_id_idx ON public.dental_chart_entries USING btree (patient_id)"
+    },
+    {
+      "schema": "public",
+      "table": "dental_chart_entries",
+      "name": "dental_chart_entries_pkey",
+      "definition": "CREATE UNIQUE INDEX dental_chart_entries_pkey ON public.dental_chart_entries USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "dental_chart_entries",
+      "name": "dental_chart_entries_recorded_by_idx",
+      "definition": "CREATE INDEX dental_chart_entries_recorded_by_idx ON public.dental_chart_entries USING btree (recorded_by)"
+    },
+    {
+      "schema": "public",
+      "table": "dental_chart_entries",
+      "name": "dental_chart_entries_visit_id_dentition_tooth_code_key",
+      "definition": "CREATE UNIQUE INDEX dental_chart_entries_visit_id_dentition_tooth_code_key ON public.dental_chart_entries USING btree (visit_id, dentition, tooth_code)"
+    },
+    {
+      "schema": "public",
+      "table": "dental_chart_entries",
+      "name": "dental_chart_entries_visit_idx",
+      "definition": "CREATE INDEX dental_chart_entries_visit_idx ON public.dental_chart_entries USING btree (visit_id)"
+    },
+    {
+      "schema": "public",
+      "table": "device_push_tokens",
+      "name": "device_push_tokens_active_token_uidx",
+      "definition": "CREATE UNIQUE INDEX device_push_tokens_active_token_uidx ON public.device_push_tokens USING btree (expo_push_token) WHERE active"
+    },
+    {
+      "schema": "public",
+      "table": "device_push_tokens",
+      "name": "device_push_tokens_pkey",
+      "definition": "CREATE UNIQUE INDEX device_push_tokens_pkey ON public.device_push_tokens USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "device_push_tokens",
+      "name": "device_push_tokens_recipient_idx",
+      "definition": "CREATE INDEX device_push_tokens_recipient_idx ON public.device_push_tokens USING btree (clinic_id, user_id, active, last_seen_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "device_push_tokens",
+      "name": "device_push_tokens_user_id_install_id_key",
+      "definition": "CREATE UNIQUE INDEX device_push_tokens_user_id_install_id_key ON public.device_push_tokens USING btree (user_id, install_id)"
+    },
+    {
+      "schema": "public",
+      "table": "file_audit_logs",
+      "name": "file_audit_logs_clinic_created_idx",
+      "definition": "CREATE INDEX file_audit_logs_clinic_created_idx ON public.file_audit_logs USING btree (clinic_id, created_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "file_audit_logs",
+      "name": "file_audit_logs_file_created_idx",
+      "definition": "CREATE INDEX file_audit_logs_file_created_idx ON public.file_audit_logs USING btree (file_id, created_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "file_audit_logs",
+      "name": "file_audit_logs_patient_created_idx",
+      "definition": "CREATE INDEX file_audit_logs_patient_created_idx ON public.file_audit_logs USING btree (patient_id, created_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "file_audit_logs",
+      "name": "file_audit_logs_pkey",
+      "definition": "CREATE UNIQUE INDEX file_audit_logs_pkey ON public.file_audit_logs USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "files",
+      "name": "files_clinic_archived_created_idx",
+      "definition": "CREATE INDEX files_clinic_archived_created_idx ON public.files USING btree (clinic_id, archived_at, created_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "files",
+      "name": "files_clinic_created_idx",
+      "definition": "CREATE INDEX files_clinic_created_idx ON public.files USING btree (clinic_id, created_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "files",
+      "name": "files_file_type_idx",
+      "definition": "CREATE INDEX files_file_type_idx ON public.files USING btree (file_type)"
+    },
+    {
+      "schema": "public",
+      "table": "files",
+      "name": "files_patient_created_idx",
+      "definition": "CREATE INDEX files_patient_created_idx ON public.files USING btree (patient_id, created_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "files",
+      "name": "files_patient_idx",
+      "definition": "CREATE INDEX files_patient_idx ON public.files USING btree (patient_id)"
+    },
+    {
+      "schema": "public",
+      "table": "files",
+      "name": "files_pkey",
+      "definition": "CREATE UNIQUE INDEX files_pkey ON public.files USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "files",
+      "name": "files_uploaded_by_idx",
+      "definition": "CREATE INDEX files_uploaded_by_idx ON public.files USING btree (uploaded_by)"
+    },
+    {
+      "schema": "public",
+      "table": "files",
+      "name": "files_visit_id_idx",
+      "definition": "CREATE INDEX files_visit_id_idx ON public.files USING btree (visit_id)"
+    },
+    {
+      "schema": "public",
+      "table": "financial_adjustments",
+      "name": "financial_adjustments_clinic_created_idx",
+      "definition": "CREATE INDEX financial_adjustments_clinic_created_idx ON public.financial_adjustments USING btree (clinic_id, created_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "financial_adjustments",
+      "name": "financial_adjustments_created_by_idx",
+      "definition": "CREATE INDEX financial_adjustments_created_by_idx ON public.financial_adjustments USING btree (created_by)"
+    },
+    {
+      "schema": "public",
+      "table": "financial_adjustments",
+      "name": "financial_adjustments_invoice_created_idx",
+      "definition": "CREATE INDEX financial_adjustments_invoice_created_idx ON public.financial_adjustments USING btree (invoice_id, created_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "financial_adjustments",
+      "name": "financial_adjustments_patient_id_idx",
+      "definition": "CREATE INDEX financial_adjustments_patient_id_idx ON public.financial_adjustments USING btree (patient_id)"
+    },
+    {
+      "schema": "public",
+      "table": "financial_adjustments",
+      "name": "financial_adjustments_payment_created_idx",
+      "definition": "CREATE INDEX financial_adjustments_payment_created_idx ON public.financial_adjustments USING btree (payment_id, created_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "financial_adjustments",
+      "name": "financial_adjustments_pkey",
+      "definition": "CREATE UNIQUE INDEX financial_adjustments_pkey ON public.financial_adjustments USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "financial_adjustments",
+      "name": "financial_adjustments_related_payment_id_idx",
+      "definition": "CREATE INDEX financial_adjustments_related_payment_id_idx ON public.financial_adjustments USING btree (related_payment_id)"
+    },
+    {
+      "schema": "public",
+      "table": "google_play_subscription_events",
+      "name": "google_play_subscription_events_clinic_idx",
+      "definition": "CREATE INDEX google_play_subscription_events_clinic_idx ON public.google_play_subscription_events USING btree (clinic_id, created_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "google_play_subscription_events",
+      "name": "google_play_subscription_events_pkey",
+      "definition": "CREATE UNIQUE INDEX google_play_subscription_events_pkey ON public.google_play_subscription_events USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "google_play_subscription_events",
+      "name": "google_play_subscription_events_profile_id_idx",
+      "definition": "CREATE INDEX google_play_subscription_events_profile_id_idx ON public.google_play_subscription_events USING btree (profile_id)"
+    },
+    {
+      "schema": "public",
+      "table": "google_play_subscription_events",
+      "name": "google_play_subscription_events_subscription_id_idx",
+      "definition": "CREATE INDEX google_play_subscription_events_subscription_id_idx ON public.google_play_subscription_events USING btree (subscription_id)"
+    },
+    {
+      "schema": "public",
+      "table": "google_play_subscription_events",
+      "name": "google_play_subscription_events_token_idx",
+      "definition": "CREATE INDEX google_play_subscription_events_token_idx ON public.google_play_subscription_events USING btree (purchase_token)"
+    },
+    {
+      "schema": "public",
+      "table": "invoice_versions",
+      "name": "invoice_versions_adjustment_id_idx",
+      "definition": "CREATE INDEX invoice_versions_adjustment_id_idx ON public.invoice_versions USING btree (adjustment_id)"
+    },
+    {
+      "schema": "public",
+      "table": "invoice_versions",
+      "name": "invoice_versions_clinic_created_idx",
+      "definition": "CREATE INDEX invoice_versions_clinic_created_idx ON public.invoice_versions USING btree (clinic_id, created_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "invoice_versions",
+      "name": "invoice_versions_created_by_idx",
+      "definition": "CREATE INDEX invoice_versions_created_by_idx ON public.invoice_versions USING btree (created_by)"
+    },
+    {
+      "schema": "public",
+      "table": "invoice_versions",
+      "name": "invoice_versions_invoice_id_version_number_key",
+      "definition": "CREATE UNIQUE INDEX invoice_versions_invoice_id_version_number_key ON public.invoice_versions USING btree (invoice_id, version_number)"
+    },
+    {
+      "schema": "public",
+      "table": "invoice_versions",
+      "name": "invoice_versions_invoice_version_idx",
+      "definition": "CREATE INDEX invoice_versions_invoice_version_idx ON public.invoice_versions USING btree (invoice_id, version_number DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "invoice_versions",
+      "name": "invoice_versions_patient_id_idx",
+      "definition": "CREATE INDEX invoice_versions_patient_id_idx ON public.invoice_versions USING btree (patient_id)"
+    },
+    {
+      "schema": "public",
+      "table": "invoice_versions",
+      "name": "invoice_versions_pkey",
+      "definition": "CREATE UNIQUE INDEX invoice_versions_pkey ON public.invoice_versions USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "invoices",
+      "name": "invoices_category_created_idx",
+      "definition": "CREATE INDEX invoices_category_created_idx ON public.invoices USING btree (clinic_id, payment_category, created_at)"
+    },
+    {
+      "schema": "public",
+      "table": "invoices",
+      "name": "invoices_clinic_created_idx",
+      "definition": "CREATE INDEX invoices_clinic_created_idx ON public.invoices USING btree (clinic_id, created_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "invoices",
+      "name": "invoices_clinic_due_idx",
+      "definition": "CREATE INDEX invoices_clinic_due_idx ON public.invoices USING btree (clinic_id, due_amount)"
+    },
+    {
+      "schema": "public",
+      "table": "invoices",
+      "name": "invoices_clinic_status_idx",
+      "definition": "CREATE INDEX invoices_clinic_status_idx ON public.invoices USING btree (clinic_id, status)"
+    },
+    {
+      "schema": "public",
+      "table": "invoices",
+      "name": "invoices_clinic_updated_idx",
+      "definition": "CREATE INDEX invoices_clinic_updated_idx ON public.invoices USING btree (clinic_id, updated_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "invoices",
+      "name": "invoices_created_by_idx",
+      "definition": "CREATE INDEX invoices_created_by_idx ON public.invoices USING btree (created_by)"
+    },
+    {
+      "schema": "public",
+      "table": "invoices",
+      "name": "invoices_open_due_idx",
+      "definition": "CREATE INDEX invoices_open_due_idx ON public.invoices USING btree (clinic_id, due_amount DESC) WHERE ((due_amount > (0)::numeric) AND (status = ANY (ARRAY['unpaid'::text, 'partial'::text])))"
+    },
+    {
+      "schema": "public",
+      "table": "invoices",
+      "name": "invoices_patient_due_idx",
+      "definition": "CREATE INDEX invoices_patient_due_idx ON public.invoices USING btree (patient_id, due_amount)"
+    },
+    {
+      "schema": "public",
+      "table": "invoices",
+      "name": "invoices_patient_idx",
+      "definition": "CREATE INDEX invoices_patient_idx ON public.invoices USING btree (patient_id)"
+    },
+    {
+      "schema": "public",
+      "table": "invoices",
+      "name": "invoices_pkey",
+      "definition": "CREATE UNIQUE INDEX invoices_pkey ON public.invoices USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "invoices",
+      "name": "invoices_updated_by_idx",
+      "definition": "CREATE INDEX invoices_updated_by_idx ON public.invoices USING btree (updated_by)"
+    },
+    {
+      "schema": "public",
+      "table": "invoices",
+      "name": "invoices_visit_id_idx",
+      "definition": "CREATE INDEX invoices_visit_id_idx ON public.invoices USING btree (visit_id)"
+    },
+    {
+      "schema": "public",
+      "table": "management_audit_logs",
+      "name": "management_audit_logs_changed_by_idx",
+      "definition": "CREATE INDEX management_audit_logs_changed_by_idx ON public.management_audit_logs USING btree (changed_by)"
+    },
+    {
+      "schema": "public",
+      "table": "management_audit_logs",
+      "name": "management_audit_logs_clinic_created_idx",
+      "definition": "CREATE INDEX management_audit_logs_clinic_created_idx ON public.management_audit_logs USING btree (clinic_id, created_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "management_audit_logs",
+      "name": "management_audit_logs_pkey",
+      "definition": "CREATE UNIQUE INDEX management_audit_logs_pkey ON public.management_audit_logs USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "management_audit_logs",
+      "name": "management_audit_logs_target_idx",
+      "definition": "CREATE INDEX management_audit_logs_target_idx ON public.management_audit_logs USING btree (target_type, target_id, created_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "medical_history",
+      "name": "medical_history_clinic_id_idx",
+      "definition": "CREATE INDEX medical_history_clinic_id_idx ON public.medical_history USING btree (clinic_id)"
+    },
+    {
+      "schema": "public",
+      "table": "medical_history",
+      "name": "medical_history_patient_id_key",
+      "definition": "CREATE UNIQUE INDEX medical_history_patient_id_key ON public.medical_history USING btree (patient_id)"
+    },
+    {
+      "schema": "public",
+      "table": "medical_history",
+      "name": "medical_history_pkey",
+      "definition": "CREATE UNIQUE INDEX medical_history_pkey ON public.medical_history USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "medication_catalog",
+      "name": "medication_catalog_clinic_id_normalized_name_key",
+      "definition": "CREATE UNIQUE INDEX medication_catalog_clinic_id_normalized_name_key ON public.medication_catalog USING btree (clinic_id, normalized_name)"
+    },
+    {
+      "schema": "public",
+      "table": "medication_catalog",
+      "name": "medication_catalog_clinic_usage_idx",
+      "definition": "CREATE INDEX medication_catalog_clinic_usage_idx ON public.medication_catalog USING btree (clinic_id, usage_count DESC, last_used_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "medication_catalog",
+      "name": "medication_catalog_pkey",
+      "definition": "CREATE UNIQUE INDEX medication_catalog_pkey ON public.medication_catalog USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "patient_audit_logs",
+      "name": "patient_audit_logs_changed_by_idx",
+      "definition": "CREATE INDEX patient_audit_logs_changed_by_idx ON public.patient_audit_logs USING btree (changed_by)"
+    },
+    {
+      "schema": "public",
+      "table": "patient_audit_logs",
+      "name": "patient_audit_logs_clinic_created_idx",
+      "definition": "CREATE INDEX patient_audit_logs_clinic_created_idx ON public.patient_audit_logs USING btree (clinic_id, created_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "patient_audit_logs",
+      "name": "patient_audit_logs_clinic_id_idx",
+      "definition": "CREATE INDEX patient_audit_logs_clinic_id_idx ON public.patient_audit_logs USING btree (clinic_id)"
+    },
+    {
+      "schema": "public",
+      "table": "patient_audit_logs",
+      "name": "patient_audit_logs_patient_idx",
+      "definition": "CREATE INDEX patient_audit_logs_patient_idx ON public.patient_audit_logs USING btree (patient_id, created_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "patient_audit_logs",
+      "name": "patient_audit_logs_pkey",
+      "definition": "CREATE UNIQUE INDEX patient_audit_logs_pkey ON public.patient_audit_logs USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "patient_medications",
+      "name": "patient_medications_clinic_created_idx",
+      "definition": "CREATE INDEX patient_medications_clinic_created_idx ON public.patient_medications USING btree (clinic_id, created_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "patient_medications",
+      "name": "patient_medications_patient_created_idx",
+      "definition": "CREATE INDEX patient_medications_patient_created_idx ON public.patient_medications USING btree (patient_id, created_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "patient_medications",
+      "name": "patient_medications_pkey",
+      "definition": "CREATE UNIQUE INDEX patient_medications_pkey ON public.patient_medications USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "patient_medications",
+      "name": "patient_medications_prescribed_by_idx",
+      "definition": "CREATE INDEX patient_medications_prescribed_by_idx ON public.patient_medications USING btree (prescribed_by)"
+    },
+    {
+      "schema": "public",
+      "table": "patient_visits",
+      "name": "patient_visits_clinic_date_idx",
+      "definition": "CREATE INDEX patient_visits_clinic_date_idx ON public.patient_visits USING btree (clinic_id, visit_date DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "patient_visits",
+      "name": "patient_visits_clinic_id_idx",
+      "definition": "CREATE INDEX patient_visits_clinic_id_idx ON public.patient_visits USING btree (clinic_id)"
+    },
+    {
+      "schema": "public",
+      "table": "patient_visits",
+      "name": "patient_visits_created_by_idx",
+      "definition": "CREATE INDEX patient_visits_created_by_idx ON public.patient_visits USING btree (created_by)"
+    },
+    {
+      "schema": "public",
+      "table": "patient_visits",
+      "name": "patient_visits_doctor_id_idx",
+      "definition": "CREATE INDEX patient_visits_doctor_id_idx ON public.patient_visits USING btree (doctor_id)"
+    },
+    {
+      "schema": "public",
+      "table": "patient_visits",
+      "name": "patient_visits_followup_idx",
+      "definition": "CREATE INDEX patient_visits_followup_idx ON public.patient_visits USING btree (clinic_id, next_appointment_date) WHERE (next_appointment_date IS NOT NULL)"
+    },
+    {
+      "schema": "public",
+      "table": "patient_visits",
+      "name": "patient_visits_patient_idx",
+      "definition": "CREATE INDEX patient_visits_patient_idx ON public.patient_visits USING btree (patient_id)"
+    },
+    {
+      "schema": "public",
+      "table": "patient_visits",
+      "name": "patient_visits_pkey",
+      "definition": "CREATE UNIQUE INDEX patient_visits_pkey ON public.patient_visits USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "patient_visits",
+      "name": "patient_visits_updated_by_idx",
+      "definition": "CREATE INDEX patient_visits_updated_by_idx ON public.patient_visits USING btree (updated_by)"
+    },
+    {
+      "schema": "public",
+      "table": "patients",
+      "name": "patients_archived_by_idx",
+      "definition": "CREATE INDEX patients_archived_by_idx ON public.patients USING btree (archived_by)"
+    },
+    {
+      "schema": "public",
+      "table": "patients",
+      "name": "patients_clinic_archived_at_idx",
+      "definition": "CREATE INDEX patients_clinic_archived_at_idx ON public.patients USING btree (clinic_id, archived_at)"
+    },
+    {
+      "schema": "public",
+      "table": "patients",
+      "name": "patients_clinic_created_idx",
+      "definition": "CREATE INDEX patients_clinic_created_idx ON public.patients USING btree (clinic_id, created_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "patients",
+      "name": "patients_clinic_id_idx",
+      "definition": "CREATE INDEX patients_clinic_id_idx ON public.patients USING btree (clinic_id)"
+    },
+    {
+      "schema": "public",
+      "table": "patients",
+      "name": "patients_created_by_idx",
+      "definition": "CREATE INDEX patients_created_by_idx ON public.patients USING btree (created_by)"
+    },
+    {
+      "schema": "public",
+      "table": "patients",
+      "name": "patients_name_idx",
+      "definition": "CREATE INDEX patients_name_idx ON public.patients USING btree (name)"
+    },
+    {
+      "schema": "public",
+      "table": "patients",
+      "name": "patients_phone_idx",
+      "definition": "CREATE INDEX patients_phone_idx ON public.patients USING btree (phone)"
+    },
+    {
+      "schema": "public",
+      "table": "patients",
+      "name": "patients_photo_url_idx",
+      "definition": "CREATE INDEX patients_photo_url_idx ON public.patients USING btree (photo_url) WHERE (photo_url IS NOT NULL)"
+    },
+    {
+      "schema": "public",
+      "table": "patients",
+      "name": "patients_pkey",
+      "definition": "CREATE UNIQUE INDEX patients_pkey ON public.patients USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "patients",
+      "name": "patients_search_idx",
+      "definition": "CREATE INDEX patients_search_idx ON public.patients USING gin (to_tsvector('simple'::regconfig, ((COALESCE(name, ''::text) || ' '::text) || COALESCE(phone, ''::text))))"
+    },
+    {
+      "schema": "public",
+      "table": "patients",
+      "name": "patients_updated_by_idx",
+      "definition": "CREATE INDEX patients_updated_by_idx ON public.patients USING btree (updated_by)"
+    },
+    {
+      "schema": "public",
+      "table": "payment_notification_deliveries",
+      "name": "payment_notification_deliveries_clinic_created_idx",
+      "definition": "CREATE INDEX payment_notification_deliveries_clinic_created_idx ON public.payment_notification_deliveries USING btree (clinic_id, created_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "payment_notification_deliveries",
+      "name": "payment_notification_deliveries_device_token_id_idx",
+      "definition": "CREATE INDEX payment_notification_deliveries_device_token_id_idx ON public.payment_notification_deliveries USING btree (device_token_id)"
+    },
+    {
+      "schema": "public",
+      "table": "payment_notification_deliveries",
+      "name": "payment_notification_deliveries_job_id_expo_push_token_key",
+      "definition": "CREATE UNIQUE INDEX payment_notification_deliveries_job_id_expo_push_token_key ON public.payment_notification_deliveries USING btree (job_id, expo_push_token)"
+    },
+    {
+      "schema": "public",
+      "table": "payment_notification_deliveries",
+      "name": "payment_notification_deliveries_pkey",
+      "definition": "CREATE UNIQUE INDEX payment_notification_deliveries_pkey ON public.payment_notification_deliveries USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "payment_notification_deliveries",
+      "name": "payment_notification_deliveries_receipt_idx",
+      "definition": "CREATE INDEX payment_notification_deliveries_receipt_idx ON public.payment_notification_deliveries USING btree (status, receipt_checked_at, sent_at) WHERE ((expo_ticket_id IS NOT NULL) AND (status = ANY (ARRAY['ticket_ok'::text, 'retry'::text])))"
+    },
+    {
+      "schema": "public",
+      "table": "payment_notification_deliveries",
+      "name": "payment_notification_deliveries_recipient_user_id_idx",
+      "definition": "CREATE INDEX payment_notification_deliveries_recipient_user_id_idx ON public.payment_notification_deliveries USING btree (recipient_user_id)"
+    },
+    {
+      "schema": "public",
+      "table": "payment_notification_jobs",
+      "name": "payment_notification_jobs_clinic_created_idx",
+      "definition": "CREATE INDEX payment_notification_jobs_clinic_created_idx ON public.payment_notification_jobs USING btree (clinic_id, created_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "payment_notification_jobs",
+      "name": "payment_notification_jobs_dispatch_idx",
+      "definition": "CREATE INDEX payment_notification_jobs_dispatch_idx ON public.payment_notification_jobs USING btree (status, next_attempt_at, created_at) WHERE (status = ANY (ARRAY['queued'::text, 'retry'::text]))"
+    },
+    {
+      "schema": "public",
+      "table": "payment_notification_jobs",
+      "name": "payment_notification_jobs_payment_id_key",
+      "definition": "CREATE UNIQUE INDEX payment_notification_jobs_payment_id_key ON public.payment_notification_jobs USING btree (payment_id)"
+    },
+    {
+      "schema": "public",
+      "table": "payment_notification_jobs",
+      "name": "payment_notification_jobs_pkey",
+      "definition": "CREATE UNIQUE INDEX payment_notification_jobs_pkey ON public.payment_notification_jobs USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "payments",
+      "name": "payments_category_created_idx",
+      "definition": "CREATE INDEX payments_category_created_idx ON public.payments USING btree (clinic_id, payment_category, created_at)"
+    },
+    {
+      "schema": "public",
+      "table": "payments",
+      "name": "payments_clinic_created_idx",
+      "definition": "CREATE INDEX payments_clinic_created_idx ON public.payments USING btree (clinic_id, created_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "payments",
+      "name": "payments_collected_by_idx",
+      "definition": "CREATE INDEX payments_collected_by_idx ON public.payments USING btree (collected_by)"
+    },
+    {
+      "schema": "public",
+      "table": "payments",
+      "name": "payments_invoice_idx",
+      "definition": "CREATE INDEX payments_invoice_idx ON public.payments USING btree (invoice_id)"
+    },
+    {
+      "schema": "public",
+      "table": "payments",
+      "name": "payments_invoice_status_idx",
+      "definition": "CREATE INDEX payments_invoice_status_idx ON public.payments USING btree (invoice_id, status, created_at)"
+    },
+    {
+      "schema": "public",
+      "table": "payments",
+      "name": "payments_original_payment_idx",
+      "definition": "CREATE INDEX payments_original_payment_idx ON public.payments USING btree (original_payment_id, created_at)"
+    },
+    {
+      "schema": "public",
+      "table": "payments",
+      "name": "payments_patient_created_idx",
+      "definition": "CREATE INDEX payments_patient_created_idx ON public.payments USING btree (patient_id, created_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "payments",
+      "name": "payments_pkey",
+      "definition": "CREATE UNIQUE INDEX payments_pkey ON public.payments USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "payments",
+      "name": "payments_updated_by_idx",
+      "definition": "CREATE INDEX payments_updated_by_idx ON public.payments USING btree (updated_by)"
+    },
+    {
+      "schema": "public",
+      "table": "profiles",
+      "name": "profiles_clinic_id_idx",
+      "definition": "CREATE INDEX profiles_clinic_id_idx ON public.profiles USING btree (clinic_id)"
+    },
+    {
+      "schema": "public",
+      "table": "profiles",
+      "name": "profiles_pkey",
+      "definition": "CREATE UNIQUE INDEX profiles_pkey ON public.profiles USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "report_export_logs",
+      "name": "report_export_logs_clinic_created_idx",
+      "definition": "CREATE INDEX report_export_logs_clinic_created_idx ON public.report_export_logs USING btree (clinic_id, created_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "report_export_logs",
+      "name": "report_export_logs_exported_by_idx",
+      "definition": "CREATE INDEX report_export_logs_exported_by_idx ON public.report_export_logs USING btree (exported_by)"
+    },
+    {
+      "schema": "public",
+      "table": "report_export_logs",
+      "name": "report_export_logs_pkey",
+      "definition": "CREATE UNIQUE INDEX report_export_logs_pkey ON public.report_export_logs USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "staff_invites",
+      "name": "staff_invites_cancelled_by_idx",
+      "definition": "CREATE INDEX staff_invites_cancelled_by_idx ON public.staff_invites USING btree (cancelled_by)"
+    },
+    {
+      "schema": "public",
+      "table": "staff_invites",
+      "name": "staff_invites_clinic_id_email_key",
+      "definition": "CREATE UNIQUE INDEX staff_invites_clinic_id_email_key ON public.staff_invites USING btree (clinic_id, email)"
+    },
+    {
+      "schema": "public",
+      "table": "staff_invites",
+      "name": "staff_invites_clinic_idx",
+      "definition": "CREATE INDEX staff_invites_clinic_idx ON public.staff_invites USING btree (clinic_id)"
+    },
+    {
+      "schema": "public",
+      "table": "staff_invites",
+      "name": "staff_invites_clinic_pending_idx",
+      "definition": "CREATE INDEX staff_invites_clinic_pending_idx ON public.staff_invites USING btree (clinic_id, accepted_at) WHERE (accepted_at IS NULL)"
+    },
+    {
+      "schema": "public",
+      "table": "staff_invites",
+      "name": "staff_invites_code_idx",
+      "definition": "CREATE INDEX staff_invites_code_idx ON public.staff_invites USING btree (invite_code)"
+    },
+    {
+      "schema": "public",
+      "table": "staff_invites",
+      "name": "staff_invites_email_idx",
+      "definition": "CREATE INDEX staff_invites_email_idx ON public.staff_invites USING btree (lower(email))"
+    },
+    {
+      "schema": "public",
+      "table": "staff_invites",
+      "name": "staff_invites_invite_code_idx",
+      "definition": "CREATE UNIQUE INDEX staff_invites_invite_code_idx ON public.staff_invites USING btree (invite_code) WHERE (invite_code IS NOT NULL)"
+    },
+    {
+      "schema": "public",
+      "table": "staff_invites",
+      "name": "staff_invites_invite_code_key",
+      "definition": "CREATE UNIQUE INDEX staff_invites_invite_code_key ON public.staff_invites USING btree (invite_code)"
+    },
+    {
+      "schema": "public",
+      "table": "staff_invites",
+      "name": "staff_invites_invited_by_idx",
+      "definition": "CREATE INDEX staff_invites_invited_by_idx ON public.staff_invites USING btree (invited_by)"
+    },
+    {
+      "schema": "public",
+      "table": "staff_invites",
+      "name": "staff_invites_pkey",
+      "definition": "CREATE UNIQUE INDEX staff_invites_pkey ON public.staff_invites USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "treatments",
+      "name": "treatments_clinic_id_idx",
+      "definition": "CREATE INDEX treatments_clinic_id_idx ON public.treatments USING btree (clinic_id)"
+    },
+    {
+      "schema": "public",
+      "table": "treatments",
+      "name": "treatments_clinic_status_created_idx",
+      "definition": "CREATE INDEX treatments_clinic_status_created_idx ON public.treatments USING btree (clinic_id, status, created_at DESC)"
+    },
+    {
+      "schema": "public",
+      "table": "treatments",
+      "name": "treatments_patient_idx",
+      "definition": "CREATE INDEX treatments_patient_idx ON public.treatments USING btree (patient_id)"
+    },
+    {
+      "schema": "public",
+      "table": "treatments",
+      "name": "treatments_pkey",
+      "definition": "CREATE UNIQUE INDEX treatments_pkey ON public.treatments USING btree (id)"
+    },
+    {
+      "schema": "public",
+      "table": "treatments",
+      "name": "treatments_updated_by_idx",
+      "definition": "CREATE INDEX treatments_updated_by_idx ON public.treatments USING btree (updated_by)"
+    },
+    {
+      "schema": "public",
+      "table": "treatments",
+      "name": "treatments_visit_id_idx",
+      "definition": "CREATE INDEX treatments_visit_id_idx ON public.treatments USING btree (visit_id)"
+    },
+    {
+      "schema": "public",
+      "table": "website_appointments",
+      "name": "website_appointments_pkey",
+      "definition": "CREATE UNIQUE INDEX website_appointments_pkey ON public.website_appointments USING btree (id)"
+    },
+    {
+      "schema": "storage",
+      "table": "buckets",
+      "name": "bname",
+      "definition": "CREATE UNIQUE INDEX bname ON storage.buckets USING btree (name)"
+    },
+    {
+      "schema": "storage",
+      "table": "buckets",
+      "name": "buckets_pkey",
+      "definition": "CREATE UNIQUE INDEX buckets_pkey ON storage.buckets USING btree (id)"
+    },
+    {
+      "schema": "storage",
+      "table": "buckets_analytics",
+      "name": "buckets_analytics_pkey",
+      "definition": "CREATE UNIQUE INDEX buckets_analytics_pkey ON storage.buckets_analytics USING btree (id)"
+    },
+    {
+      "schema": "storage",
+      "table": "buckets_analytics",
+      "name": "buckets_analytics_unique_name_idx",
+      "definition": "CREATE UNIQUE INDEX buckets_analytics_unique_name_idx ON storage.buckets_analytics USING btree (name) WHERE (deleted_at IS NULL)"
+    },
+    {
+      "schema": "storage",
+      "table": "buckets_vectors",
+      "name": "buckets_vectors_pkey",
+      "definition": "CREATE UNIQUE INDEX buckets_vectors_pkey ON storage.buckets_vectors USING btree (id)"
+    },
+    {
+      "schema": "storage",
+      "table": "migrations",
+      "name": "migrations_name_key",
+      "definition": "CREATE UNIQUE INDEX migrations_name_key ON storage.migrations USING btree (name)"
+    },
+    {
+      "schema": "storage",
+      "table": "migrations",
+      "name": "migrations_pkey",
+      "definition": "CREATE UNIQUE INDEX migrations_pkey ON storage.migrations USING btree (id)"
+    },
+    {
+      "schema": "storage",
+      "table": "objects",
+      "name": "bucketid_objname",
+      "definition": "CREATE UNIQUE INDEX bucketid_objname ON storage.objects USING btree (bucket_id, name)"
+    },
+    {
+      "schema": "storage",
+      "table": "objects",
+      "name": "idx_objects_bucket_id_name",
+      "definition": "CREATE INDEX idx_objects_bucket_id_name ON storage.objects USING btree (bucket_id, name COLLATE \"C\")"
+    },
+    {
+      "schema": "storage",
+      "table": "objects",
+      "name": "idx_objects_bucket_id_name_lower",
+      "definition": "CREATE INDEX idx_objects_bucket_id_name_lower ON storage.objects USING btree (bucket_id, lower(name) COLLATE \"C\")"
+    },
+    {
+      "schema": "storage",
+      "table": "objects",
+      "name": "name_prefix_search",
+      "definition": "CREATE INDEX name_prefix_search ON storage.objects USING btree (name text_pattern_ops)"
+    },
+    {
+      "schema": "storage",
+      "table": "objects",
+      "name": "objects_pkey",
+      "definition": "CREATE UNIQUE INDEX objects_pkey ON storage.objects USING btree (id)"
+    },
+    {
+      "schema": "storage",
+      "table": "s3_multipart_uploads",
+      "name": "idx_multipart_uploads_list",
+      "definition": "CREATE INDEX idx_multipart_uploads_list ON storage.s3_multipart_uploads USING btree (bucket_id, key, created_at)"
+    },
+    {
+      "schema": "storage",
+      "table": "s3_multipart_uploads",
+      "name": "s3_multipart_uploads_pkey",
+      "definition": "CREATE UNIQUE INDEX s3_multipart_uploads_pkey ON storage.s3_multipart_uploads USING btree (id)"
+    },
+    {
+      "schema": "storage",
+      "table": "s3_multipart_uploads_parts",
+      "name": "s3_multipart_uploads_parts_pkey",
+      "definition": "CREATE UNIQUE INDEX s3_multipart_uploads_parts_pkey ON storage.s3_multipart_uploads_parts USING btree (id)"
+    },
+    {
+      "schema": "storage",
+      "table": "vector_indexes",
+      "name": "vector_indexes_name_bucket_id_idx",
+      "definition": "CREATE UNIQUE INDEX vector_indexes_name_bucket_id_idx ON storage.vector_indexes USING btree (name, bucket_id)"
+    },
+    {
+      "schema": "storage",
+      "table": "vector_indexes",
+      "name": "vector_indexes_pkey",
+      "definition": "CREATE UNIQUE INDEX vector_indexes_pkey ON storage.vector_indexes USING btree (id)"
+    }
+  ]
+}

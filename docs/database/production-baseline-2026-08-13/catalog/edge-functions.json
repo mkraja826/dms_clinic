@@ -1,0 +1,96 @@
+{
+  "project_ref": "mzjtdcpbvoximdukpukd",
+  "captured_at_utc": "2026-08-12T21:18:13.296Z",
+  "functions": [
+    {
+      "slug": "capdent-ai",
+      "name": "capdent-ai",
+      "version": 65,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "sha256": "c9d9690a203646342be270962620931b6d3c955e5aa9b813f567ad9d62e271b0",
+      "created_at": 1786124901815,
+      "updated_at": 1786527106803
+    },
+    {
+      "slug": "capdent-ai-agent",
+      "name": "capdent-ai-agent",
+      "version": 5,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "sha256": "98a45ea9450925d378a40cdd2b23d69a424f378b65edc1bb4b397abb55b8d941",
+      "created_at": 1786133642883,
+      "updated_at": 1786133642883
+    },
+    {
+      "slug": "capdent-ai-core",
+      "name": "capdent-ai-core",
+      "version": 4,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "sha256": "5f6d317b62be00737cbdd8f93576664e932a73d28c25fa1751f5d5d9d8e26a02",
+      "created_at": 1786161909076,
+      "updated_at": 1786162548019
+    },
+    {
+      "slug": "capdent-ai-provider-test",
+      "name": "capdent-ai-provider-test",
+      "version": 6,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "sha256": "f9de18888dca472d9acf822ed9d798f8a684312885075d9fe4e826950c8f7bc5",
+      "created_at": 1786156455966,
+      "updated_at": 1786171665186
+    },
+    {
+      "slug": "capdent-ai-raw-core",
+      "name": "capdent-ai-raw-core",
+      "version": 9,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "sha256": "21daa5edd222d81edbc5274acb7ce886d9fe30a1177346078180c23c4a998af2",
+      "created_at": 1786162993214,
+      "updated_at": 1786169595952
+    },
+    {
+      "slug": "send-payment-notification",
+      "name": "send-payment-notification",
+      "version": 11,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "sha256": "d15d1aa172157f21557b5e027623631becc14e78243b35d6d46a2e753083a997",
+      "created_at": 1785103546874,
+      "updated_at": 1785103546874
+    },
+    {
+      "slug": "send-staff-invite-email",
+      "name": "send-staff-invite-email",
+      "version": 24,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "sha256": "6c31669a521c7a6224288dabfd2b8e857e6353a5d0d17b00e5584636bb5a57bf",
+      "created_at": 1781493737786,
+      "updated_at": 1781494163734
+    },
+    {
+      "slug": "sync-google-play-subscriptions",
+      "name": "sync-google-play-subscriptions",
+      "version": 14,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "sha256": "33494298cc18fda1f062b22a6d42712dbfa0db4cdcf993b25fe666f88d7c65d3",
+      "created_at": 1785104208865,
+      "updated_at": 1785105976596
+    },
+    {
+      "slug": "verify-google-play-subscription",
+      "name": "verify-google-play-subscription",
+      "version": 14,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "sha256": "60c5cf2d8fe9ba5c182cdb1c6cab86615b3bef70df6dedb09127187814ff3825",
+      "created_at": 1784493629155,
+      "updated_at": 1785104210323
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "project_ref": "mzjtdcpbvoximdukpukd",
+  "captured_at_utc": "2026-08-12T21:17:49.93529",
+  "views": [],
+  "types": [],
+  "sequences": [
+    {
+      "schema": "public",
+      "name": "capdent_pricing_shadow_events_id_seq",
+      "data_type": "bigint",
+      "start_value": 1,
+      "min_value": 1,
+      "max_value": 9223372036854776000,
+      "increment_by": 1,
+      "cycle": false,
+      "cache_size": 1
+    }
+  ]
+}

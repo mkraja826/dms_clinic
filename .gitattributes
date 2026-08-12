@@ -1,0 +1,4 @@
+/.gitattributes text eol=lf
+/.gitignore text eol=lf
+docs/database/production-baseline-2026-08-13/** text eol=lf
+scripts/database/*.ps1 text eol=lf

@@ -44,6 +44,10 @@ credentials.json
 
 # Supabase CLI local state
 supabase/.branches/
+supabase/.temp/
+
+# Database reconciliation scratch output (may contain credentials or PHI)
+.codex-db-reconcile/
 
 # Firebase files are supplied locally/EAS and never committed
 google-services.json

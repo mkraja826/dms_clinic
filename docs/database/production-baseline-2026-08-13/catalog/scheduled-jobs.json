@@ -1,0 +1,24 @@
+{
+  "project_ref": "mzjtdcpbvoximdukpukd",
+  "captured_at_utc": "2026-08-12T21:18:31.984345",
+  "jobs": [
+    {
+      "jobid": 1,
+      "jobname": "capdent-payment-notification-maintenance",
+      "schedule": "*/5 * * * *",
+      "database": "postgres",
+      "username": "postgres",
+      "active": true,
+      "command": "\n    select public.invoke_capdent_payment_notification(\n      null,\n      'maintenance'\n    );\n  "
+    },
+    {
+      "jobid": 2,
+      "jobname": "capdent-google-play-subscription-sync",
+      "schedule": "17 * * * *",
+      "database": "postgres",
+      "username": "postgres",
+      "active": true,
+      "command": "\n    select public.invoke_capdent_google_play_subscription_sync();\n  "
+    }
+  ]
+}

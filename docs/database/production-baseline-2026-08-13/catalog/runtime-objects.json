@@ -1,0 +1,383 @@
+{
+  "project_ref": "mzjtdcpbvoximdukpukd",
+  "captured_at_utc": "2026-08-12T21:17:30.57571",
+  "triggers": [
+    {
+      "schema": "public",
+      "table": "appointments",
+      "name": "appointments_set_created_by",
+      "definition": "CREATE TRIGGER appointments_set_created_by BEFORE INSERT ON appointments FOR EACH ROW EXECUTE FUNCTION set_record_created_by_staff()",
+      "enabled": "O"
+    },
+    {
+      "schema": "public",
+      "table": "capdent_plan_catalog",
+      "name": "capdent_plan_catalog_updated_at",
+      "definition": "CREATE TRIGGER capdent_plan_catalog_updated_at BEFORE UPDATE ON capdent_plan_catalog FOR EACH ROW EXECUTE FUNCTION set_capdent_pricing_updated_at()",
+      "enabled": "O"
+    },
+    {
+      "schema": "public",
+      "table": "capdent_pricing_flags",
+      "name": "capdent_pricing_flags_updated_at",
+      "definition": "CREATE TRIGGER capdent_pricing_flags_updated_at BEFORE UPDATE ON capdent_pricing_flags FOR EACH ROW EXECUTE FUNCTION set_capdent_pricing_updated_at()",
+      "enabled": "O"
+    },
+    {
+      "schema": "public",
+      "table": "clinic_pricing_settings",
+      "name": "clinic_pricing_settings_updated_at",
+      "definition": "CREATE TRIGGER clinic_pricing_settings_updated_at BEFORE UPDATE ON clinic_pricing_settings FOR EACH ROW EXECUTE FUNCTION set_capdent_pricing_updated_at()",
+      "enabled": "O"
+    },
+    {
+      "schema": "public",
+      "table": "clinics",
+      "name": "clinics_initialize_capdent_pricing",
+      "definition": "CREATE TRIGGER clinics_initialize_capdent_pricing AFTER INSERT ON clinics FOR EACH ROW EXECUTE FUNCTION initialize_capdent_pricing_for_new_clinic()",
+      "enabled": "O"
+    },
+    {
+      "schema": "public",
+      "table": "dental_chart_entries",
+      "name": "dental_chart_entries_prevent_client_mutation",
+      "definition": "CREATE TRIGGER dental_chart_entries_prevent_client_mutation BEFORE DELETE OR UPDATE ON dental_chart_entries FOR EACH ROW EXECUTE FUNCTION prevent_dental_chart_history_mutation()",
+      "enabled": "O"
+    },
+    {
+      "schema": "public",
+      "table": "device_push_tokens",
+      "name": "device_push_tokens_retire_duplicate",
+      "definition": "CREATE TRIGGER device_push_tokens_retire_duplicate BEFORE INSERT OR UPDATE OF expo_push_token, active ON device_push_tokens FOR EACH ROW EXECUTE FUNCTION retire_duplicate_expo_push_token()",
+      "enabled": "O"
+    },
+    {
+      "schema": "public",
+      "table": "device_push_tokens",
+      "name": "device_push_tokens_touch_updated_at",
+      "definition": "CREATE TRIGGER device_push_tokens_touch_updated_at BEFORE UPDATE ON device_push_tokens FOR EACH ROW EXECUTE FUNCTION capdent_v21_touch_updated_at()",
+      "enabled": "O"
+    },
+    {
+      "schema": "public",
+      "table": "files",
+      "name": "files_protect_archive_fields",
+      "definition": "CREATE TRIGGER files_protect_archive_fields BEFORE UPDATE OF archived_at, archived_by, archive_reason ON files FOR EACH ROW EXECUTE FUNCTION protect_file_archive_fields()",
+      "enabled": "O"
+    },
+    {
+      "schema": "public",
+      "table": "invoices",
+      "name": "invoices_seed_version",
+      "definition": "CREATE TRIGGER invoices_seed_version AFTER INSERT ON invoices FOR EACH ROW EXECUTE FUNCTION seed_invoice_version_after_insert()",
+      "enabled": "O"
+    },
+    {
+      "schema": "public",
+      "table": "invoices",
+      "name": "invoices_set_created_by",
+      "definition": "CREATE TRIGGER invoices_set_created_by BEFORE INSERT ON invoices FOR EACH ROW EXECUTE FUNCTION set_record_created_by_staff()",
+      "enabled": "O"
+    },
+    {
+      "schema": "public",
+      "table": "invoices",
+      "name": "invoices_set_financial_defaults",
+      "definition": "CREATE TRIGGER invoices_set_financial_defaults BEFORE INSERT ON invoices FOR EACH ROW EXECUTE FUNCTION set_invoice_financial_defaults()",
+      "enabled": "O"
+    },
+    {
+      "schema": "public",
+      "table": "medical_history",
+      "name": "trg_set_medical_history_clinic_id",
+      "definition": "CREATE TRIGGER trg_set_medical_history_clinic_id BEFORE INSERT OR UPDATE ON medical_history FOR EACH ROW EXECUTE FUNCTION set_medical_history_clinic_id()",
+      "enabled": "O"
+    },
+    {
+      "schema": "public",
+      "table": "patient_visits",
+      "name": "set_patient_visit_staff_fields_before_insert",
+      "definition": "CREATE TRIGGER set_patient_visit_staff_fields_before_insert BEFORE INSERT ON patient_visits FOR EACH ROW EXECUTE FUNCTION set_patient_visit_staff_fields()",
+      "enabled": "O"
+    },
+    {
+      "schema": "public",
+      "table": "patient_visits",
+      "name": "set_patient_visit_staff_fields_before_update",
+      "definition": "CREATE TRIGGER set_patient_visit_staff_fields_before_update BEFORE UPDATE ON patient_visits FOR EACH ROW EXECUTE FUNCTION set_patient_visit_staff_fields()",
+      "enabled": "O"
+    },
+    {
+      "schema": "public",
+      "table": "patient_visits",
+      "name": "trg_complete_open_appointment_after_visit",
+      "definition": "CREATE TRIGGER trg_complete_open_appointment_after_visit AFTER INSERT ON patient_visits FOR EACH ROW EXECUTE FUNCTION complete_open_appointment_after_visit()",
+      "enabled": "O"
+    },
+    {
+      "schema": "public",
+      "table": "patients",
+      "name": "patients_set_created_by",
+      "definition": "CREATE TRIGGER patients_set_created_by BEFORE INSERT ON patients FOR EACH ROW EXECUTE FUNCTION set_record_created_by_staff()",
+      "enabled": "O"
+    },
+    {
+      "schema": "public",
+      "table": "payment_notification_deliveries",
+      "name": "payment_notification_deliveries_touch_updated_at",
+      "definition": "CREATE TRIGGER payment_notification_deliveries_touch_updated_at BEFORE UPDATE ON payment_notification_deliveries FOR EACH ROW EXECUTE FUNCTION capdent_v21_touch_updated_at()",
+      "enabled": "O"
+    },
+    {
+      "schema": "public",
+      "table": "payment_notification_jobs",
+      "name": "payment_notification_jobs_dispatch_after_insert",
+      "definition": "CREATE TRIGGER payment_notification_jobs_dispatch_after_insert AFTER INSERT ON payment_notification_jobs FOR EACH ROW EXECUTE FUNCTION dispatch_capdent_payment_notification_job()",
+      "enabled": "O"
+    },
+    {
+      "schema": "public",
+      "table": "payment_notification_jobs",
+      "name": "payment_notification_jobs_touch_updated_at",
+      "definition": "CREATE TRIGGER payment_notification_jobs_touch_updated_at BEFORE UPDATE ON payment_notification_jobs FOR EACH ROW EXECUTE FUNCTION capdent_v21_touch_updated_at()",
+      "enabled": "O"
+    },
+    {
+      "schema": "public",
+      "table": "payments",
+      "name": "payments_enqueue_capdent_notification",
+      "definition": "CREATE TRIGGER payments_enqueue_capdent_notification AFTER INSERT ON payments FOR EACH ROW EXECUTE FUNCTION enqueue_capdent_payment_notification()",
+      "enabled": "O"
+    },
+    {
+      "schema": "public",
+      "table": "payments",
+      "name": "payments_set_collected_by",
+      "definition": "CREATE TRIGGER payments_set_collected_by BEFORE INSERT ON payments FOR EACH ROW EXECUTE FUNCTION set_record_created_by_staff()",
+      "enabled": "O"
+    },
+    {
+      "schema": "public",
+      "table": "profiles",
+      "name": "profiles_protect_access_fields",
+      "definition": "CREATE TRIGGER profiles_protect_access_fields BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE FUNCTION protect_profile_access_fields()",
+      "enabled": "O"
+    },
+    {
+      "schema": "public",
+      "table": "treatments",
+      "name": "before_treatments_status_from_visit_followup",
+      "definition": "CREATE TRIGGER before_treatments_status_from_visit_followup BEFORE INSERT ON treatments FOR EACH ROW EXECUTE FUNCTION set_treatment_status_from_visit_followup()",
+      "enabled": "O"
+    },
+    {
+      "schema": "storage",
+      "table": "buckets",
+      "name": "enforce_bucket_name_length_trigger",
+      "definition": "CREATE TRIGGER enforce_bucket_name_length_trigger BEFORE INSERT OR UPDATE OF name ON storage.buckets FOR EACH ROW EXECUTE FUNCTION storage.enforce_bucket_name_length()",
+      "enabled": "O"
+    },
+    {
+      "schema": "storage",
+      "table": "buckets",
+      "name": "protect_buckets_delete",
+      "definition": "CREATE TRIGGER protect_buckets_delete BEFORE DELETE ON storage.buckets FOR EACH STATEMENT EXECUTE FUNCTION storage.protect_delete()",
+      "enabled": "O"
+    },
+    {
+      "schema": "storage",
+      "table": "objects",
+      "name": "protect_objects_delete",
+      "definition": "CREATE TRIGGER protect_objects_delete BEFORE DELETE ON storage.objects FOR EACH STATEMENT EXECUTE FUNCTION storage.protect_delete()",
+      "enabled": "O"
+    },
+    {
+      "schema": "storage",
+      "table": "objects",
+      "name": "update_objects_updated_at",
+      "definition": "CREATE TRIGGER update_objects_updated_at BEFORE UPDATE ON storage.objects FOR EACH ROW EXECUTE FUNCTION storage.update_updated_at_column()",
+      "enabled": "O"
+    }
+  ],
+  "buckets": [
+    {
+      "id": "avatars",
+      "name": "avatars",
+      "public": true,
+      "file_size_limit": null,
+      "allowed_mime_types": null,
+      "type": "STANDARD",
+      "created_at": "2026-06-16T10:08:34.773258+00:00",
+      "updated_at": "2026-06-16T10:08:34.773258+00:00"
+    },
+    {
+      "id": "clinic-logos",
+      "name": "clinic-logos",
+      "public": true,
+      "file_size_limit": 5242880,
+      "allowed_mime_types": [
+        "image/webp",
+        "image/jpeg",
+        "image/png",
+        "image/heic",
+        "image/heif"
+      ],
+      "type": "STANDARD",
+      "created_at": "2026-06-16T09:42:24.044161+00:00",
+      "updated_at": "2026-06-16T09:42:24.044161+00:00"
+    },
+    {
+      "id": "patient-files",
+      "name": "patient-files",
+      "public": true,
+      "file_size_limit": 15728640,
+      "allowed_mime_types": [
+        "image/webp",
+        "image/jpeg",
+        "image/png",
+        "image/heic",
+        "image/heif"
+      ],
+      "type": "STANDARD",
+      "created_at": "2026-06-14T22:07:07.440644+00:00",
+      "updated_at": "2026-07-07T00:07:34.136025+00:00"
+    },
+    {
+      "id": "prescriptions",
+      "name": "prescriptions",
+      "public": true,
+      "file_size_limit": 15728640,
+      "allowed_mime_types": [
+        "image/webp",
+        "image/jpeg",
+        "image/png",
+        "image/heic",
+        "image/heif"
+      ],
+      "type": "STANDARD",
+      "created_at": "2026-06-14T22:07:07.440644+00:00",
+      "updated_at": "2026-07-07T00:07:34.136025+00:00"
+    },
+    {
+      "id": "xrays",
+      "name": "xrays",
+      "public": true,
+      "file_size_limit": 26214400,
+      "allowed_mime_types": [
+        "image/webp",
+        "image/jpeg",
+        "image/png",
+        "image/heic",
+        "image/heif"
+      ],
+      "type": "STANDARD",
+      "created_at": "2026-06-14T22:07:07.440644+00:00",
+      "updated_at": "2026-07-07T00:07:34.136025+00:00"
+    }
+  ],
+  "extensions": [
+    {
+      "name": "pg_cron",
+      "version": "1.6.4",
+      "schema": "pg_catalog"
+    },
+    {
+      "name": "pg_net",
+      "version": "0.20.3",
+      "schema": "public"
+    },
+    {
+      "name": "pg_stat_statements",
+      "version": "1.11",
+      "schema": "extensions"
+    },
+    {
+      "name": "pgcrypto",
+      "version": "1.3",
+      "schema": "extensions"
+    },
+    {
+      "name": "plpgsql",
+      "version": "1.0",
+      "schema": "pg_catalog"
+    },
+    {
+      "name": "supabase_vault",
+      "version": "0.3.1",
+      "schema": "vault"
+    },
+    {
+      "name": "uuid-ossp",
+      "version": "1.1",
+      "schema": "extensions"
+    }
+  ],
+  "publications": [
+    {
+      "name": "supabase_realtime",
+      "all_tables": false,
+      "insert": true,
+      "update": true,
+      "delete": true,
+      "truncate": true,
+      "owner": "postgres",
+      "tables": [
+        {
+          "schema": "public",
+          "table": "appointments"
+        },
+        {
+          "schema": "public",
+          "table": "invoices"
+        },
+        {
+          "schema": "public",
+          "table": "payments"
+        },
+        {
+          "schema": "public",
+          "table": "treatments"
+        }
+      ]
+    },
+    {
+      "name": "supabase_realtime_messages_publication",
+      "all_tables": false,
+      "insert": true,
+      "update": true,
+      "delete": true,
+      "truncate": true,
+      "owner": "supabase_admin",
+      "tables": [
+        {
+          "schema": "realtime",
+          "table": "messages_2026_08_09"
+        },
+        {
+          "schema": "realtime",
+          "table": "messages_2026_08_10"
+        },
+        {
+          "schema": "realtime",
+          "table": "messages_2026_08_11"
+        },
+        {
+          "schema": "realtime",
+          "table": "messages_2026_08_12"
+        },
+        {
+          "schema": "realtime",
+          "table": "messages_2026_08_13"
+        },
+        {
+          "schema": "realtime",
+          "table": "messages_2026_08_14"
+        },
+        {
+          "schema": "realtime",
+          "table": "messages_2026_08_15"
+        }
+      ]
+    }
+  ]
+}
