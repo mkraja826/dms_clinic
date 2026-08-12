@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, Linking, Pressable, ScrollView, Text, View } from "react-native";
 import { AppButton } from "@/components/AppButton";
 import { AppInput } from "@/components/AppInput";
 import { ClinicPreferencesFields } from "@/components/ClinicPreferencesFields";
@@ -15,6 +15,9 @@ import {
 } from "@/lib/clinicLocale";
 import { createOwnerClinicWithPreferences } from "@/lib/clinicSetup";
 import { acceptStaffInviteByCode } from "@/lib/supabase";
+
+const PRIVACY_URL = "https://dms.micirql.com/privacy";
+const TERMS_URL = "https://dms.micirql.com/terms";
 
 type AccountType = "clinic" | "employee" | null;
 
@@ -50,6 +53,12 @@ function getErrorMessage(error: unknown) {
   }
 }
 
+function openLegalUrl(url: string) {
+  Linking.openURL(url).catch(() => {
+    Alert.alert("Unable to open link", "Please try again later.");
+  });
+}
+
 export default function OnboardingScreen() {
   const { refreshProfile, session, signOut } = useAuth();
   const email = session?.user.email ?? "";
@@ -66,12 +75,21 @@ export default function OnboardingScreen() {
   const [preferences, setPreferences] = useState(() =>
     getDefaultClinicPreferences()
   );
+  const [legalAccepted, setLegalAccepted] = useState(false);
 
   const [loading, setLoading] = useState(false);
 
   async function finishOwnerSetup() {
     if (!clinicName.trim() || !ownerName.trim()) {
       Alert.alert("Missing details", "Clinic name and head doctor name are required.");
+      return;
+    }
+
+    if (!legalAccepted) {
+      Alert.alert(
+        "Agreement required",
+        "Please read and agree to the CapDent Terms of Service and Privacy Policy before creating the clinic."
+      );
       return;
     }
 
@@ -279,6 +297,49 @@ export default function OnboardingScreen() {
             value={preferences}
             onChange={setPreferences}
           />
+
+          <View style={{ gap: 8, paddingTop: 4 }}>
+            <Pressable
+              onPress={() => setLegalAccepted((value) => !value)}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: legalAccepted }}
+              accessibilityLabel="Agree to CapDent Terms of Service and Privacy Policy"
+              style={{
+                flexDirection: "row",
+                alignItems: "flex-start",
+                gap: 10,
+                paddingVertical: 8,
+              }}
+            >
+              <Ionicons
+                name={legalAccepted ? "checkbox" : "square-outline"}
+                size={24}
+                color={legalAccepted ? colors.primary : colors.muted}
+              />
+
+              <Text style={{ flex: 1, color: colors.text, lineHeight: 21 }}>
+                I have read and agree to the CapDent Terms of Service and Privacy Policy.
+              </Text>
+            </Pressable>
+
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, paddingLeft: 34 }}>
+              <Pressable
+                onPress={() => openLegalUrl(TERMS_URL)}
+                accessibilityRole="link"
+                accessibilityLabel="Open CapDent Terms of Service"
+              >
+                <Text style={{ color: colors.primary, fontWeight: "800" }}>Terms of Service</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => openLegalUrl(PRIVACY_URL)}
+                accessibilityRole="link"
+                accessibilityLabel="Open CapDent Privacy Policy"
+              >
+                <Text style={{ color: colors.primary, fontWeight: "800" }}>Privacy Policy</Text>
+              </Pressable>
+            </View>
+          </View>
 
           <AppButton
             title="Create Clinic Workspace"
