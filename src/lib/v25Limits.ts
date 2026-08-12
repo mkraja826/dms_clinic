@@ -7,52 +7,88 @@ export const CAPDENT_V25_LIMITS = {
   },
 } as const;
 
+export type CapDentV25EffectiveLimits = {
+  patientLimit?: number | null;
+  uploadLimit?: number | null;
+  storageLimitBytes?: number | null;
+  grandfathered?: boolean;
+};
+
 export type CapDentV25UsageSnapshot = {
   patientCount: number;
   uploadCount: number;
   storageUsedBytes: number;
+  effectiveLimits?: CapDentV25EffectiveLimits | null;
 };
 
 export type CapDentV25UsageState = {
   patientCount: number;
+  patientBaseLimit: number;
   patientLimit: number;
   patientsRemaining: number;
   patientLimitReached: boolean;
   uploadCount: number;
+  uploadBaseLimit: number;
   uploadLimit: number;
   uploadsRemaining: number;
+  uploadWarningAt: number;
   uploadWarning: boolean;
   uploadLimitReached: boolean;
   storageUsedBytes: number;
+  storageBaseLimitBytes: number;
   storageLimitBytes: number;
   storageRemainingBytes: number;
   storageLimitReached: boolean;
+  grandfathered: boolean;
 };
 
 function safeCount(value: number) {
   return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
 }
 
+function safeEffectiveLimit(value: number | null | undefined, fallback: number) {
+  if (value === null || value === undefined || !Number.isFinite(value)) return fallback;
+  return Math.max(fallback, safeCount(value));
+}
+
 export function getFreeTierUsageState(snapshot: CapDentV25UsageSnapshot): CapDentV25UsageState {
-  const limits = CAPDENT_V25_LIMITS.free;
+  const baseLimits = CAPDENT_V25_LIMITS.free;
   const patientCount = safeCount(snapshot.patientCount);
   const uploadCount = safeCount(snapshot.uploadCount);
   const storageUsedBytes = safeCount(snapshot.storageUsedBytes);
+  const patientLimit = safeEffectiveLimit(
+    snapshot.effectiveLimits?.patientLimit,
+    baseLimits.patientLimit
+  );
+  const uploadLimit = safeEffectiveLimit(
+    snapshot.effectiveLimits?.uploadLimit,
+    baseLimits.uploadLimit
+  );
+  const storageLimitBytes = safeEffectiveLimit(
+    snapshot.effectiveLimits?.storageLimitBytes,
+    baseLimits.storageLimitBytes
+  );
+  const uploadWarningAt = Math.min(baseLimits.uploadWarningAt, uploadLimit);
 
   return {
     patientCount,
-    patientLimit: limits.patientLimit,
-    patientsRemaining: Math.max(limits.patientLimit - patientCount, 0),
-    patientLimitReached: patientCount >= limits.patientLimit,
+    patientBaseLimit: baseLimits.patientLimit,
+    patientLimit,
+    patientsRemaining: Math.max(patientLimit - patientCount, 0),
+    patientLimitReached: patientCount >= patientLimit,
     uploadCount,
-    uploadLimit: limits.uploadLimit,
-    uploadsRemaining: Math.max(limits.uploadLimit - uploadCount, 0),
-    uploadWarning: uploadCount >= limits.uploadWarningAt,
-    uploadLimitReached: uploadCount >= limits.uploadLimit,
+    uploadBaseLimit: baseLimits.uploadLimit,
+    uploadLimit,
+    uploadsRemaining: Math.max(uploadLimit - uploadCount, 0),
+    uploadWarningAt,
+    uploadWarning: uploadCount >= uploadWarningAt,
+    uploadLimitReached: uploadCount >= uploadLimit,
     storageUsedBytes,
-    storageLimitBytes: limits.storageLimitBytes,
-    storageRemainingBytes: Math.max(limits.storageLimitBytes - storageUsedBytes, 0),
-    storageLimitReached: storageUsedBytes >= limits.storageLimitBytes,
+    storageBaseLimitBytes: baseLimits.storageLimitBytes,
+    storageLimitBytes,
+    storageRemainingBytes: Math.max(storageLimitBytes - storageUsedBytes, 0),
+    storageLimitReached: storageUsedBytes >= storageLimitBytes,
+    grandfathered: snapshot.effectiveLimits?.grandfathered === true,
   };
 }
 
