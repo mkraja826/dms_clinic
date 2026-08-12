@@ -49,6 +49,13 @@ export default function LegalAccountScreen() {
         </View>
       </SectionCard>
 
+      <AppButton
+        title="CapDent Guide"
+        variant="secondary"
+        icon="book-outline"
+        onPress={() => router.push("/settings/guide" as never)}
+      />
+
       {canManageSubscription ? (
         <AppButton
           title="Subscription Plans"
