@@ -2,6 +2,7 @@ import { Platform } from "react-native";
 import { getCurrentProfile, invalidateSupabaseCache, supabase } from "@/lib/supabase";
 
 const RUPEE = "\u20B9";
+let googlePlayPurchaseLaunchInFlight = false;
 
 export type GooglePlayPlanKey = "professional" | "clinic_intelligence";
 
@@ -291,41 +292,51 @@ export async function launchGooglePlaySubscriptionPurchase(
   plan: GooglePlayBillingPlan,
   options?: { currentProductId?: string | null }
 ) {
-  await initGooglePlayBilling();
+  if (googlePlayPurchaseLaunchInFlight) {
+    throw new Error("A Google Play purchase is already being opened. Please complete or cancel it first.");
+  }
 
-  const iap = getIapModule();
-  const subscriptionOffers = plan.offerToken ? [{ sku: plan.productId, offerToken: plan.offerToken }] : [];
-  const replacementParams =
-    options?.currentProductId && options.currentProductId !== plan.productId
-      ? {
-          oldProductId: options.currentProductId,
-          replacementMode: "charge-prorated-price",
-        }
-      : undefined;
+  googlePlayPurchaseLaunchInFlight = true;
 
-  if (iap?.requestPurchase) {
-    return iap.requestPurchase({
-      type: "subs",
-      request: {
-        google: {
-          skus: [plan.productId],
-          subscriptionOffers,
-          subscriptionProductReplacementParams: replacementParams,
+  try {
+    await initGooglePlayBilling();
+
+    const iap = getIapModule();
+    const subscriptionOffers = plan.offerToken ? [{ sku: plan.productId, offerToken: plan.offerToken }] : [];
+    const replacementParams =
+      options?.currentProductId && options.currentProductId !== plan.productId
+        ? {
+            oldProductId: options.currentProductId,
+            replacementMode: "charge-prorated-price",
+          }
+        : undefined;
+
+    if (iap?.requestPurchase) {
+      return await iap.requestPurchase({
+        type: "subs",
+        request: {
+          google: {
+            skus: [plan.productId],
+            subscriptionOffers,
+            subscriptionProductReplacementParams: replacementParams,
+          },
         },
-      },
-    });
+      });
+    }
+
+    if (!iap?.requestSubscription) throw new Error("Google Play subscription billing is not available.");
+
+    if (plan.offerToken) {
+      return await iap.requestSubscription({
+        sku: plan.productId,
+        subscriptionOffers,
+      });
+    }
+
+    return await iap.requestSubscription({ sku: plan.productId });
+  } finally {
+    googlePlayPurchaseLaunchInFlight = false;
   }
-
-  if (!iap?.requestSubscription) throw new Error("Google Play subscription billing is not available.");
-
-  if (plan.offerToken) {
-    return iap.requestSubscription({
-      sku: plan.productId,
-      subscriptionOffers,
-    });
-  }
-
-  return iap.requestSubscription({ sku: plan.productId });
 }
 
 export function addGooglePlayPurchaseListeners(input: {
