@@ -3,38 +3,21 @@ import { Linking, ScrollView, Text, View } from "react-native";
 import { AppButton } from "@/components/AppButton";
 import { SectionCard } from "@/components/SectionCard";
 import { colors } from "@/constants/colors";
-import { useAuth } from "@/lib/auth";
-
-const SUPPORT_EMAIL = "support@micirql.com";
-const DELETE_ACCOUNT_URL = "https://dms.micirql.com/delete-account";
+import { CAPDENT_DELETE_ACCOUNT_URL } from "@/lib/legalLinks";
+import { CAPDENT_SUPPORT_EMAIL } from "@/lib/supportContact";
 
 export default function DeleteAccountScreen() {
-  const { profile } = useAuth();
-
   const subject = encodeURIComponent("CapDent account and data deletion request");
   const body = encodeURIComponent(
-    `Hello CapDent Support,
-
-I want to request deletion of my CapDent account and related clinic data.
-
-Account email: ${profile?.email ?? ""}
-Clinic ID: ${profile?.clinic_id ?? ""}
-Role: ${profile?.role ?? ""}
-
-I understand that deleting clinic data may affect patient records, appointment history, uploaded files, payment history, and staff access.
-
-Please confirm the deletion process.
-
-Regards,
-${profile?.name ?? ""}`
+    `Hello CapDent Support,\n\nI want to request deletion of my CapDent account and related data.\n\nPlease tell me what information you need to verify my request securely.\n\nI understand that some clinic, medical, billing, security, or legal records may need to be retained where required.\n\nPlease confirm the deletion process.`
   );
 
   function requestDeletion() {
-    Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`);
+    Linking.openURL(`mailto:${CAPDENT_SUPPORT_EMAIL}?subject=${subject}&body=${body}`);
   }
 
   function openDeletePage() {
-    Linking.openURL(DELETE_ACCOUNT_URL);
+    Linking.openURL(CAPDENT_DELETE_ACCOUNT_URL);
   }
 
   return (
@@ -56,8 +39,9 @@ ${profile?.name ?? ""}`
 
           <Text style={{ color: colors.text, fontWeight: "900", fontSize: 16 }}>How to request deletion</Text>
           <Text style={{ color: colors.muted, lineHeight: 21 }}>
-            Tap the button below to open the public deletion page or send a deletion request email. Support will verify
-            the request before deleting or restricting access to data.
+            Start with the public deletion page or send a deletion request email. The email does not automatically attach
+            your clinic ID, user ID, role, or staff name. Support should request only the minimum information needed to
+            verify the request securely before deleting or restricting access to data.
           </Text>
         </View>
       </SectionCard>
