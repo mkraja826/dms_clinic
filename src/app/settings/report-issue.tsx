@@ -8,6 +8,7 @@ import { Screen } from "@/components/Screen";
 import { SectionCard } from "@/components/SectionCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { colors } from "@/constants/colors";
+import { CAPDENT_APP_NAME, CAPDENT_SUPPORT_REQUEST_TITLE } from "@/lib/appIdentity";
 import { useAuth } from "@/lib/auth";
 import { getDashboardPath, getRoleLabel } from "@/lib/supabase";
 import {
@@ -53,7 +54,7 @@ export default function ReportIssueScreen() {
 
   const supportMessage = useMemo(() => {
     const lines = [
-      "CapDent Support Request",
+      CAPDENT_SUPPORT_REQUEST_TITLE,
       "",
       `Issue Type: ${categoryLabel}`,
       `Reported At: ${supportNowLabel()}`,
@@ -119,7 +120,7 @@ export default function ReportIssueScreen() {
           }}
         >
           <Text style={{ color: colors.text, fontWeight: "900", fontSize: 16 }}>
-            CapDent Support
+            {CAPDENT_APP_NAME} Support
           </Text>
           <Text selectable style={{ color: colors.primary, fontWeight: "900" }}>
             {CAPDENT_SUPPORT_EMAIL}
