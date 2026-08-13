@@ -33,6 +33,8 @@ export function EmptyState({
       }}
     >
       <View
+        accessible={false}
+        importantForAccessibility="no-hide-descendants"
         style={{
           width: 58,
           height: 58,
