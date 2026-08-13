@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Pressable,
@@ -159,6 +159,7 @@ export default function CollectPendingPaymentScreen() {
   const [loadingPatients, setLoadingPatients] = useState(true);
   const [loadingInvoices, setLoadingInvoices] = useState(false);
   const [saving, setSaving] = useState(false);
+  const collectPaymentLockRef = useRef(false);
 
   async function loadPatients(searchText = search) {
     try {
@@ -308,6 +309,8 @@ export default function CollectPendingPaymentScreen() {
   }
 
   async function collectPayment() {
+    if (saving || collectPaymentLockRef.current) return;
+
     if (!selectedPatient) {
       Alert.alert("Patient missing", "Select patient first.");
       return;
@@ -330,6 +333,7 @@ export default function CollectPendingPaymentScreen() {
       return;
     }
 
+    collectPaymentLockRef.current = true;
     setSaving(true);
 
     try {
@@ -371,6 +375,7 @@ export default function CollectPendingPaymentScreen() {
     } catch (error) {
       Alert.alert("Payment failed", getErrorMessage(error));
     } finally {
+      collectPaymentLockRef.current = false;
       setSaving(false);
     }
   }
@@ -523,30 +528,32 @@ export default function CollectPendingPaymentScreen() {
             </View>
           ) : (
             <EmptyState
-              title="No pending payments"
-              message="No patient with pending due amount found."
-              icon="checkmark-done-outline"
+              title="No pending patients"
+              message="No pending invoices found for this search."
+              icon="wallet-outline"
             />
           )}
         </SectionCard>
       ) : (
         <>
-          <SectionCard title="Selected Patient" subtitle="Confirm the patient before collecting any amount.">
-            <View
-              style={{
-                padding: 14,
-                borderRadius: 18,
-                borderWidth: 1,
-                borderColor: colors.warning,
-                backgroundColor: colors.warningSoft,
-                gap: 10,
-              }}
-            >
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                <Ionicons name="person-circle-outline" size={30} color={colors.warning} />
+          <SectionCard title="Selected Patient" subtitle="Confirm patient and pending amount before recording payment.">
+            <View style={{ gap: 10 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                <View
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 18,
+                    backgroundColor: colors.warningSoft,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Ionicons name="person-outline" size={22} color={colors.warning} />
+                </View>
 
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: colors.text, fontSize: 18, fontWeight: "900" }}>
+                  <Text style={{ color: colors.text, fontSize: 17, fontWeight: "900" }}>
                     {selectedPatient.patient_name}
                   </Text>
                   <Text style={{ color: colors.muted, marginTop: 2 }}>
@@ -558,99 +565,48 @@ export default function CollectPendingPaymentScreen() {
                 <StatusBadge label={money(selectedPatient.pending_amount)} tone="warning" />
               </View>
 
-              <View style={{ flexDirection: "row", gap: 10 }}>
-                <AppButton
-                  title="Change"
-                  icon="swap-horizontal-outline"
-                  variant="secondary"
-                  onPress={() => {
-                    setSelectedPatient(null);
-                    setInvoices([]);
-                    setSelectedInvoiceId(null);
-                    setAmount("");
-                  }}
-                  style={{ flex: 1 }}
-                />
-
-                <AppButton
-                  title="Patient"
-                  icon="person-outline"
-                  onPress={() => router.push(`/patient/${selectedPatient.patient_id}` as never)}
-                  style={{ flex: 1 }}
-                />
-              </View>
+              <AppButton
+                title="Change Patient"
+                icon="swap-horizontal-outline"
+                variant="secondary"
+                onPress={() => {
+                  setSelectedPatient(null);
+                  setSelectedInvoiceId(null);
+                  setInvoices([]);
+                  setAmount("");
+                }}
+              />
             </View>
           </SectionCard>
 
-          <SectionCard title="Pending Invoices" subtitle="Select one invoice or collect total pending amount across invoices.">
+          <SectionCard title="Pending Invoices" subtitle="Choose a specific invoice or leave unselected to collect against total pending.">
             {loadingInvoices ? (
               <Text style={{ color: colors.muted }}>Loading invoices...</Text>
             ) : invoices.length ? (
               <View style={{ gap: 10 }}>
-                <Pressable
-                  onPress={() => {
-                    setSelectedInvoiceId(null);
-                    setAmount(String(Math.round(Number(selectedPatient.pending_amount || 0))));
-                  }}
-                  style={{
-                    padding: 12,
-                    borderRadius: 18,
-                    borderWidth: 1,
-                    borderColor: selectedInvoiceId === null ? colors.primary : colors.border,
-                    backgroundColor: selectedInvoiceId === null ? colors.primarySoft : colors.background,
-                    gap: 4,
-                  }}
-                >
-                  <Text style={{ color: colors.text, fontWeight: "900" }}>
-                    Collect Total Pending
-                  </Text>
-                  <Text style={{ color: colors.muted }}>
-                    Applies payment from oldest pending invoice to newest.
-                  </Text>
-                  <Text style={{ color: colors.primary, fontSize: 18, fontWeight: "900" }}>
-                    {money(selectedPatient.pending_amount)}
-                  </Text>
-                </Pressable>
-
                 {invoices.map((invoice) => {
                   const selected = selectedInvoiceId === invoice.invoice_id;
-
                   return (
                     <Pressable
                       key={invoice.invoice_id}
                       onPress={() => selectInvoice(invoice)}
                       style={{
-                        padding: 12,
-                        borderRadius: 18,
                         borderWidth: 1,
                         borderColor: selected ? colors.primary : colors.border,
                         backgroundColor: selected ? colors.primarySoft : colors.background,
+                        borderRadius: 18,
+                        padding: 12,
                         gap: 5,
                       }}
                     >
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                        <Ionicons name="receipt-outline" size={19} color={colors.primary} />
+                      <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 10 }}>
                         <Text style={{ color: colors.text, fontWeight: "900", flex: 1 }}>
                           {invoiceTypeLabel(invoice.invoice_type)}
                         </Text>
-                        <StatusBadge label={invoice.status || "unpaid"} tone="warning" />
+                        <StatusBadge label={money(invoice.due_amount)} tone="warning" />
                       </View>
-
-                      <Text style={{ color: colors.muted }}>
-                        {formatDate(invoice.created_at)}
-                      </Text>
-
-                      <View style={{ flexDirection: "row", gap: 10 }}>
-                        <Text style={{ color: colors.muted }}>
-                          Total: {money(invoice.total_amount)}
-                        </Text>
-                        <Text style={{ color: colors.muted }}>
-                          Paid: {money(invoice.paid_amount)}
-                        </Text>
-                      </View>
-
-                      <Text style={{ color: colors.warning, fontSize: 18, fontWeight: "900" }}>
-                        Due: {money(invoice.due_amount)}
+                      <Text style={{ color: colors.muted, fontSize: 12 }}>
+                        {formatDate(invoice.created_at)} • {invoice.status}
                       </Text>
                     </Pressable>
                   );
@@ -658,105 +614,83 @@ export default function CollectPendingPaymentScreen() {
               </View>
             ) : (
               <EmptyState
-                title="No pending invoice"
-                message="This patient currently has no due amount. Payment may have already been completed."
-                icon="checkmark-done-outline"
+                title="No pending invoices"
+                message="This patient currently has no collectable pending invoice."
+                icon="receipt-outline"
               />
             )}
           </SectionCard>
 
-          <SectionCard title="Collect Payment" subtitle="Enter amount, method, and category before saving payment.">
+          <SectionCard title="Collect Payment" subtitle="Check amount, category, method, and notes before saving.">
             <AppInput
               label="Amount"
               value={amount}
               onChangeText={setAmount}
               keyboardType="numeric"
-              placeholder="Enter amount"
-              helper="You can collect full or partial payment."
+              placeholder="0"
             />
 
-            <View style={{ gap: 10 }}>
-              <Text style={{ color: colors.text, fontWeight: "900" }}>
-                Payment Method
-              </Text>
-
-              <View style={{ flexDirection: "row", gap: 10 }}>
-                {PAYMENT_METHODS.map((method) => {
-                  const selected = paymentMethod === method;
-
-                  return (
-                    <Pressable
-                      key={method}
-                      onPress={() => setPaymentMethod(method)}
-                      style={{
-                        flex: 1,
-                        minHeight: 48,
-                        borderRadius: 999,
-                        borderWidth: 1,
-                        borderColor: selected ? colors.primary : colors.border,
-                        backgroundColor: selected ? colors.primary : colors.background,
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <Text
-                        style={{
-                          color: selected ? colors.white : colors.text,
-                          fontWeight: "900",
-                        }}
-                      >
-                        {method}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              {PAYMENT_METHODS.map((method) => {
+                const selected = paymentMethod === method;
+                return (
+                  <Pressable
+                    key={method}
+                    onPress={() => setPaymentMethod(method)}
+                    style={{
+                      flex: 1,
+                      minHeight: 48,
+                      borderRadius: 999,
+                      borderWidth: 1,
+                      borderColor: selected ? colors.primary : colors.border,
+                      backgroundColor: selected ? colors.primary : colors.background,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Text style={{ color: selected ? colors.white : colors.text, fontWeight: "900" }}>{method}</Text>
+                  </Pressable>
+                );
+              })}
             </View>
 
-            <View style={{ gap: 10 }}>
-              <Text style={{ color: colors.text, fontWeight: "900" }}>
-                Payment Category
-              </Text>
-
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                {PAYMENT_CATEGORIES.map((category) => {
-                  const selected = paymentCategory === category.key;
-
-                  return (
-                    <Pressable
-                      key={category.key}
-                      onPress={() => setPaymentCategory(category.key)}
-                      style={{
-                        minHeight: 40,
-                        borderRadius: 999,
-                        paddingHorizontal: 12,
-                        borderWidth: 1,
-                        borderColor: selected ? colors.primary : colors.border,
-                        backgroundColor: selected ? colors.primary : colors.background,
-                        justifyContent: "center",
-                      }}
-                    >
-                      <Text style={{ color: selected ? colors.white : colors.text, fontWeight: "900", fontSize: 12 }}>
-                        {category.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+              {PAYMENT_CATEGORIES.map((item) => {
+                const selected = paymentCategory === item.key;
+                return (
+                  <Pressable
+                    key={item.key}
+                    onPress={() => setPaymentCategory(item.key)}
+                    style={{
+                      minHeight: 40,
+                      borderRadius: 999,
+                      paddingHorizontal: 12,
+                      borderWidth: 1,
+                      borderColor: selected ? colors.primary : colors.border,
+                      backgroundColor: selected ? colors.primary : colors.background,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Text style={{ color: selected ? colors.white : colors.text, fontWeight: "900", fontSize: 13 }}>{item.label}</Text>
+                  </Pressable>
+                );
+              })}
             </View>
 
             <AppInput
               label="Notes"
               value={notes}
               onChangeText={setNotes}
-              placeholder="Pending amount collected"
+              placeholder="Optional note"
             />
 
             <AppButton
-              title={`Collect ${amount ? money(amount) : "Payment"}`}
+              title="Collect Payment"
               icon="cash-outline"
               onPress={collectPayment}
               loading={saving}
+              loadingTitle="Saving payment..."
             />
           </SectionCard>
         </>
