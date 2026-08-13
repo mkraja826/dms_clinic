@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { Text, TextInput, TextInputProps, View } from "react-native";
 import { colors, radius } from "@/constants/colors";
 
@@ -7,13 +8,16 @@ type Props = TextInputProps & {
 };
 
 export function AppInput({ label, helper, style, ...props }: Props) {
+  const labelId = useId();
+
   return (
     <View style={{ gap: 8 }}>
-      <Text style={{ color: colors.text, fontSize: 13, fontWeight: "800" }}>
+      <Text nativeID={labelId} style={{ color: colors.text, fontSize: 13, fontWeight: "800" }}>
         {label}
       </Text>
       <TextInput
         {...props}
+        accessibilityLabelledBy={labelId}
         placeholderTextColor={colors.muted}
         style={[
           {
