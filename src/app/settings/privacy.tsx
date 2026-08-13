@@ -10,6 +10,7 @@ import {
   CAPDENT_PRIVACY_URL,
   CAPDENT_TERMS_URL,
 } from "@/lib/legalLinks";
+import { useImmediateMutationLock } from "@/lib/useImmediateMutationLock";
 
 function Row({ text }: { text: string }) {
   return (
@@ -20,13 +21,21 @@ function Row({ text }: { text: string }) {
   );
 }
 
-function openUrl(url: string) {
-  Linking.openURL(url).catch(() => {
-    Alert.alert("Unable to open link", "Please try again later.");
-  });
-}
-
 export default function PrivacyScreen() {
+  const externalLinkMutation = useImmediateMutationLock();
+
+  async function openUrl(url: string) {
+    if (!externalLinkMutation.tryLock()) return;
+
+    try {
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert("Unable to open link", "Please try again later.");
+    } finally {
+      externalLinkMutation.release();
+    }
+  }
+
   return (
     <Screen>
       <View style={{ gap: 6 }}>
@@ -54,9 +63,9 @@ export default function PrivacyScreen() {
         <Row text="Clinical decisions remain with qualified clinic professionals." />
       </SectionCard>
 
-      <AppButton title="Open Privacy Policy" icon="open-outline" variant="secondary" onPress={() => openUrl(CAPDENT_PRIVACY_URL)} />
-      <AppButton title="Open Delete Account Page" icon="trash-outline" variant="secondary" onPress={() => openUrl(CAPDENT_DELETE_ACCOUNT_URL)} />
-      <AppButton title="Open Terms Page" icon="document-text-outline" variant="secondary" onPress={() => openUrl(CAPDENT_TERMS_URL)} />
+      <AppButton title="Open Privacy Policy" icon="open-outline" variant="secondary" onPress={() => { void openUrl(CAPDENT_PRIVACY_URL); }} />
+      <AppButton title="Open Delete Account Page" icon="trash-outline" variant="secondary" onPress={() => { void openUrl(CAPDENT_DELETE_ACCOUNT_URL); }} />
+      <AppButton title="Open Terms Page" icon="document-text-outline" variant="secondary" onPress={() => { void openUrl(CAPDENT_TERMS_URL); }} />
       <AppButton title="Back" icon="arrow-back-outline" variant="ghost" onPress={() => router.back()} />
     </Screen>
   );
