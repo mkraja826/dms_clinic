@@ -14,10 +14,8 @@ import {
   normalizeClinicTime,
 } from "@/lib/clinicLocale";
 import { createOwnerClinicWithPreferences } from "@/lib/clinicSetup";
+import { CAPDENT_PRIVACY_URL, CAPDENT_TERMS_URL } from "@/lib/legalLinks";
 import { acceptStaffInviteByCode } from "@/lib/supabase";
-
-const PRIVACY_URL = "https://dms.micirql.com/privacy";
-const TERMS_URL = "https://dms.micirql.com/terms";
 
 type AccountType = "clinic" | "employee" | null;
 
@@ -334,7 +332,7 @@ export default function OnboardingScreen() {
 
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, paddingLeft: 34 }}>
               <Pressable
-                onPress={() => openLegalUrl(TERMS_URL)}
+                onPress={() => openLegalUrl(CAPDENT_TERMS_URL)}
                 accessibilityRole="link"
                 accessibilityLabel="Open CapDent Terms of Service"
               >
@@ -342,7 +340,7 @@ export default function OnboardingScreen() {
               </Pressable>
 
               <Pressable
-                onPress={() => openLegalUrl(PRIVACY_URL)}
+                onPress={() => openLegalUrl(CAPDENT_PRIVACY_URL)}
                 accessibilityRole="link"
                 accessibilityLabel="Open CapDent Privacy Policy"
               >
