@@ -1,6 +1,40 @@
 type CapDentAnalyticsRole = "owner" | "doctor" | "reception" | "unknown";
 
-type AnalyticsParams = Record<string, string | number | boolean>;
+type CapDentAnalyticsScreen =
+  | "dashboard"
+  | "authentication"
+  | "onboarding"
+  | "patient_workflow"
+  | "appointment_workflow"
+  | "payment_workflow"
+  | "reports"
+  | "staff"
+  | "settings"
+  | "clinic_settings"
+  | "gallery"
+  | "reminders"
+  | "treatments"
+  | "reception_workflow"
+  | "image_viewer"
+  | "other";
+
+type FirebaseAnalyticsParams = Record<string, string | number | boolean>;
+
+type CapDentAnalyticsEvents = {
+  capdent_app_ready: {
+    role: CapDentAnalyticsRole;
+  };
+  capdent_screen_view: {
+    screen_name: CapDentAnalyticsScreen;
+    role: CapDentAnalyticsRole;
+    signed_in: boolean;
+  };
+};
+
+const SAFE_ANALYTICS_EVENTS = new Set<keyof CapDentAnalyticsEvents>([
+  "capdent_app_ready",
+  "capdent_screen_view",
+]);
 
 type FirebaseAnalyticsAdapter = {
   setConsent?: (consent: {
@@ -10,7 +44,7 @@ type FirebaseAnalyticsAdapter = {
     ad_personalization: boolean;
   }) => Promise<unknown>;
   setAnalyticsCollectionEnabled?: (enabled: boolean) => Promise<unknown>;
-  logEvent: (name: string, params?: AnalyticsParams) => Promise<unknown>;
+  logEvent: (name: string, params?: FirebaseAnalyticsParams) => Promise<unknown>;
 };
 
 export const FIREBASE_ANALYTICS_ENABLED =
@@ -36,48 +70,82 @@ export function configureFirebaseAnalyticsAdapter(
   initializationPromise = null;
 }
 
-function cleanString(value: unknown, maxLength = 80) {
-  return String(value ?? "")
-    .replace(/[\r\n\t]+/g, " ")
-    .trim()
-    .slice(0, maxLength);
+const SAFE_ANALYTICS_ROLES = new Set<CapDentAnalyticsRole>([
+  "owner",
+  "doctor",
+  "reception",
+  "unknown",
+]);
+
+const SAFE_ANALYTICS_SCREENS = new Set<CapDentAnalyticsScreen>([
+  "dashboard",
+  "authentication",
+  "onboarding",
+  "patient_workflow",
+  "appointment_workflow",
+  "payment_workflow",
+  "reports",
+  "staff",
+  "settings",
+  "clinic_settings",
+  "gallery",
+  "reminders",
+  "treatments",
+  "reception_workflow",
+  "image_viewer",
+  "other",
+]);
+
+function safeAnalyticsRole(value: unknown): CapDentAnalyticsRole {
+  return SAFE_ANALYTICS_ROLES.has(value as CapDentAnalyticsRole)
+    ? (value as CapDentAnalyticsRole)
+    : "unknown";
 }
 
-function sanitizeParams(params: AnalyticsParams) {
-  const safe: AnalyticsParams = {};
+function safeAnalyticsScreen(value: unknown): CapDentAnalyticsScreen {
+  return SAFE_ANALYTICS_SCREENS.has(value as CapDentAnalyticsScreen)
+    ? (value as CapDentAnalyticsScreen)
+    : "other";
+}
 
-  for (const [key, value] of Object.entries(params)) {
-    const safeKey = key.replace(/[^a-zA-Z0-9_]/g, "_").slice(0, 40);
-    if (!safeKey) continue;
-
-    if (typeof value === "string") safe[safeKey] = cleanString(value);
-    else if (typeof value === "number" && Number.isFinite(value)) safe[safeKey] = value;
-    else if (typeof value === "boolean") safe[safeKey] = value;
+function sanitizeParams<EventName extends keyof CapDentAnalyticsEvents>(
+  eventName: EventName,
+  params: CapDentAnalyticsEvents[EventName]
+): FirebaseAnalyticsParams {
+  if (eventName === "capdent_app_ready") {
+    return { role: safeAnalyticsRole(params.role) };
   }
 
-  return safe;
+  const screenParams = params as CapDentAnalyticsEvents["capdent_screen_view"];
+  return {
+    screen_name: safeAnalyticsScreen(screenParams.screen_name),
+    role: safeAnalyticsRole(screenParams.role),
+    signed_in: screenParams.signed_in === true,
+  };
 }
 
 export function analyticsRole(role?: string | null): CapDentAnalyticsRole {
   if (role === "owner" || role === "head_doctor") return "owner";
   if (role === "doctor" || role === "working_doctor") return "doctor";
-  if (role === "receptionist") return "reception";
+  if (role === "receptionist" || role === "reception" || role === "dental_assistant") {
+    return "reception";
+  }
   return "unknown";
 }
 
-export function analyticsScreenName(pathname?: string | null) {
+export function analyticsScreenName(pathname?: string | null): CapDentAnalyticsScreen {
   const path = String(pathname || "/").toLowerCase();
 
-  if (path === "/" || path.includes("/(tabs)")) return "dashboard";
+  if (path === "/" || path === "/dashboard") return "dashboard";
   if (path.startsWith("/login") || path.startsWith("/auth/")) return "authentication";
   if (path.startsWith("/onboarding")) return "onboarding";
-  if (path.startsWith("/patient/")) return "patient_workflow";
-  if (path.startsWith("/appointment/")) return "appointment_workflow";
-  if (path.startsWith("/payment/")) return "payment_workflow";
+  if (path === "/patients" || path === "/patient" || path.startsWith("/patient/")) return "patient_workflow";
+  if (path === "/appointments" || path === "/appointment" || path.startsWith("/appointment/")) return "appointment_workflow";
+  if (path === "/billing" || path === "/payment" || path.startsWith("/payment/")) return "payment_workflow";
   if (path.startsWith("/reports/")) return "reports";
   if (path.startsWith("/staff/")) return "staff";
   if (path.startsWith("/settings/")) return "settings";
-  if (path.startsWith("/clinic/")) return "clinic_settings";
+  if (path === "/profile" || path.startsWith("/clinic/")) return "clinic_settings";
   if (path.startsWith("/gallery")) return "gallery";
   if (path.startsWith("/reminders")) return "reminders";
   if (path.startsWith("/treatments")) return "treatments";
@@ -118,16 +186,17 @@ export async function initializeFirebaseAnalytics() {
   return initializationPromise;
 }
 
-export async function logCapDentAnalyticsEvent(
-  eventName: "capdent_app_ready" | "capdent_screen_view",
-  params: AnalyticsParams = {}
+export async function logCapDentAnalyticsEvent<EventName extends keyof CapDentAnalyticsEvents>(
+  eventName: EventName,
+  params: CapDentAnalyticsEvents[EventName]
 ) {
+  if (!SAFE_ANALYTICS_EVENTS.has(eventName)) return;
   if (!FIREBASE_ANALYTICS_ENABLED || !analyticsAdapter) return;
 
   try {
     const ready = await initializeFirebaseAnalytics();
     if (!ready || !analyticsAdapter) return;
-    await analyticsAdapter.logEvent(eventName, sanitizeParams(params));
+    await analyticsAdapter.logEvent(eventName, sanitizeParams(eventName, params));
   } catch (error) {
     console.warn(`Firebase Analytics event failed (${eventName}):`, error);
   }

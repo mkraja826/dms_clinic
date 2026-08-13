@@ -90,6 +90,12 @@ expect(
   "Firebase automatic screen reporting must remain disabled; CapDent uses sanitized screen categories."
 );
 expect(
+  firebaseConfig?.["react-native"]?.google_analytics_adid_collection_enabled === false &&
+    firebaseConfig?.["react-native"]
+      ?.google_analytics_default_allow_ad_personalization_signals === false,
+  "Firebase advertising ID collection and ad-personalization signals must remain disabled."
+);
+expect(
   environmentExample.includes("EXPO_PUBLIC_ENABLE_FIREBASE_ANALYTICS=false"),
   "Example environment must keep Firebase Analytics disabled by default."
 );
@@ -106,6 +112,13 @@ expect(
     !analytics.includes("clinic_id") &&
     !analytics.includes("payment_reference"),
   "Analytics wrapper must not transmit user, patient, clinic, or payment identifiers."
+);
+expect(
+  analytics.includes("SAFE_ANALYTICS_ROLES") &&
+    analytics.includes("SAFE_ANALYTICS_SCREENS") &&
+    analytics.includes("SAFE_ANALYTICS_EVENTS") &&
+    analytics.includes("sanitizeParams(eventName, params)"),
+  "Analytics events must retain runtime role, screen, and parameter allowlists."
 );
 expect(
   analyticsCoordinator.includes('"capdent_app_ready"') &&
