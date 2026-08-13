@@ -31,6 +31,7 @@ It supplements, but does not weaken, the production reconciliation runbook.
 - [x] Intelligence fallback price aligned to ₹1,499/month.
 - [x] Pricing observation remains non-enforcing before reconciliation clearance.
 - [x] Subscription UI consumes shared V25 limits/pricing constants.
+- [x] Observed entitlement counts are clamped to safe non-negative values.
 - [ ] Server-authoritative quota enforcement migration after Milestone 0.
 - [ ] Server-authoritative upload/storage usage accounting after Milestone 0.
 - [ ] Grandfathering policy finalized and enforced server-side.
@@ -42,6 +43,7 @@ It supplements, but does not weaken, the production reconciliation runbook.
 - [x] Country/currency/usual-hours preferences retained.
 - [x] Privacy, Terms, deletion, guide, issue-reporting surfaces hardened.
 - [x] External legal/support actions guarded against repeat taps and failures.
+- [x] Auth callback can retry safely after a failed callback attempt.
 - [ ] Persist auditable consent evidence server-side after Milestone 0.
 
 ## Clinic settings and staff
@@ -49,9 +51,12 @@ It supplements, but does not weaken, the production reconciliation runbook.
 - [x] Clinic preference/feature caches protected from accidental mutation.
 - [x] Clinic creation RPC response validated on the client.
 - [x] Clinic branding input validated before logo upload.
+- [x] Clinic branding save guarded against duplicate submit.
 - [x] Existing staff invite creation protected from duplicate submit.
+- [x] Staff role/access changes guarded against duplicate mutations.
+- [ ] Validate malformed/null `owner_update_staff_access` RPC responses on the client.
 - [ ] Replace the two independent Account Settings writes with one transactional RPC after Milestone 0.
-- [ ] Reassess staff role/removal mutations only after reconciliation clearance.
+- [ ] Reassess staff role/removal server authorization only after reconciliation clearance.
 - [ ] Add `dental_assistant` database constraint/authorization support only through an approved additive migration.
 - [ ] Design membership model separately; current production is one-user/one-clinic.
 
@@ -62,10 +67,13 @@ It supplements, but does not weaken, the production reconciliation runbook.
 - [x] Image uploads remain optimized to WebP in current mobile tiers.
 - [x] Storage URL resolution failures fail safely to the original URL.
 - [x] Do not make existing public buckets private blindly.
-- [ ] Local patch: guard appointment booking against immediate duplicate submit.
-- [ ] Local patch: guard reschedule confirmation against immediate duplicate submit.
-- [ ] Local patch: finish Gallery accessibility/interaction cleanup without changing storage policy.
-- [ ] Local patch: finish clinic-branding screen save guard if still missing after branch sync.
+- [x] Guard appointment booking against immediate duplicate submit.
+- [x] Guard reschedule confirmation against immediate duplicate submit.
+- [x] Guard clinical upload against immediate duplicate submit.
+- [x] Gallery accessibility/interaction cleanup completed without changing storage policy.
+- [x] Gallery delete actions are guarded per file against duplicate deletion.
+- [ ] Prevent orphan patient-profile-photo uploads when the patient row is missing from the current clinic.
+- [ ] Final stale V18/V24 wording sweep before RC.
 - [ ] Decide high-quality ₹2,499 imaging entitlement outside Android AI scope before changing compression behavior.
 
 ## Notifications and billing
@@ -80,8 +88,12 @@ It supplements, but does not weaken, the production reconciliation runbook.
 
 ## Analytics
 
-- [ ] Add Firebase Analytics only when the RC/native gate opens.
-- [ ] Instrument privacy-minimized clinic/product events; never send patient names, phone numbers, diagnoses, notes, X-rays, photos, prescriptions, or other PHI as analytics parameters.
+- [x] Privacy-safe Firebase Analytics wrapper added.
+- [x] Firebase Analytics coordinator mounted in the application layer.
+- [x] Analytics collection defaults off and remains environment-flagged.
+- [x] Analytics parameters are limited to privacy-minimized app/product metadata; no patient names, phone numbers, diagnoses, notes, X-rays, photos, prescriptions, or other PHI are intentionally sent.
+- [ ] Serialize analytics initialization before first event logging.
+- [ ] Install/verify native Firebase Analytics packages and plugin only when the RC/native gate opens.
 - [ ] Verify Analytics configuration separately from FCM push configuration.
 
 ## Portal / AI freeze
@@ -93,13 +105,12 @@ It supplements, but does not weaken, the production reconciliation runbook.
 
 ## Pre-RC verification
 
-- [ ] Pull latest `release/capdent-v25` locally.
-- [ ] Run `npm run check:v25`.
-- [ ] Run `powershell -ExecutionPolicy Bypass -File scripts/database/verify-production-baseline.ps1`.
-- [ ] Run `git diff --check`.
-- [ ] Run `git status --short --branch` and confirm clean tree.
-- [ ] Complete the four queued large-file local patches above.
-- [ ] Repeat `npm run check:v25` and `git diff --check` after local integration.
+- [x] Pull latest `release/capdent-v25` locally for the verified pre-RC pass.
+- [x] Run `npm run check:v25` successfully.
+- [x] Run `powershell -ExecutionPolicy Bypass -File scripts/database/verify-production-baseline.ps1` successfully.
+- [x] Run `git diff --check` successfully.
+- [x] Run `git status --short --branch` and confirm clean synchronized tree for the verified pre-RC pass.
+- [ ] Pull and re-run the pre-RC checks after the remaining client fixes above land.
 - [ ] Perform V24 regression pass: login, onboarding, patient create/edit, old-patient import, visits, dental chart, payments, appointments, staff, gallery/uploads, prescriptions, notifications, subscription screen, logout.
 
 ## RC gate
