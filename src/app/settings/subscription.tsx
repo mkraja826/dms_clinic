@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Alert, Linking, Platform, Pressable, Text, View } from "react-native";
 import { AppButton } from "@/components/AppButton";
 import { Screen } from "@/components/Screen";
@@ -11,6 +11,7 @@ import {
   addGooglePlayPurchaseListeners,
   endGooglePlayBilling,
   finishGooglePlaySubscriptionPurchase,
+  getGooglePlayPurchaseToken,
   GOOGLE_PLAY_INTELLIGENCE_PRODUCT_ID,
   GOOGLE_PLAY_PLAN_DETAILS,
   GOOGLE_PLAY_PROFESSIONAL_PRODUCT_ID,
@@ -134,6 +135,9 @@ function GooglePlayPlanCard({
 
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={isCurrent ? `${details.name}, current plan` : `Subscribe to ${details.name}`}
+      accessibilityState={{ disabled, busy: loading }}
       onPress={onPress}
       disabled={disabled}
       style={({ pressed }) => ({
@@ -200,6 +204,7 @@ export default function SubscriptionScreen() {
   const [loading, setLoading] = useState(true);
   const [loadingBilling, setLoadingBilling] = useState(false);
   const [startingPlan, setStartingPlan] = useState<GooglePlayPlanKey | null>(null);
+  const processingPurchaseKeysRef = useRef(new Set<string>());
 
   const locked = params.locked === "1";
   const effectiveSubscription = PAID_PLANS_ENABLED ? subscription : null;
@@ -282,15 +287,25 @@ export default function SubscriptionScreen() {
       return;
     }
 
+    let active = true;
     loadBillingPlans();
 
     const cleanup = addGooglePlayPurchaseListeners({
       onPurchase: async (purchase) => {
+        const purchaseKey =
+          getGooglePlayPurchaseToken(purchase) ||
+          String(purchase?.transactionId || purchase?.orderId || purchase?.productId || "unknown-purchase");
+        if (!active || processingPurchaseKeysRef.current.has(purchaseKey)) return;
+        processingPurchaseKeysRef.current.add(purchaseKey);
+
         try {
           const updatedSubscription = (await recordGooglePlaySubscriptionPurchase(purchase)) as ClinicSubscription;
           await finishGooglePlaySubscriptionPurchase(purchase);
+          if (!active) return;
+
           setSubscription(updatedSubscription);
           await load();
+          if (!active) return;
 
           const planLabel = getClinicPlanLabel(getClinicPlanName(updatedSubscription));
           Alert.alert(
@@ -298,18 +313,23 @@ export default function SubscriptionScreen() {
             `CapDent ${planLabel} was verified by Google Play and activated. Core Free access remains available if the owner cancels.`
           );
         } catch (error) {
-          Alert.alert("Subscription verification failed", error instanceof Error ? error.message : "Please try again.");
+          if (active) {
+            Alert.alert("Subscription verification failed", error instanceof Error ? error.message : "Please try again.");
+          }
         } finally {
-          setStartingPlan(null);
+          processingPurchaseKeysRef.current.delete(purchaseKey);
+          if (active) setStartingPlan(null);
         }
       },
       onError: (message) => {
+        if (!active) return;
         setStartingPlan(null);
         Alert.alert("Google Play Billing", message);
       },
     });
 
     return () => {
+      active = false;
       cleanup();
       endGooglePlayBilling();
     };

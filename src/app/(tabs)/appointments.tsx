@@ -9,6 +9,7 @@ import { SectionCard } from "@/components/SectionCard";
 import { StatusChip } from "@/components/StatusChip";
 import { colors } from "@/constants/colors";
 import { Appointment, createAppointment, getTodayAppointments, searchPatients, updateAppointmentStatus } from "@/lib/supabase";
+import { useImmediateMutationLock } from "@/lib/useImmediateMutationLock";
 import { appointmentReminderMessage, openWhatsApp } from "@/lib/whatsapp";
 
 export default function AppointmentsScreen() {
@@ -18,6 +19,9 @@ export default function AppointmentsScreen() {
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [updatingAppointmentId, setUpdatingAppointmentId] = useState<string | null>(null);
+  const createMutation = useImmediateMutationLock();
+  const statusMutation = useImmediateMutationLock();
 
   const load = useCallback(async () => {
     try {
@@ -40,6 +44,8 @@ export default function AppointmentsScreen() {
       return;
     }
 
+    if (saving || !createMutation.tryLock()) return;
+
     setSaving(true);
     try {
       const matches = await searchPatients(term);
@@ -57,7 +63,26 @@ export default function AppointmentsScreen() {
     } catch (error) {
       Alert.alert("Save failed", error instanceof Error ? error.message : "Unable to create appointment.");
     } finally {
+      createMutation.release();
       setSaving(false);
+    }
+  }
+
+  async function updateStatus(appointmentId: string, status: "completed" | "no_show") {
+    if (updatingAppointmentId || !statusMutation.tryLock()) return;
+
+    setUpdatingAppointmentId(appointmentId);
+    try {
+      await updateAppointmentStatus(appointmentId, status);
+      await load();
+    } catch (error) {
+      Alert.alert(
+        "Appointment update failed",
+        error instanceof Error ? error.message : "Unable to update this appointment."
+      );
+    } finally {
+      statusMutation.release();
+      setUpdatingAppointmentId(null);
     }
   }
 
@@ -82,8 +107,24 @@ export default function AppointmentsScreen() {
               <StatusChip label={item.status} tone={item.status === "completed" ? "success" : item.status === "scheduled" ? "primary" : "warning"} />
             </View>
             <View style={{ flexDirection: "row", gap: 8 }}>
-              <AppButton title="Done" variant="secondary" style={{ flex: 1, minHeight: 42 }} onPress={() => updateAppointmentStatus(item.id, "completed").then(load)} />
-              <AppButton title="No show" variant="secondary" style={{ flex: 1, minHeight: 42 }} onPress={() => updateAppointmentStatus(item.id, "no_show").then(load)} />
+              <AppButton
+                title="Done"
+                variant="secondary"
+                style={{ flex: 1, minHeight: 42 }}
+                onPress={() => updateStatus(item.id, "completed")}
+                loading={updatingAppointmentId === item.id}
+                loadingTitle="Updating..."
+                disabled={Boolean(updatingAppointmentId)}
+              />
+              <AppButton
+                title="No show"
+                variant="secondary"
+                style={{ flex: 1, minHeight: 42 }}
+                onPress={() => updateStatus(item.id, "no_show")}
+                loading={updatingAppointmentId === item.id}
+                loadingTitle="Updating..."
+                disabled={Boolean(updatingAppointmentId)}
+              />
             </View>
             <QuickAction
               icon="logo-whatsapp"

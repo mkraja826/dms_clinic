@@ -11,6 +11,7 @@ import { StatusChip } from "@/components/StatusChip";
 import { colors } from "@/constants/colors";
 import { searchPatientsPage } from "@/lib/patientDirectory";
 import { addPayment, createInvoice, getPendingPayments, Invoice, Patient } from "@/lib/supabase";
+import { useImmediateMutationLock } from "@/lib/useImmediateMutationLock";
 import { openWhatsApp, paymentReminderMessage } from "@/lib/whatsapp";
 
 const RUPEE = "\u20B9";
@@ -49,8 +50,12 @@ export default function BillingScreen() {
   const [paymentAmount, setPaymentAmount] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadingPatients, setLoadingPatients] = useState(true);
+  const [savingInvoice, setSavingInvoice] = useState(false);
+  const [savingPayment, setSavingPayment] = useState(false);
   const patientRequestRef = useRef(0);
   const patientSearchMountedRef = useRef(false);
+  const invoiceMutation = useImmediateMutationLock();
+  const paymentMutation = useImmediateMutationLock();
 
   const selectedInvoicePatient = useMemo(
     () => patients.find((patient) => patient.id === selectedInvoicePatientId) ?? null,
@@ -124,34 +129,37 @@ export default function BillingScreen() {
   }, [patientPhone, loadPatientOptions]);
 
   async function saveInvoice() {
+    if (savingInvoice || !invoiceMutation.tryLock()) return;
+
     const typedPatient = patientPhone.trim();
     let patient = selectedInvoicePatient;
     const totalAmount = Number(total);
     const paidAmount = Number(paid || 0);
 
-    if (!patient && typedPatient) {
-      const result = await searchPatientsPage({
-        query: typedPatient,
-        page: 1,
-        pageSize: 8,
-      });
-
-      patient = result.patients.find(
-        (item) => item.phone === typedPatient || item.name.toLowerCase() === typedPatient.toLowerCase()
-      ) ?? null;
-    }
-
-    if (!patient || !Number.isFinite(totalAmount) || totalAmount <= 0) {
-      Alert.alert("Missing details", "Select a patient and enter invoice total.");
-      return;
-    }
-
-    if (!Number.isFinite(paidAmount) || paidAmount < 0 || paidAmount > totalAmount) {
-      Alert.alert("Check paid amount", "Paid amount should be between 0 and the invoice total.");
-      return;
-    }
-
+    setSavingInvoice(true);
     try {
+      if (!patient && typedPatient) {
+        const result = await searchPatientsPage({
+          query: typedPatient,
+          page: 1,
+          pageSize: 8,
+        });
+
+        patient = result.patients.find(
+          (item) => item.phone === typedPatient || item.name.toLowerCase() === typedPatient.toLowerCase()
+        ) ?? null;
+      }
+
+      if (!patient || !Number.isFinite(totalAmount) || totalAmount <= 0) {
+        Alert.alert("Missing details", "Select a patient and enter invoice total.");
+        return;
+      }
+
+      if (!Number.isFinite(paidAmount) || paidAmount < 0 || paidAmount > totalAmount) {
+        Alert.alert("Check paid amount", "Paid amount should be between 0 and the invoice total.");
+        return;
+      }
+
       await createInvoice({ patient_id: patient.id, total_amount: totalAmount, paid_amount: paidAmount });
       setPatientPhone("");
       setSelectedInvoicePatientId(null);
@@ -160,6 +168,9 @@ export default function BillingScreen() {
       await load();
     } catch (error) {
       Alert.alert("Invoice failed", error instanceof Error ? error.message : "Unable to create invoice.");
+    } finally {
+      invoiceMutation.release();
+      setSavingInvoice(false);
     }
   }
 
@@ -181,6 +192,9 @@ export default function BillingScreen() {
       return;
     }
 
+    if (savingPayment || !paymentMutation.tryLock()) return;
+
+    setSavingPayment(true);
     try {
       await addPayment({ invoice_id: invoice.id, patient_id: invoice.patient_id, amount, payment_method: "cash" });
       setPaymentInvoice("");
@@ -189,6 +203,9 @@ export default function BillingScreen() {
       await load();
     } catch (error) {
       Alert.alert("Payment failed", error instanceof Error ? error.message : "Unable to add payment.");
+    } finally {
+      paymentMutation.release();
+      setSavingPayment(false);
     }
   }
 
@@ -217,7 +234,14 @@ export default function BillingScreen() {
 
         <AppInput label="Total amount" value={total} onChangeText={setTotal} keyboardType="numeric" />
         <AppInput label="Paid amount" value={paid} onChangeText={setPaid} keyboardType="numeric" />
-        <AppButton title="Create Invoice" icon="receipt-outline" onPress={saveInvoice} />
+        <AppButton
+          title="Create Invoice"
+          icon="receipt-outline"
+          onPress={saveInvoice}
+          loading={savingInvoice}
+          loadingTitle="Creating invoice..."
+          disabled={savingPayment}
+        />
       </SectionCard>
 
       <SectionCard title="Add Payment" subtitle="Select the pending invoice first so payment is recorded against the right patient.">
@@ -243,7 +267,14 @@ export default function BillingScreen() {
         />
 
         <AppInput label="Amount" value={paymentAmount} onChangeText={setPaymentAmount} keyboardType="numeric" />
-        <AppButton title="Collect Payment" icon="cash-outline" onPress={savePayment} />
+        <AppButton
+          title="Collect Payment"
+          icon="cash-outline"
+          onPress={savePayment}
+          loading={savingPayment}
+          loadingTitle="Saving payment..."
+          disabled={savingInvoice}
+        />
       </SectionCard>
 
       <SectionCard title="Pending Payments" subtitle="Track dues and send WhatsApp payment reminders when needed.">
