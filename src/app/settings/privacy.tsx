@@ -5,10 +5,11 @@ import { AppButton } from "@/components/AppButton";
 import { Screen } from "@/components/Screen";
 import { SectionCard } from "@/components/SectionCard";
 import { colors } from "@/constants/colors";
-
-const PRIVACY_URL = "https://dms.micirql.com/privacy";
-const DELETE_URL = "https://dms.micirql.com/delete-account";
-const TERMS_URL = "https://dms.micirql.com/terms";
+import {
+  CAPDENT_DELETE_ACCOUNT_URL,
+  CAPDENT_PRIVACY_URL,
+  CAPDENT_TERMS_URL,
+} from "@/lib/legalLinks";
 
 function Row({ text }: { text: string }) {
   return (
@@ -53,9 +54,9 @@ export default function PrivacyScreen() {
         <Row text="Clinical decisions remain with qualified clinic professionals." />
       </SectionCard>
 
-      <AppButton title="Open Privacy Policy" icon="open-outline" variant="secondary" onPress={() => openUrl(PRIVACY_URL)} />
-      <AppButton title="Open Delete Account Page" icon="trash-outline" variant="secondary" onPress={() => openUrl(DELETE_URL)} />
-      <AppButton title="Open Terms Page" icon="document-text-outline" variant="secondary" onPress={() => openUrl(TERMS_URL)} />
+      <AppButton title="Open Privacy Policy" icon="open-outline" variant="secondary" onPress={() => openUrl(CAPDENT_PRIVACY_URL)} />
+      <AppButton title="Open Delete Account Page" icon="trash-outline" variant="secondary" onPress={() => openUrl(CAPDENT_DELETE_ACCOUNT_URL)} />
+      <AppButton title="Open Terms Page" icon="document-text-outline" variant="secondary" onPress={() => openUrl(CAPDENT_TERMS_URL)} />
       <AppButton title="Back" icon="arrow-back-outline" variant="ghost" onPress={() => router.back()} />
     </Screen>
   );
