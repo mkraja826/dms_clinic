@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { CAPDENT_V25_LIMITS } from "@/lib/v25Limits";
 
 export type CapDentPlanCode = "free" | "cloud" | "intelligence";
 export type CapDentPricingObservationStatus = "disabled" | "live" | "fallback";
@@ -35,7 +36,7 @@ export type CapDentPricingV2Observation = {
   message: string;
 };
 
-const ONE_GB = 1024 * 1024 * 1024;
+const FREE_LIMITS = CAPDENT_V25_LIMITS.free;
 
 export const PRICING_V2_OBSERVATION_ENABLED =
   process.env.EXPO_PUBLIC_ENABLE_PRICING_V2_OBSERVATION === "true";
@@ -48,15 +49,15 @@ export const SAFE_PRICING_V2_FALLBACK: CapDentEntitlementsV2 = {
   planLabel: "Free",
   monthlyPrice: 0,
   patientCount: 0,
-  patientLimit: 100,
-  remainingPatients: 100,
+  patientLimit: FREE_LIMITS.patientLimit,
+  remainingPatients: FREE_LIMITS.patientLimit,
   canAddPatient: true,
   wouldBlockAtCurrentCount: false,
   patientLimitEnforced: false,
   shadowMode: false,
   pricingVisible: false,
   storageUsedBytes: 0,
-  storageLimitBytes: ONE_GB,
+  storageLimitBytes: FREE_LIMITS.storageLimitBytes,
   analyticsEnabled: false,
   multiClinicEnabled: false,
   clinicLimit: 1,
@@ -111,7 +112,7 @@ export function normalizeCapDentEntitlementsV2(value: unknown): CapDentEntitleme
     shadowMode: row.shadowMode === true,
     pricingVisible: row.pricingVisible === true,
     storageUsedBytes: Math.max(0, numberOr(row.storageUsedBytes, 0)),
-    storageLimitBytes: Math.max(1, numberOr(row.storageLimitBytes, ONE_GB)),
+    storageLimitBytes: Math.max(1, numberOr(row.storageLimitBytes, FREE_LIMITS.storageLimitBytes)),
     analyticsEnabled: row.analyticsEnabled === true,
     multiClinicEnabled: row.multiClinicEnabled === true,
     clinicLimit: Math.max(1, numberOr(row.clinicLimit, 1)),
@@ -125,11 +126,12 @@ export function normalizeCapDentEntitlementsV2(value: unknown): CapDentEntitleme
 }
 
 /**
- * Internal version-18 observer.
+ * V25 pricing observer.
  *
  * It never decides whether a patient can be created. The existing patient save
- * path remains authoritative and unrestricted. Missing RPCs, network errors and
- * unexpected responses all return a safe, non-enforcing fallback.
+ * path remains authoritative and unrestricted until the server-side V25 quota
+ * gate is explicitly cleared. Missing RPCs, network errors and unexpected
+ * responses all return a safe, non-enforcing fallback.
  */
 export async function observeCapDentPricingV2(): Promise<CapDentPricingV2Observation> {
   if (!PRICING_V2_OBSERVATION_ENABLED) {
