@@ -4,14 +4,23 @@ import { AppButton } from "@/components/AppButton";
 import { SectionCard } from "@/components/SectionCard";
 import { colors } from "@/constants/colors";
 import { CAPDENT_TERMS_URL } from "@/lib/legalLinks";
-
-function openTermsPage() {
-  Linking.openURL(CAPDENT_TERMS_URL).catch(() => {
-    Alert.alert("Unable to open link", "Please try again later.");
-  });
-}
+import { useImmediateMutationLock } from "@/lib/useImmediateMutationLock";
 
 export default function TermsScreen() {
+  const externalLinkMutation = useImmediateMutationLock();
+
+  async function openTermsPage() {
+    if (!externalLinkMutation.tryLock()) return;
+
+    try {
+      await Linking.openURL(CAPDENT_TERMS_URL);
+    } catch {
+      Alert.alert("Unable to open link", "Please try again later.");
+    } finally {
+      externalLinkMutation.release();
+    }
+  }
+
   return (
     <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: 16, gap: 16 }}>
       <SectionCard title="Terms & Conditions" subtitle="CapDent usage terms.">
