@@ -346,8 +346,14 @@ export function addGooglePlayPurchaseListeners(input: {
   const iap = getIapModule();
   if (!iap?.purchaseUpdatedListener || !iap?.purchaseErrorListener) return () => undefined;
 
-  const purchaseSub = iap.purchaseUpdatedListener(async (purchase: any) => {
-    await input.onPurchase(purchase);
+  const purchaseSub = iap.purchaseUpdatedListener((purchase: any) => {
+    Promise.resolve(input.onPurchase(purchase)).catch((error) => {
+      input.onError(
+        error instanceof Error
+          ? error.message
+          : "Unable to complete Google Play purchase verification."
+      );
+    });
   });
 
   const errorSub = iap.purchaseErrorListener((error: any) => {
