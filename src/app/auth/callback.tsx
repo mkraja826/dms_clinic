@@ -78,6 +78,7 @@ export default function AuthCallbackScreen() {
           { text: "Login", onPress: () => router.replace("/login" as never) },
         ]);
       } catch (error) {
+        lastHandledUrl = null;
         if (!mounted) return;
 
         setFailed(true);
