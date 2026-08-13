@@ -9,6 +9,7 @@ import { SectionCard } from "@/components/SectionCard";
 import { colors } from "@/constants/colors";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
+import { useImmediateMutationLock } from "@/lib/useImmediateMutationLock";
 
 function paramsFromUrl(url: string) {
   const queryIndex = url.indexOf("?");
@@ -67,6 +68,7 @@ export default function ResetPasswordScreen() {
   const [loading, setLoading] = useState(false);
   const [linkReady, setLinkReady] = useState(false);
   const [checkingLink, setCheckingLink] = useState(true);
+  const resetMutation = useImmediateMutationLock();
 
   useEffect(() => {
     let mounted = true;
@@ -119,6 +121,8 @@ export default function ResetPasswordScreen() {
       return;
     }
 
+    if (loading || !resetMutation.tryLock()) return;
+
     setLoading(true);
     try {
       await updatePassword(password);
@@ -129,6 +133,7 @@ export default function ResetPasswordScreen() {
     } catch (error) {
       Alert.alert("Reset failed", error instanceof Error ? error.message : "Open the latest reset link and try again.");
     } finally {
+      resetMutation.release();
       setLoading(false);
     }
   }
