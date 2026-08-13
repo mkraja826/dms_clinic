@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Alert, Switch, Text, View } from "react-native";
 import { AppButton } from "@/components/AppButton";
 import { AppInput } from "@/components/AppInput";
@@ -48,6 +48,7 @@ export default function AddOldPatientScreen() {
   });
   const [limitStatus, setLimitStatus] = useState<ClinicPatientLimitStatus | null>(null);
   const [saving, setSaving] = useState(false);
+  const saveOldPatientLockRef = useRef(false);
 
   function setField(key: keyof typeof form, value: string) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -134,6 +135,8 @@ export default function AddOldPatientScreen() {
       }
     }
 
+    if (saveOldPatientLockRef.current) return;
+    saveOldPatientLockRef.current = true;
     setSaving(true);
     try {
       const oldNotes = [
@@ -181,6 +184,7 @@ export default function AddOldPatientScreen() {
     } catch (error) {
       Alert.alert("Old patient save failed", error instanceof Error ? error.message : "Unable to add old patient.");
     } finally {
+      saveOldPatientLockRef.current = false;
       setSaving(false);
     }
   }
