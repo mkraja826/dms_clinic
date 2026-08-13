@@ -23,6 +23,7 @@ import {
   StaffEditableRole,
   updateStaffRole,
 } from "@/lib/staffControl";
+import { useImmediateMutationLock } from "@/lib/useImmediateMutationLock";
 
 function getErrorMessage(error: unknown) {
   if (error instanceof Error) return error.message;
@@ -89,6 +90,7 @@ export default function StaffManagementScreen() {
   const [staffError, setStaffError] = useState("");
   const [inviteError, setInviteError] = useState("");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const staffMutation = useImmediateMutationLock();
 
   async function load() {
     setLoading(true);
@@ -133,7 +135,7 @@ export default function StaffManagementScreen() {
     }
 
     const currentRole = normalizeEditableRole(member.role);
-    if (currentRole === role) return;
+    if (currentRole === role || !staffMutation.tryLock()) return;
 
     try {
       setUpdatingId(`${member.id}:role`);
@@ -142,6 +144,7 @@ export default function StaffManagementScreen() {
     } catch (error) {
       Alert.alert("Role update failed", getErrorMessage(error));
     } finally {
+      staffMutation.release();
       setUpdatingId(null);
     }
   }
@@ -152,6 +155,8 @@ export default function StaffManagementScreen() {
       return;
     }
 
+    if (!staffMutation.tryLock()) return;
+
     try {
       setUpdatingId(`${member.id}:active`);
       await setStaffActive(member.id, active);
@@ -159,6 +164,7 @@ export default function StaffManagementScreen() {
     } catch (error) {
       Alert.alert("Access update failed", getErrorMessage(error));
     } finally {
+      staffMutation.release();
       setUpdatingId(null);
     }
   }
