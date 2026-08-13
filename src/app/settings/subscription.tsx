@@ -32,10 +32,12 @@ import {
   hasGooglePlayAutopay,
 } from "@/lib/subscription";
 import type { ClinicPlanName, ClinicSubscription } from "@/lib/subscription";
+import { CAPDENT_V25_LIMITS } from "@/lib/v25Limits";
 
 const RUPEE = "\u20B9";
 const PAID_PLANS_ENABLED = process.env.EXPO_PUBLIC_ENABLE_PAID_PLANS === "true";
 const PAID_PLAN_ORDER: GooglePlayPlanKey[] = ["professional", "clinic_intelligence"];
+const FREE_PATIENT_LIMIT = CAPDENT_V25_LIMITS.free.patientLimit;
 
 function money(value: number) {
   return `${RUPEE}${Math.round(Number(value || 0)).toLocaleString("en-IN")}`;
@@ -96,7 +98,7 @@ function FreePlanCard({ currentPlan }: { currentPlan: ClinicPlanName }) {
         <View style={{ flex: 1 }}>
           <Text style={{ color: colors.text, fontSize: 18, fontWeight: "900" }}>Free</Text>
           <Text style={{ color: colors.muted, marginTop: 3, lineHeight: 20 }}>
-            Up to 300 patients and 1 GB storage for one clinic.
+            Up to {FREE_PATIENT_LIMIT} patients and 1 GB storage for one clinic.
           </Text>
         </View>
         <StatusBadge label={isCurrent ? "Current" : "Included"} tone={isCurrent ? "success" : "primary"} />
@@ -476,15 +478,15 @@ export default function SubscriptionScreen() {
           <SectionCard title="Plan Map" subtitle="What each level provides inside CapDent.">
             <FeatureRow
               icon="shield-checkmark-outline"
-              label="Free: up to 300 patients, 1 GB storage, one clinic, and core clinic management."
+              label={`Free: up to ${FREE_PATIENT_LIMIT} patients, 1 GB storage, one clinic, and core clinic management.`}
             />
             <FeatureRow
               icon="cloud-outline"
-              label="Cloud: ₹800/month, 5 GB storage, unlimited patient records, backup and sync for one clinic."
+              label={`Cloud: ${money(GOOGLE_PLAY_PLAN_DETAILS.professional.monthlyAmount)}/month, 5 GB storage, unlimited patient records, backup and sync for one clinic.`}
             />
             <FeatureRow
               icon="analytics-outline"
-              label="Intelligence: ₹1,499/month, 20 GB storage, advanced analytics, and up to 3 clinics."
+              label={`Intelligence: ${money(GOOGLE_PLAY_PLAN_DETAILS.clinic_intelligence.monthlyAmount)}/month, 20 GB storage, advanced analytics, and up to 3 clinics.`}
             />
           </SectionCard>
 
