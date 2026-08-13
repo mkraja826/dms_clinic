@@ -17,6 +17,7 @@ export const FIREBASE_ANALYTICS_ENABLED =
   process.env.EXPO_PUBLIC_ENABLE_FIREBASE_ANALYTICS === "true";
 
 let initialized = false;
+let initializationPromise: Promise<boolean> | null = null;
 let analyticsAdapter: FirebaseAnalyticsAdapter | null = null;
 
 /**
@@ -32,6 +33,7 @@ export function configureFirebaseAnalyticsAdapter(
 ) {
   analyticsAdapter = adapter;
   initialized = false;
+  initializationPromise = null;
 }
 
 function cleanString(value: unknown, maxLength = 80) {
@@ -87,23 +89,33 @@ export function analyticsScreenName(pathname?: string | null) {
 
 export async function initializeFirebaseAnalytics() {
   if (initialized) return Boolean(analyticsAdapter) && FIREBASE_ANALYTICS_ENABLED;
-  initialized = true;
-
-  if (!analyticsAdapter) return false;
-
-  try {
-    await analyticsAdapter.setConsent?.({
-      analytics_storage: FIREBASE_ANALYTICS_ENABLED,
-      ad_storage: false,
-      ad_user_data: false,
-      ad_personalization: false,
-    });
-    await analyticsAdapter.setAnalyticsCollectionEnabled?.(FIREBASE_ANALYTICS_ENABLED);
-    return FIREBASE_ANALYTICS_ENABLED;
-  } catch (error) {
-    console.warn("Firebase Analytics initialization failed:", error);
+  if (initializationPromise) return initializationPromise;
+  if (!analyticsAdapter) {
+    initialized = true;
     return false;
   }
+
+  const adapter = analyticsAdapter;
+  initializationPromise = (async () => {
+    try {
+      await adapter.setConsent?.({
+        analytics_storage: FIREBASE_ANALYTICS_ENABLED,
+        ad_storage: false,
+        ad_user_data: false,
+        ad_personalization: false,
+      });
+      await adapter.setAnalyticsCollectionEnabled?.(FIREBASE_ANALYTICS_ENABLED);
+      initialized = true;
+      return FIREBASE_ANALYTICS_ENABLED;
+    } catch (error) {
+      console.warn("Firebase Analytics initialization failed:", error);
+      return false;
+    } finally {
+      initializationPromise = null;
+    }
+  })();
+
+  return initializationPromise;
 }
 
 export async function logCapDentAnalyticsEvent(
@@ -113,6 +125,8 @@ export async function logCapDentAnalyticsEvent(
   if (!FIREBASE_ANALYTICS_ENABLED || !analyticsAdapter) return;
 
   try {
+    const ready = await initializeFirebaseAnalytics();
+    if (!ready || !analyticsAdapter) return;
     await analyticsAdapter.logEvent(eventName, sanitizeParams(params));
   } catch (error) {
     console.warn(`Firebase Analytics event failed (${eventName}):`, error);
