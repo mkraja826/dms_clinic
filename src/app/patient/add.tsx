@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Alert, Image, Pressable, ScrollView, Switch, Text, View } from "react-native";
 import { AppButton } from "@/components/AppButton";
 import { AppInput } from "@/components/AppInput";
@@ -15,7 +15,12 @@ import {
   observeCapDentPricingV2,
   type CapDentPricingV2Observation,
 } from "@/lib/pricingV2";
-import { ClinicPatientLimitStatus, createPatient, getClinicPatientLimitStatus } from "@/lib/supabase";
+import {
+  ClinicPatientLimitStatus,
+  createPatient,
+  getClinicPatientLimitStatus,
+  searchPatients,
+} from "@/lib/supabase";
 
 export default function AddPatientScreen() {
   const [form, setForm] = useState({
@@ -43,6 +48,7 @@ export default function AddPatientScreen() {
     useState<CapDentPricingV2Observation | null>(null);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const savePatientLockRef = useRef(false);
 
   function setField(key: keyof typeof form, value: string) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -91,11 +97,16 @@ export default function AddPatientScreen() {
     setPhotoUri(result.assets[0].uri);
   }
 
-  async function save(skipLimitWarning = false) {
+  async function save(skipDuplicateCheck = false, skipLimitWarning = false) {
+    if (saving || savePatientLockRef.current) return;
+
     if (!form.name.trim() || !form.phone.trim()) {
       Alert.alert("Required fields", "Full name and phone are required.");
       return;
     }
+
+    savePatientLockRef.current = true;
+    setSaving(true);
 
     try {
       if (!skipLimitWarning) {
@@ -113,7 +124,7 @@ export default function AddPatientScreen() {
         if (usage.level === "warning") {
           Alert.alert("Free patient slots low", usage.message, [
             { text: "Cancel", style: "cancel" },
-            { text: "Continue", onPress: () => void save(true) },
+            { text: "Continue", onPress: () => void save(skipDuplicateCheck, true) },
           ]);
           return;
         }
@@ -123,12 +134,41 @@ export default function AddPatientScreen() {
         }
       }
 
-      setSaving(true);
+      const phone = form.phone.trim();
+
+      if (!skipDuplicateCheck) {
+        const matches = await searchPatients(phone);
+        const duplicate = matches.find((patient) => patient.phone?.trim() === phone);
+
+        if (duplicate) {
+          Alert.alert(
+            "Phone already exists",
+            `This phone number already belongs to ${duplicate.name}. Open that patient first, or continue only if this is a different person sharing the same number.`,
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Open Existing",
+                onPress: () =>
+                  router.push({
+                    pathname: "/patient/[id]",
+                    params: { id: duplicate.id },
+                  }),
+              },
+              {
+                text: "Continue Anyway",
+                onPress: () => void save(true, true),
+              },
+            ]
+          );
+          return;
+        }
+      }
+
       const patient = await createPatient({
         name: form.name.trim(),
         gender: form.gender.trim(),
         age: form.age.trim() ? Number(form.age) : undefined,
-        phone: form.phone.trim(),
+        phone,
         email: form.email.trim() || undefined,
         address: form.address.trim(),
         emergency_contact: form.emergency_contact.trim(),
@@ -159,6 +199,7 @@ export default function AddPatientScreen() {
     } catch (error) {
       Alert.alert("Patient save failed", error instanceof Error ? error.message : "Unable to add patient.");
     } finally {
+      savePatientLockRef.current = false;
       setSaving(false);
     }
   }
@@ -271,7 +312,7 @@ export default function AddPatientScreen() {
         <AppInput label="Current medicines" placeholder="Medicines patient is taking" value={form.current_medicines} onChangeText={(value) => setField("current_medicines", value)} />
         <AppInput label="Other notes" placeholder="Any other medical notes" value={form.other_notes} onChangeText={(value) => setField("other_notes", value)} multiline />
       </SectionCard>
-      <AppButton title="Register Patient" icon="person-add-outline" onPress={save} loading={saving} />
+      <AppButton title="Register Patient" icon="person-add-outline" onPress={() => save()} loading={saving} />
     </ScrollView>
   );
 }
