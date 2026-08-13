@@ -6,16 +6,18 @@ import { SectionCard } from "@/components/SectionCard";
 import { colors } from "@/constants/colors";
 import { useAuth } from "@/lib/auth";
 import { getDashboardPath } from "@/lib/supabase";
+import { useImmediateMutationLock } from "@/lib/useImmediateMutationLock";
 
 export default function LegalAccountScreen() {
   const { profile, signOut } = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
+  const logoutMutation = useImmediateMutationLock();
   const homePath = getDashboardPath(profile?.role ?? "receptionist");
   const canManageSubscription =
     profile?.role === "head_doctor" || profile?.role === "owner";
 
   async function logout() {
-    if (loggingOut) return;
+    if (loggingOut || !logoutMutation.tryLock()) return;
 
     try {
       setLoggingOut(true);
@@ -25,6 +27,8 @@ export default function LegalAccountScreen() {
         "Logout failed",
         error instanceof Error ? error.message : "Please try again."
       );
+    } finally {
+      logoutMutation.release();
       setLoggingOut(false);
     }
   }
