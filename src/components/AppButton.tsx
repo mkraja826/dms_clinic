@@ -24,6 +24,7 @@ export function AppButton({
   style,
 }: Props) {
   const isDisabled = disabled || loading;
+  const accessibilityLabel = loading ? loadingTitle ?? title : title;
 
   const background =
     variant === "primary"
@@ -48,7 +49,7 @@ export function AppButton({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={title}
+      accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled: isDisabled, busy: !!loading }}
       onPress={onPress}
       disabled={isDisabled}
