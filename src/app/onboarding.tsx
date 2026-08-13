@@ -78,6 +78,7 @@ export default function OnboardingScreen() {
   const [loading, setLoading] = useState(false);
   const ownerCreateLockRef = useRef(false);
   const inviteJoinLockRef = useRef(false);
+  const logoutLockRef = useRef(false);
 
   async function finishOwnerSetup() {
     if (ownerCreateLockRef.current) return;
@@ -167,10 +168,15 @@ export default function OnboardingScreen() {
   }
 
   async function logout() {
+    if (logoutLockRef.current) return;
+
+    logoutLockRef.current = true;
     try {
       await signOut();
     } catch (error) {
       Alert.alert("Logout failed", getErrorMessage(error));
+    } finally {
+      logoutLockRef.current = false;
     }
   }
 
