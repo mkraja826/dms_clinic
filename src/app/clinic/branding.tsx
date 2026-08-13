@@ -155,6 +155,8 @@ export default function ClinicBrandingScreen() {
 
       <SectionCard title="Clinic Details" subtitle="Keep clinic name, logo, contact number, and address accurate for staff use.">
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={logoPreview ? "Change clinic logo" : "Select clinic logo"}
           onPress={pickLogo}
           style={{
             minHeight: 58,
