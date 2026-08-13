@@ -1,6 +1,7 @@
 import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
 import { ReactNode, useEffect, useRef } from "react";
+import { FirebaseAnalyticsCoordinator } from "@/components/FirebaseAnalyticsCoordinator";
 import { useAuth } from "@/lib/auth";
 import { PAYMENT_PUSH_GLOBALLY_ENABLED } from "@/lib/featureFlags";
 import {
@@ -107,5 +108,7 @@ export function PaymentNotificationCoordinator({
     };
   }, [session?.user.id]);
 
-  return children;
+  return (
+    <FirebaseAnalyticsCoordinator>{children}</FirebaseAnalyticsCoordinator>
+  );
 }
