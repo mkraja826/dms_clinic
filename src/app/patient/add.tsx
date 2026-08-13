@@ -215,7 +215,7 @@ export default function AddPatientScreen() {
     <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: 16, gap: 16 }}>
       {pricingObservation && pricingObservation.status !== "disabled" ? (
         <SectionCard
-          title="Version 18 Pricing Observation"
+          title="V25 Pricing Observation"
           subtitle="Internal preview only. This screen does not block patient registration."
         >
           <Text style={{ color: colors.text, fontWeight: "800" }}>
