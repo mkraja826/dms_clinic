@@ -272,6 +272,7 @@ export default function BookAppointmentScreen() {
     if (saving || appointmentSaveLockRef.current) return;
 
     let patientId = selectedPatientId;
+    let createdPatient: Patient | null = null;
 
     if (!patientId) {
       if (!newPatientName.trim() || !newPatientPhone.trim()) {
@@ -309,6 +310,13 @@ export default function BookAppointmentScreen() {
         });
 
         patientId = newPatient.id;
+        createdPatient = newPatient;
+        setPatients((current) =>
+          current.some((patient) => patient.id === newPatient.id)
+            ? current
+            : [newPatient, ...current]
+        );
+        setSelectedPatientId(newPatient.id);
       }
 
       await createAppointment({
@@ -332,6 +340,16 @@ export default function BookAppointmentScreen() {
         ]
       );
     } catch (error) {
+      if (createdPatient) {
+        Alert.alert(
+          "Patient saved; appointment failed",
+          `${createdPatient.name} was registered, but the appointment was not booked. Retry the appointment for the now-selected patient; do not register the patient again.\n\n${
+            error instanceof Error ? error.message : "Please try again."
+          }`
+        );
+        return;
+      }
+
       Alert.alert(
         "Booking failed",
         error instanceof Error ? error.message : "Please try again."
@@ -402,6 +420,7 @@ export default function BookAppointmentScreen() {
             >
               <Ionicons name="search-outline" size={21} color={colors.muted} />
               <TextInput
+                accessibilityLabel="Search existing patients"
                 value={patientSearch}
                 onChangeText={setPatientSearch}
                 placeholder="Search existing patient"
@@ -423,6 +442,8 @@ export default function BookAppointmentScreen() {
                   {filteredPatients.map((patient) => (
                     <Pressable
                       key={patient.id}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Select patient ${patient.name}`}
                       onPress={() => setSelectedPatientId(patient.id)}
                       style={({ pressed }) => ({
                         flexDirection: "row",
@@ -507,6 +528,9 @@ export default function BookAppointmentScreen() {
             return (
               <Pressable
                 key={reason}
+                accessibilityRole="button"
+                accessibilityLabel={`Select appointment reason ${reason}`}
+                accessibilityState={{ selected }}
                 onPress={() => setSelectedReason(reason)}
                 style={{
                   paddingHorizontal: 13,
@@ -572,6 +596,9 @@ export default function BookAppointmentScreen() {
               return (
                 <Pressable
                   key={option.key}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Select appointment date ${option.date.toLocaleDateString()}`}
+                  accessibilityState={{ disabled: !hasFutureSlot, selected }}
                   disabled={!hasFutureSlot}
                   onPress={() => setSelectedDateKey(option.key)}
                   style={{
@@ -637,6 +664,9 @@ export default function BookAppointmentScreen() {
               return (
                 <Pressable
                   key={slot.label}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Select appointment time ${slot.label}`}
+                  accessibilityState={{ disabled: slot.disabled, selected }}
                   disabled={slot.disabled}
                   onPress={() => setSelectedTimeIndex(slot.index)}
                   style={{

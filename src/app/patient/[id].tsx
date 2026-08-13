@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Linking,
@@ -99,6 +99,7 @@ export default function PatientProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
+  const deletingFileIdsRef = useRef(new Set<string>());
   const [clinicFeatures, setClinicFeatures] = useState(
     DEFAULT_CLINIC_FEATURE_SETTINGS
   );
@@ -187,19 +188,35 @@ export default function PatientProfileScreen() {
   }, [details?.files]);
 
   async function deleteFile(file: PatientFile) {
+    if (deletingFileIdsRef.current.has(file.id)) return;
+    deletingFileIdsRef.current.add(file.id);
+
+    const releaseDeleteLock = () => {
+      deletingFileIdsRef.current.delete(file.id);
+    };
+    let deleteStarted = false;
+
     const performDelete = async () => {
+      if (deleteStarted) return;
+      deleteStarted = true;
+
       try {
         setDeletingFileId(file.id);
 
         await deletePatientFileRecord(file.id);
-
-        await load();
+        setDetails((current) =>
+          current
+            ? { ...current, files: current.files.filter((row) => row.id !== file.id) }
+            : current
+        );
+        await load(false);
       } catch (error) {
         Alert.alert(
           "Delete failed",
           error instanceof Error ? error.message : "Please try again."
         );
       } finally {
+        releaseDeleteLock();
         setDeletingFileId(null);
       }
     };
@@ -208,7 +225,11 @@ export default function PatientProfileScreen() {
       const confirmed = globalThis.confirm?.(
         "Delete file?\n\nThis removes the file from this patient profile."
       );
-      if (confirmed) await performDelete();
+      if (confirmed) {
+        await performDelete();
+      } else {
+        releaseDeleteLock();
+      }
       return;
     }
 
@@ -216,9 +237,15 @@ export default function PatientProfileScreen() {
       "Delete file?",
       "This removes the file from this patient profile. Use this only if the doctor decides this photo/file should not stay.",
       [
-        { text: "Cancel", style: "cancel" },
+        { text: "Cancel", style: "cancel", onPress: releaseDeleteLock },
         { text: "Delete", style: "destructive", onPress: performDelete },
-      ]
+      ],
+      {
+        cancelable: true,
+        onDismiss: () => {
+          if (!deleteStarted) releaseDeleteLock();
+        },
+      }
     );
   }
 
@@ -651,6 +678,8 @@ function QuickAction({
 }) {
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={title}
       onPress={onPress}
       style={({ pressed }) => ({
         width: 132,
@@ -756,7 +785,11 @@ function FileTile({
         overflow: "hidden",
       }}
     >
-      <Pressable onPress={onOpen}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Open ${file.file_name}`}
+        onPress={onOpen}
+      >
         {isImage ? (
           <SecureStorageImage
             uri={file.file_url}
@@ -791,6 +824,8 @@ function FileTile({
 
         <View style={{ flexDirection: "row", gap: 8 }}>
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`View ${file.file_name}`}
             onPress={onOpen}
             style={{
               flex: 1,
@@ -807,6 +842,9 @@ function FileTile({
           </Pressable>
 
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Delete ${file.file_name}`}
+            accessibilityState={{ disabled: deleting, busy: deleting }}
             onPress={onDelete}
             disabled={deleting}
             style={{

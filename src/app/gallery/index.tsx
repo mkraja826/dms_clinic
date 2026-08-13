@@ -213,17 +213,26 @@ export default function GalleryScreen() {
   }
 
   async function deleteFile(file: GalleryFile) {
+    if (deletingFileIdsRef.current.has(file.id)) return;
+    deletingFileIdsRef.current.add(file.id);
+
+    const releaseDeleteLock = () => {
+      deletingFileIdsRef.current.delete(file.id);
+    };
+    let deleteStarted = false;
+
     const performDelete = async () => {
-      if (deletingFileIdsRef.current.has(file.id)) return;
-      deletingFileIdsRef.current.add(file.id);
+      if (deleteStarted) return;
+      deleteStarted = true;
 
       try {
         await deletePatientFileRecord(file.id);
+        setFiles((current) => current.filter((row) => row.id !== file.id));
         await load();
       } catch (error) {
         Alert.alert("Delete failed", getErrorMessage(error));
       } finally {
-        deletingFileIdsRef.current.delete(file.id);
+        releaseDeleteLock();
       }
     };
 
@@ -231,7 +240,11 @@ export default function GalleryScreen() {
       const confirmed = globalThis.confirm?.(
         "Delete file?\n\nThis removes this file from patient gallery."
       );
-      if (confirmed) await performDelete();
+      if (confirmed) {
+        await performDelete();
+      } else {
+        releaseDeleteLock();
+      }
       return;
     }
 
@@ -239,9 +252,15 @@ export default function GalleryScreen() {
       "Delete file?",
       "This removes this file from patient gallery. Use only for wrong or duplicate uploads.",
       [
-        { text: "Cancel", style: "cancel" },
+        { text: "Cancel", style: "cancel", onPress: releaseDeleteLock },
         { text: "Delete", style: "destructive", onPress: performDelete },
-      ]
+      ],
+      {
+        cancelable: true,
+        onDismiss: () => {
+          if (!deleteStarted) releaseDeleteLock();
+        },
+      }
     );
   }
 
