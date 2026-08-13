@@ -7,17 +7,21 @@ import { Screen } from "@/components/Screen";
 import { SectionCard } from "@/components/SectionCard";
 import { colors } from "@/constants/colors";
 import { useAuth } from "@/lib/auth";
+import { useImmediateMutationLock } from "@/lib/useImmediateMutationLock";
 
 export default function ForgotPasswordScreen() {
   const { resetPassword } = useAuth();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const resetMutation = useImmediateMutationLock();
 
   async function submit() {
     if (!email.trim()) {
       Alert.alert("Email required", "Enter your registered email.");
       return;
     }
+
+    if (loading || !resetMutation.tryLock()) return;
 
     setLoading(true);
     try {
@@ -26,6 +30,7 @@ export default function ForgotPasswordScreen() {
     } catch {
       Alert.alert("Check your email", "If this email is registered, reset link will be sent.");
     } finally {
+      resetMutation.release();
       setLoading(false);
     }
   }
