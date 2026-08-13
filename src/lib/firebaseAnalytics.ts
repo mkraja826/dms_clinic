@@ -2,24 +2,36 @@ type CapDentAnalyticsRole = "owner" | "doctor" | "reception" | "unknown";
 
 type AnalyticsParams = Record<string, string | number | boolean>;
 
+type FirebaseAnalyticsAdapter = {
+  setConsent?: (consent: {
+    analytics_storage: boolean;
+    ad_storage: boolean;
+    ad_user_data: boolean;
+    ad_personalization: boolean;
+  }) => Promise<unknown>;
+  setAnalyticsCollectionEnabled?: (enabled: boolean) => Promise<unknown>;
+  logEvent: (name: string, params?: AnalyticsParams) => Promise<unknown>;
+};
+
 export const FIREBASE_ANALYTICS_ENABLED =
   process.env.EXPO_PUBLIC_ENABLE_FIREBASE_ANALYTICS === "true";
 
 let initialized = false;
-let analyticsInstance: any | null | undefined;
+let analyticsAdapter: FirebaseAnalyticsAdapter | null = null;
 
-function getAnalyticsInstance() {
-  if (analyticsInstance !== undefined) return analyticsInstance;
-
-  try {
-    const module = require("@react-native-firebase/analytics");
-    const factory = module?.default ?? module;
-    analyticsInstance = typeof factory === "function" ? factory() : null;
-  } catch {
-    analyticsInstance = null;
-  }
-
-  return analyticsInstance;
+/**
+ * Native Firebase is intentionally injected instead of imported here.
+ *
+ * Until @react-native-firebase/app and @react-native-firebase/analytics are
+ * installed during the controlled V25 native/RC pass, Metro must not see a
+ * static dependency on those packages. This keeps the current V24-compatible
+ * bundle safe while allowing the native adapter to be connected later.
+ */
+export function configureFirebaseAnalyticsAdapter(
+  adapter: FirebaseAnalyticsAdapter | null
+) {
+  analyticsAdapter = adapter;
+  initialized = false;
 }
 
 function cleanString(value: unknown, maxLength = 80) {
@@ -74,20 +86,19 @@ export function analyticsScreenName(pathname?: string | null) {
 }
 
 export async function initializeFirebaseAnalytics() {
-  if (initialized) return Boolean(getAnalyticsInstance());
+  if (initialized) return Boolean(analyticsAdapter) && FIREBASE_ANALYTICS_ENABLED;
   initialized = true;
 
-  const analytics = getAnalyticsInstance();
-  if (!analytics) return false;
+  if (!analyticsAdapter) return false;
 
   try {
-    await analytics.setConsent?.({
+    await analyticsAdapter.setConsent?.({
       analytics_storage: FIREBASE_ANALYTICS_ENABLED,
       ad_storage: false,
       ad_user_data: false,
       ad_personalization: false,
     });
-    await analytics.setAnalyticsCollectionEnabled?.(FIREBASE_ANALYTICS_ENABLED);
+    await analyticsAdapter.setAnalyticsCollectionEnabled?.(FIREBASE_ANALYTICS_ENABLED);
     return FIREBASE_ANALYTICS_ENABLED;
   } catch (error) {
     console.warn("Firebase Analytics initialization failed:", error);
@@ -99,13 +110,10 @@ export async function logCapDentAnalyticsEvent(
   eventName: "capdent_app_ready" | "capdent_screen_view",
   params: AnalyticsParams = {}
 ) {
-  if (!FIREBASE_ANALYTICS_ENABLED) return;
-
-  const analytics = getAnalyticsInstance();
-  if (!analytics) return;
+  if (!FIREBASE_ANALYTICS_ENABLED || !analyticsAdapter) return;
 
   try {
-    await analytics.logEvent(eventName, sanitizeParams(params));
+    await analyticsAdapter.logEvent(eventName, sanitizeParams(params));
   } catch (error) {
     console.warn(`Firebase Analytics event failed (${eventName}):`, error);
   }
