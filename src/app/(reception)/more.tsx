@@ -143,6 +143,8 @@ function ToolRow({
       })}
     >
       <View
+        accessible={false}
+        importantForAccessibility="no-hide-descendants"
         style={{
           width: 42,
           height: 42,
@@ -162,7 +164,13 @@ function ToolRow({
           {subtitle}
         </Text>
       </View>
-      <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+      <Ionicons
+        name="chevron-forward"
+        size={18}
+        color={colors.muted}
+        accessible={false}
+        importantForAccessibility="no"
+      />
     </Pressable>
   );
 }
