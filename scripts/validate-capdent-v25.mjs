@@ -182,6 +182,10 @@ if (rcMode) {
     "RC mode requires the Firebase Analytics Expo plugin with iOS Ad ID support disabled."
   );
 } else {
+  expect(
+    !analytics.match(/(?:import\s+.*from\s+|require\()["']@react-native-firebase\//),
+    "Pre-RC analytics must not statically import uninstalled React Native Firebase packages; use the injected adapter until the native install step."
+  );
   notes.push(
     `Pre-RC mode: Android versionCode is ${app.expo?.android?.versionCode ?? "unknown"}; no native version bump is required yet.`
   );
