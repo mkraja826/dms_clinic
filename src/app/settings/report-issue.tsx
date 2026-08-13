@@ -15,6 +15,7 @@ import {
   CAPDENT_SUPPORT_EMAIL,
   CAPDENT_SUPPORT_SUBJECT_PREFIX,
 } from "@/lib/supportContact";
+import { useImmediateMutationLock } from "@/lib/useImmediateMutationLock";
 
 type IssueCategory = "bug" | "payment" | "upload" | "login" | "suggestion" | "other";
 
@@ -47,6 +48,7 @@ export default function ReportIssueScreen() {
   const [description, setDescription] = useState("");
   const [includeAppMetadata, setIncludeAppMetadata] = useState(false);
   const [sending, setSending] = useState(false);
+  const supportEmailMutation = useImmediateMutationLock();
 
   const categoryLabel = ISSUE_CATEGORIES.find((item) => item.key === category)?.label ?? "Issue";
   const appVersion = Constants.expoConfig?.version ?? "unknown";
@@ -82,6 +84,8 @@ export default function ReportIssueScreen() {
       return;
     }
 
+    if (sending || !supportEmailMutation.tryLock()) return;
+
     try {
       setSending(true);
       const subject = `${CAPDENT_SUPPORT_SUBJECT_PREFIX} - ${categoryLabel}`;
@@ -93,6 +97,7 @@ export default function ReportIssueScreen() {
         "Please copy the support details shown below and send them to support manually."
       );
     } finally {
+      supportEmailMutation.release();
       setSending(false);
     }
   }
