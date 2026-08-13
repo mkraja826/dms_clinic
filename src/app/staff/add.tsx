@@ -7,6 +7,7 @@ import { Screen } from "@/components/Screen";
 import { SectionCard } from "@/components/SectionCard";
 import { colors } from "@/constants/colors";
 import { createStaffInvite } from "@/lib/supabase";
+import { useImmediateMutationLock } from "@/lib/useImmediateMutationLock";
 
 type StaffRole = "working_doctor" | "receptionist";
 
@@ -48,12 +49,15 @@ export default function AddStaffScreen() {
   const [role, setRole] = useState<StaffRole>("working_doctor");
   const [loading, setLoading] = useState(false);
   const [inviteCode, setInviteCode] = useState("");
+  const inviteMutation = useImmediateMutationLock();
 
   async function createInvite() {
     if (!name.trim()) {
       Alert.alert("Name required", "Enter staff name.");
       return;
     }
+
+    if (!inviteMutation.tryLock()) return;
 
     setLoading(true);
     setInviteCode("");
@@ -78,6 +82,7 @@ export default function AddStaffScreen() {
     } catch (error) {
       Alert.alert("Invite failed", getErrorMessage(error));
     } finally {
+      inviteMutation.release();
       setLoading(false);
     }
   }
