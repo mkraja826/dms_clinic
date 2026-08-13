@@ -147,6 +147,7 @@ export default function BookAppointmentScreen() {
   const [saving, setSaving] = useState(false);
   const patientRequestRef = useRef(0);
   const patientSearchMountedRef = useRef(false);
+  const appointmentSaveLockRef = useRef(false);
 
   async function loadPatients(searchText = patientSearch) {
     const requestId = patientRequestRef.current + 1;
@@ -268,6 +269,8 @@ export default function BookAppointmentScreen() {
       : selectedReason;
 
   async function saveAppointment() {
+    if (saving || appointmentSaveLockRef.current) return;
+
     let patientId = selectedPatientId;
 
     if (!patientId) {
@@ -295,6 +298,7 @@ export default function BookAppointmentScreen() {
       return;
     }
 
+    appointmentSaveLockRef.current = true;
     setSaving(true);
 
     try {
@@ -333,6 +337,7 @@ export default function BookAppointmentScreen() {
         error instanceof Error ? error.message : "Please try again."
       );
     } finally {
+      appointmentSaveLockRef.current = false;
       setSaving(false);
     }
   }
