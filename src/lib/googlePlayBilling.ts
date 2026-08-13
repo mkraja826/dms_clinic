@@ -38,7 +38,7 @@ export const GOOGLE_PLAY_PLAN_DETAILS: Record<
   professional: {
     name: "CapDent Cloud",
     productId: GOOGLE_PLAY_PROFESSIONAL_PRODUCT_ID,
-    monthlyAmount: 800,
+    monthlyAmount: 799,
     description: "5 GB secure cloud storage, unlimited patient records, backup and sync for one clinic.",
     badge: "Popular",
   },
