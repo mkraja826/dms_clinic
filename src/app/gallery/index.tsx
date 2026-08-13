@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Platform,
@@ -145,6 +145,7 @@ export default function GalleryScreen() {
   const [filter, setFilter] = useState<FileType>("all");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const deletingFileIdsRef = useRef(new Set<string>());
 
   async function load() {
     try {
@@ -213,12 +214,16 @@ export default function GalleryScreen() {
 
   async function deleteFile(file: GalleryFile) {
     const performDelete = async () => {
+      if (deletingFileIdsRef.current.has(file.id)) return;
+      deletingFileIdsRef.current.add(file.id);
+
       try {
         await deletePatientFileRecord(file.id);
-
         await load();
       } catch (error) {
         Alert.alert("Delete failed", getErrorMessage(error));
+      } finally {
+        deletingFileIdsRef.current.delete(file.id);
       }
     };
 
