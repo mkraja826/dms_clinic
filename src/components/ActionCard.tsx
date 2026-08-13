@@ -41,6 +41,8 @@ export function ActionCard({
       })}
     >
       <View
+        accessible={false}
+        importantForAccessibility="no-hide-descendants"
         style={{
           width: 44,
           height: 44,
@@ -62,7 +64,13 @@ export function ActionCard({
           {subtitle}
         </Text>
       </View>
-      <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+      <Ionicons
+        name="chevron-forward"
+        size={18}
+        color={colors.muted}
+        accessible={false}
+        importantForAccessibility="no"
+      />
     </Pressable>
   );
 }
