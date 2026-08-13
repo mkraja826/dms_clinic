@@ -51,17 +51,22 @@ function roleHelp(role: StaffEditableRole) {
 
 function MiniRoleButton({
   title,
+  accessibilityLabel,
   selected,
   disabled,
   onPress,
 }: {
   title: string;
+  accessibilityLabel: string;
   selected: boolean;
   disabled?: boolean;
   onPress: () => void;
 }) {
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ disabled: Boolean(disabled || selected), selected }}
       disabled={disabled || selected}
       onPress={onPress}
       style={({ pressed }) => ({
@@ -346,6 +351,7 @@ export default function StaffManagementScreen() {
                   <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
                     <MiniRoleButton
                       title={updatingRole ? "Updating..." : "Doctor"}
+                      accessibilityLabel={`Set ${member.name}'s role to doctor`}
                       selected={editableRole === "working_doctor"}
                       disabled={!!updatingId || !member.active}
                       onPress={() => {
@@ -354,6 +360,7 @@ export default function StaffManagementScreen() {
                     />
                     <MiniRoleButton
                       title={updatingRole ? "Updating..." : "Reception"}
+                      accessibilityLabel={`Set ${member.name}'s role to reception`}
                       selected={editableRole === "receptionist"}
                       disabled={!!updatingId || !member.active}
                       onPress={() => {
@@ -389,7 +396,7 @@ export default function StaffManagementScreen() {
         ) : pendingInvites.length ? (
           <View style={{ gap: 10 }}>
             {pendingInvites.map((invite) => (
-              <Pressable
+              <View
                 key={invite.id}
                 style={{
                   padding: 14,
@@ -408,7 +415,7 @@ export default function StaffManagementScreen() {
                 <Text selectable style={{ color: colors.primary, fontWeight: "900" }}>
                   Invite Code: {invite.invite_code}
                 </Text>
-              </Pressable>
+              </View>
             ))}
           </View>
         ) : (

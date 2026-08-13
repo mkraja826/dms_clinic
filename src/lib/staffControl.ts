@@ -15,6 +15,30 @@ export function normalizeEditableRole(role?: Role | null): StaffEditableRole {
   return "working_doctor";
 }
 
+function isProfile(value: unknown): value is Profile {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+
+  const profile = value as Record<string, unknown>;
+  const validRole =
+    profile.role === "working_doctor" ||
+    profile.role === "doctor" ||
+    profile.role === "receptionist";
+
+  return (
+    typeof profile.id === "string" &&
+    profile.id.length > 0 &&
+    typeof profile.clinic_id === "string" &&
+    profile.clinic_id.length > 0 &&
+    typeof profile.name === "string" &&
+    (profile.email === null || typeof profile.email === "string") &&
+    validRole &&
+    typeof profile.active === "boolean" &&
+    typeof profile.created_at === "string"
+  );
+}
+
 export async function updateStaffAccess(input: {
   staffId: string;
   role?: StaffEditableRole | null;
@@ -27,7 +51,16 @@ export async function updateStaffAccess(input: {
   });
 
   if (error) throw error;
-  return data as Profile;
+  if (
+    !isProfile(data) ||
+    data.id !== input.staffId ||
+    (input.role != null && data.role !== input.role) ||
+    (typeof input.active === "boolean" && data.active !== input.active)
+  ) {
+    throw new Error("Staff access update returned an invalid profile.");
+  }
+
+  return data;
 }
 
 export async function updateStaffRole(staffId: string, role: StaffEditableRole) {
