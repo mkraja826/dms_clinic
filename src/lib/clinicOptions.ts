@@ -49,7 +49,7 @@ export function canManageClinicFeatureSettings(profile?: Profile | null) {
 export async function getClinicFeatureSettings(options?: { force?: boolean }): Promise<ClinicFeatureSettings> {
   const profile = await getCurrentProfile();
 
-  if (!profile?.clinic_id) return DEFAULT_CLINIC_FEATURE_SETTINGS;
+  if (!profile?.clinic_id) return { ...DEFAULT_CLINIC_FEATURE_SETTINGS };
 
   const now = Date.now();
   if (
@@ -57,7 +57,7 @@ export async function getClinicFeatureSettings(options?: { force?: boolean }): P
     cachedClinicFeatures?.clinicId === profile.clinic_id &&
     cachedClinicFeatures.expiresAt > now
   ) {
-    return cachedClinicFeatures.settings;
+    return { ...cachedClinicFeatures.settings };
   }
 
   const { data, error } = await supabase
@@ -110,7 +110,7 @@ export async function getClinicFeatureSettings(options?: { force?: boolean }): P
     expiresAt: Date.now() + CLINIC_FEATURE_CACHE_TTL_MS,
   };
 
-  return settings;
+  return { ...settings };
 }
 
 export async function updateClinicFeatureSettings(input: ClinicFeatureSettings) {
@@ -172,5 +172,5 @@ export async function updateClinicFeatureSettings(input: ClinicFeatureSettings) 
     expiresAt: Date.now() + CLINIC_FEATURE_CACHE_TTL_MS,
   };
 
-  return settings;
+  return { ...settings };
 }
