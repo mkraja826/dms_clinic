@@ -89,9 +89,17 @@ export function normalizeCapDentEntitlementsV2(value: unknown): CapDentEntitleme
   }
 
   const row = value as Record<string, unknown>;
-  const patientLimit = nullableNumber(row.patientLimit);
+  const rawPatientLimit = nullableNumber(row.patientLimit);
+  const patientLimit = rawPatientLimit === null ? null : Math.max(0, rawPatientLimit);
   const patientCount = Math.max(0, numberOr(row.patientCount, 0));
   const fallbackRemaining = patientLimit === null ? null : Math.max(patientLimit - patientCount, 0);
+  const rawRemainingPatients = nullableNumber(row.remainingPatients);
+  const remainingPatients =
+    row.remainingPatients === null
+      ? null
+      : rawRemainingPatients === null
+        ? fallbackRemaining
+        : Math.max(0, rawRemainingPatients);
 
   return {
     version: 2,
@@ -102,10 +110,7 @@ export function normalizeCapDentEntitlementsV2(value: unknown): CapDentEntitleme
     monthlyPrice: Math.max(0, numberOr(row.monthlyPrice, 0)),
     patientCount,
     patientLimit,
-    remainingPatients:
-      row.remainingPatients === null
-        ? null
-        : nullableNumber(row.remainingPatients) ?? fallbackRemaining,
+    remainingPatients,
     canAddPatient: row.canAddPatient !== false,
     wouldBlockAtCurrentCount: row.wouldBlockAtCurrentCount === true,
     patientLimitEnforced: row.patientLimitEnforced === true,
