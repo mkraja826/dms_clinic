@@ -10,8 +10,10 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { colors } from "@/constants/colors";
 import { useAuth } from "@/lib/auth";
 import { getDashboardPath, getRoleLabel } from "@/lib/supabase";
-
-const SUPPORT_EMAIL = "karthikraja826@gmail.com";
+import {
+  CAPDENT_SUPPORT_EMAIL,
+  CAPDENT_SUPPORT_SUBJECT_PREFIX,
+} from "@/lib/supportContact";
 
 type IssueCategory = "bug" | "payment" | "upload" | "login" | "suggestion" | "other";
 
@@ -25,7 +27,7 @@ const ISSUE_CATEGORIES: { key: IssueCategory; label: string; icon: keyof typeof 
 ];
 
 function buildMailUrl(input: { subject: string; body: string }) {
-  return `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(input.subject)}&body=${encodeURIComponent(input.body)}`;
+  return `mailto:${CAPDENT_SUPPORT_EMAIL}?subject=${encodeURIComponent(input.subject)}&body=${encodeURIComponent(input.body)}`;
 }
 
 function supportNowLabel() {
@@ -81,7 +83,7 @@ export default function ReportIssueScreen() {
 
     try {
       setSending(true);
-      const subject = `CapDent Support - ${categoryLabel}`;
+      const subject = `${CAPDENT_SUPPORT_SUBJECT_PREFIX} - ${categoryLabel}`;
       const url = buildMailUrl({ subject, body: supportMessage });
       await Linking.openURL(url);
     } catch {
@@ -120,7 +122,7 @@ export default function ReportIssueScreen() {
             CapDent Support
           </Text>
           <Text selectable style={{ color: colors.primary, fontWeight: "900" }}>
-            {SUPPORT_EMAIL}
+            {CAPDENT_SUPPORT_EMAIL}
           </Text>
           <Text style={{ color: colors.muted, lineHeight: 20 }}>
             App version, platform, and role can be included to help diagnose the issue. Clinic IDs, user IDs, names, and patient data are not attached automatically.
