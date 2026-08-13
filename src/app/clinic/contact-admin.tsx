@@ -5,9 +5,21 @@ import { Screen } from "@/components/Screen";
 import { SectionCard } from "@/components/SectionCard";
 import { colors } from "@/constants/colors";
 import { useAuth } from "@/lib/auth";
+import { useImmediateMutationLock } from "@/lib/useImmediateMutationLock";
 
 export default function ContactAdminScreen() {
   const { profile, signOut } = useAuth();
+  const logoutMutation = useImmediateMutationLock();
+
+  async function logout() {
+    if (!logoutMutation.tryLock()) return;
+
+    try {
+      await signOut();
+    } finally {
+      logoutMutation.release();
+    }
+  }
 
   return (
     <Screen>
@@ -30,7 +42,7 @@ export default function ContactAdminScreen() {
         <AppButton title="Enter Staff Invite Code" icon="key-outline" onPress={() => router.replace("/onboarding" as never)} />
       </SectionCard>
 
-      <AppButton title="Logout" icon="log-out-outline" variant="ghost" onPress={signOut} />
+      <AppButton title="Logout" icon="log-out-outline" variant="ghost" onPress={logout} />
     </Screen>
   );
 }
