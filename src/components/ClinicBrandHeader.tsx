@@ -60,6 +60,8 @@ export function ClinicBrandHeader({
     >
       <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
         <View
+          accessible={false}
+          importantForAccessibility="no-hide-descendants"
           style={{
             width: 56,
             height: 56,
@@ -113,7 +115,13 @@ export function ClinicBrandHeader({
               justifyContent: "center",
             }}
           >
-            <Ionicons name="brush-outline" size={20} color={colors.primary} />
+            <Ionicons
+              accessible={false}
+              importantForAccessibility="no"
+              name="brush-outline"
+              size={20}
+              color={colors.primary}
+            />
           </Pressable>
         ) : null}
       </View>
