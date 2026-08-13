@@ -39,38 +39,39 @@ function supportNowLabel() {
 }
 
 export default function ReportIssueScreen() {
-  const { profile, session } = useAuth();
+  const { profile } = useAuth();
   const [category, setCategory] = useState<IssueCategory>("bug");
   const [description, setDescription] = useState("");
+  const [includeAppMetadata, setIncludeAppMetadata] = useState(true);
   const [sending, setSending] = useState(false);
 
   const categoryLabel = ISSUE_CATEGORIES.find((item) => item.key === category)?.label ?? "Issue";
   const appVersion = Constants.expoConfig?.version ?? "unknown";
-  const userEmail = profile?.email || session?.user?.email || "not available";
   const homePath = getDashboardPath(profile?.role ?? "receptionist");
 
   const supportMessage = useMemo(() => {
-    return [
+    const lines = [
       "CapDent Support Request",
       "",
       `Issue Type: ${categoryLabel}`,
       `Reported At: ${supportNowLabel()}`,
       "",
-      "Clinic / User Details",
-      `Clinic ID: ${profile?.clinic_id || "not available"}`,
-      `User ID: ${profile?.id || "not available"}`,
-      `Name: ${profile?.name || "not available"}`,
-      `Email: ${userEmail}`,
-      `Role: ${profile?.role ? getRoleLabel(profile.role) : "not available"}`,
-      "",
-      "App Details",
-      `App Version: ${appVersion}`,
-      `Platform: ${Platform.OS}`,
-      "",
       "Issue Details",
       description.trim() || "Please describe the issue here.",
-    ].join("\n");
-  }, [appVersion, categoryLabel, description, profile?.clinic_id, profile?.id, profile?.name, profile?.role, userEmail]);
+    ];
+
+    if (includeAppMetadata) {
+      lines.push(
+        "",
+        "Optional App Details",
+        `App Version: ${appVersion}`,
+        `Platform: ${Platform.OS}`,
+        `Role: ${profile?.role ? getRoleLabel(profile.role) : "not available"}`
+      );
+    }
+
+    return lines.join("\n");
+  }, [appVersion, categoryLabel, description, includeAppMetadata, profile?.role]);
 
   async function sendSupportEmail() {
     if (!description.trim()) {
@@ -80,7 +81,7 @@ export default function ReportIssueScreen() {
 
     try {
       setSending(true);
-      const subject = `CapDent Support - ${categoryLabel}${profile?.clinic_id ? ` - ${profile.clinic_id}` : ""}`;
+      const subject = `CapDent Support - ${categoryLabel}`;
       const url = buildMailUrl({ subject, body: supportMessage });
       await Linking.openURL(url);
     } catch {
@@ -97,35 +98,33 @@ export default function ReportIssueScreen() {
     <Screen>
       <View style={{ gap: 6 }}>
         <Text style={{ color: colors.text, fontSize: 30, fontWeight: "900" }}>
-          Report Issue
+          Feedback & Support
         </Text>
         <Text style={{ color: colors.muted, fontSize: 15, lineHeight: 21 }}>
-          Send a clean support request with clinic ID, user role, app version, and issue details.
+          Report a problem or suggestion without automatically attaching clinic, user, or patient identifiers.
         </Text>
       </View>
 
-      <SectionCard title="Support Contact" subtitle="Use this for bugs, payment issues, upload problems, login help, or feature suggestions.">
-        <View style={{ gap: 10 }}>
-          <View
-            style={{
-              padding: 14,
-              borderRadius: 20,
-              backgroundColor: colors.primarySoft,
-              borderWidth: 1,
-              borderColor: colors.border,
-              gap: 6,
-            }}
-          >
-            <Text style={{ color: colors.text, fontWeight: "900", fontSize: 16 }}>
-              CapDent Support
-            </Text>
-            <Text selectable style={{ color: colors.primary, fontWeight: "900" }}>
-              {SUPPORT_EMAIL}
-            </Text>
-            <Text style={{ color: colors.muted, lineHeight: 20 }}>
-              The email will include clinic and app details automatically so support can understand the issue faster.
-            </Text>
-          </View>
+      <SectionCard title="Support Contact" subtitle="Use this for bugs, payment issues, upload problems, login help, or suggestions.">
+        <View
+          style={{
+            padding: 14,
+            borderRadius: 20,
+            backgroundColor: colors.primarySoft,
+            borderWidth: 1,
+            borderColor: colors.border,
+            gap: 6,
+          }}
+        >
+          <Text style={{ color: colors.text, fontWeight: "900", fontSize: 16 }}>
+            CapDent Support
+          </Text>
+          <Text selectable style={{ color: colors.primary, fontWeight: "900" }}>
+            {SUPPORT_EMAIL}
+          </Text>
+          <Text style={{ color: colors.muted, lineHeight: 20 }}>
+            App version, platform, and role can be included to help diagnose the issue. Clinic IDs, user IDs, names, and patient data are not attached automatically.
+          </Text>
         </View>
       </SectionCard>
 
@@ -138,6 +137,8 @@ export default function ReportIssueScreen() {
               <Pressable
                 key={item.key}
                 onPress={() => setCategory(item.key)}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
                 style={{
                   minHeight: 42,
                   borderRadius: 999,
@@ -160,7 +161,7 @@ export default function ReportIssueScreen() {
         </View>
       </SectionCard>
 
-      <SectionCard title="What happened?" subtitle="Write simple steps. Example: Patient profile → upload X-ray → app showed error.">
+      <SectionCard title="What happened?" subtitle="Describe the screen, the action you took, and what you expected.">
         <View
           style={{
             minHeight: 150,
@@ -175,7 +176,7 @@ export default function ReportIssueScreen() {
           <TextInput
             value={description}
             onChangeText={setDescription}
-            placeholder="Describe the issue, screen name, and what you expected."
+            placeholder="Example: Patient profile → upload X-ray → upload failed after retry."
             placeholderTextColor={colors.muted}
             multiline
             textAlignVertical="top"
@@ -188,6 +189,30 @@ export default function ReportIssueScreen() {
           />
         </View>
 
+        <Text style={{ color: colors.muted, lineHeight: 20 }}>
+          Do not include patient names, phone numbers, clinical notes, diagnoses, prescriptions, X-ray identifiers, or other patient information unless support specifically requires it through an approved secure channel.
+        </Text>
+
+        <Pressable
+          onPress={() => setIncludeAppMetadata((value) => !value)}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: includeAppMetadata }}
+          accessibilityLabel="Include optional app diagnostic details"
+          style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 6 }}
+        >
+          <Ionicons
+            name={includeAppMetadata ? "checkbox" : "square-outline"}
+            size={24}
+            color={includeAppMetadata ? colors.primary : colors.muted}
+          />
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: colors.text, fontWeight: "800" }}>Include app diagnostic details</Text>
+            <Text style={{ color: colors.muted, marginTop: 2, lineHeight: 19 }}>
+              Includes app version, platform, and role only. No clinic ID, user ID, or patient information.
+            </Text>
+          </View>
+        </Pressable>
+
         <AppButton
           title="Send Support Email"
           icon="mail-outline"
@@ -198,11 +223,11 @@ export default function ReportIssueScreen() {
         />
       </SectionCard>
 
-      <SectionCard title="Support Details Preview" subtitle="This text is safe to copy and send manually if email does not open.">
+      <SectionCard title="Support Details Preview" subtitle="Review exactly what will be placed into the email before it opens.">
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
           <StatusBadge label={categoryLabel} tone="warning" />
-          <StatusBadge label={`v${appVersion}`} />
-          <StatusBadge label={Platform.OS} tone="success" />
+          {includeAppMetadata ? <StatusBadge label={`v${appVersion}`} /> : null}
+          {includeAppMetadata ? <StatusBadge label={Platform.OS} tone="success" /> : null}
         </View>
 
         <Text selectable style={{ color: colors.muted, lineHeight: 20 }}>
