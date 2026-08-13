@@ -127,6 +127,11 @@ export async function updateClinicBrand(input: {
     throw new Error("Clinic profile not found");
   }
 
+  const name = input.name.trim();
+  if (!name) {
+    throw new Error("Clinic name is required");
+  }
+
   let logoUrl: string | undefined;
 
   if (input.logoUri) {
@@ -134,7 +139,7 @@ export async function updateClinicBrand(input: {
   }
 
   const payload: Record<string, string | null> = {
-    name: input.name.trim(),
+    name,
     phone: input.phone?.trim() || null,
     address: input.address?.trim() || null,
   };
