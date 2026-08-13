@@ -19,8 +19,15 @@ export default function Index() {
           padding: 24,
         }}
       >
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={{ color: colors.muted, fontWeight: "800" }}>
+        <ActivityIndicator
+          size="large"
+          color={colors.primary}
+          accessibilityLabel="Opening CapDent clinic workspace"
+        />
+        <Text
+          accessibilityLiveRegion="polite"
+          style={{ color: colors.muted, fontWeight: "800" }}
+        >
           Opening clinic...
         </Text>
       </View>
