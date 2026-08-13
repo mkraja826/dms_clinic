@@ -177,6 +177,7 @@ export default function ClinicalUploadScreen() {
   const [done, setDone] = useState(false);
   const patientRequestRef = useRef(0);
   const patientSearchMountedRef = useRef(false);
+  const uploadLockRef = useRef(false);
 
   const config = getConfig(type);
 
@@ -292,6 +293,8 @@ export default function ClinicalUploadScreen() {
   }
 
   async function upload() {
+    if (uploading || uploadLockRef.current) return;
+
     if (!selectedPatientId) {
       Alert.alert("Patient missing", "Select patient first.");
       return;
@@ -302,6 +305,7 @@ export default function ClinicalUploadScreen() {
       return;
     }
 
+    uploadLockRef.current = true;
     setDone(false);
     setUploading(true);
     setUploadProgress({
@@ -363,6 +367,7 @@ export default function ClinicalUploadScreen() {
       );
       Alert.alert("Upload failed", message);
     } finally {
+      uploadLockRef.current = false;
       setUploading(false);
     }
   }
