@@ -177,9 +177,14 @@ export function useResolvedStorageUrl(value?: string | null) {
     let active = true;
     setResolvedUrl(originalUrl);
 
-    resolveStorageUrl(originalUrl).then((nextUrl) => {
-      if (active) setResolvedUrl(nextUrl);
-    });
+    resolveStorageUrl(originalUrl)
+      .then((nextUrl) => {
+        if (active) setResolvedUrl(nextUrl);
+      })
+      .catch((error) => {
+        console.warn("Unable to resolve Storage URL:", error);
+        if (active) setResolvedUrl(originalUrl);
+      });
 
     return () => {
       active = false;
