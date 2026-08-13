@@ -268,8 +268,9 @@ export default function GalleryScreen() {
             gap: 10,
           }}
         >
-          <Ionicons name="search-outline" size={21} color={colors.muted} />
+          <Ionicons name="search-outline" size={21} color={colors.muted} accessible={false} />
           <TextInput
+            accessibilityLabel="Search gallery files"
             value={search}
             onChangeText={setSearch}
             placeholder="Search patient, phone, file name..."
@@ -290,6 +291,9 @@ export default function GalleryScreen() {
             return (
               <Pressable
                 key={item.key}
+                accessibilityRole="button"
+                accessibilityLabel={`Filter gallery by ${item.label}`}
+                accessibilityState={{ selected }}
                 onPress={() => setFilter(item.key)}
                 style={{
                   minHeight: 42,
@@ -307,6 +311,7 @@ export default function GalleryScreen() {
                   name={item.icon}
                   size={16}
                   color={selected ? colors.white : colors.primary}
+                  accessible={false}
                 />
                 <Text
                   style={{
@@ -401,7 +406,11 @@ function GalleryTile({
         overflow: "hidden",
       }}
     >
-      <Pressable onPress={onOpen}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Open ${file.file_name || fileTypeLabel(file.file_type)} for ${file.patients?.name || "patient"}, ${formatDate(file.created_at)}`}
+        onPress={onOpen}
+      >
         <View
           style={{
             height: 138,
@@ -417,13 +426,23 @@ function GalleryTile({
               contentFit="cover"
             />
           ) : (
-            <Ionicons name={getFileIcon(file.file_type)} size={42} color={colors.primary} />
+            <Ionicons
+              name={getFileIcon(file.file_type)}
+              size={42}
+              color={colors.primary}
+              accessible={false}
+            />
           )}
         </View>
 
         <View style={{ padding: 10, gap: 5 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-            <Ionicons name={getFileIcon(file.file_type)} size={15} color={colors.primary} />
+            <Ionicons
+              name={getFileIcon(file.file_type)}
+              size={15}
+              color={colors.primary}
+              accessible={false}
+            />
             <Text
               numberOfLines={1}
               style={{ color: colors.text, fontWeight: "900", flex: 1 }}
@@ -450,6 +469,8 @@ function GalleryTile({
         }}
       >
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Open patient profile for ${file.patients?.name || "patient"}`}
           onPress={() => router.push(`/patient/${file.patient_id}` as never)}
           style={{
             flex: 1,
@@ -466,6 +487,8 @@ function GalleryTile({
         </Pressable>
 
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Delete ${file.file_name || fileTypeLabel(file.file_type)} for ${file.patients?.name || "patient"}`}
           onPress={onDelete}
           style={{
             flex: 1,
