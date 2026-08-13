@@ -31,6 +31,7 @@ export type CapDentInvoiceSnapshot = {
   subtotal: number;
   total: number;
   paid: number;
+  refunded?: number;
   due: number;
   paymentMethod?: string | null;
   notes?: string | null;
@@ -79,6 +80,7 @@ function invoiceTitle(snapshot: CapDentInvoiceSnapshot) {
 
 export function buildCapDentInvoiceHtml(snapshot: CapDentInvoiceSnapshot) {
   const currency = snapshot.currencyCode || "INR";
+  const refunded = Number(snapshot.refunded || 0);
   const lineRows = snapshot.lines.length
     ? snapshot.lines
         .map((line) => {
@@ -141,6 +143,7 @@ export function buildCapDentInvoiceHtml(snapshot: CapDentInvoiceSnapshot) {
   .total { margin-top: 8px; padding-top: 10px; border-top: 2px solid #dfe9eb; font-size: 16px; }
   .due { color: #9d4f00; }
   .paid { color: #176c48; }
+  .refund { color: #8b5a00; }
   .footer { margin-top: 26px; padding-top: 14px; border-top: 1px solid #dfe9eb; color: #687c81; font-size: 11px; line-height: 1.5; }
   @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
 </style>
@@ -190,6 +193,7 @@ export function buildCapDentInvoiceHtml(snapshot: CapDentInvoiceSnapshot) {
       ${adjustmentRows}
       <div class="summary-row total"><span>Total</span><strong>${safeMoney(snapshot.total, currency)}</strong></div>
       <div class="summary-row paid"><span>Paid</span><strong>${safeMoney(snapshot.paid, currency)}</strong></div>
+      ${refunded > 0 ? `<div class="summary-row refund"><span>Refunded</span><strong>${safeMoney(refunded, currency)}</strong></div>` : ""}
       <div class="summary-row due"><span>Balance due</span><strong>${safeMoney(snapshot.due, currency)}</strong></div>
     </section>
 
