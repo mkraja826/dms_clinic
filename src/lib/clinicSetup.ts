@@ -43,6 +43,15 @@ export async function createOwnerClinicWithPreferences(input: {
   });
 
   if (error) throw error;
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    throw new Error("Clinic creation returned an invalid profile.");
+  }
+
+  const profile = data as Partial<Profile>;
+  if (!profile.id || !profile.clinic_id) {
+    throw new Error("Clinic creation returned an incomplete profile.");
+  }
+
   invalidateSupabaseCache();
-  return data as Profile;
+  return profile as Profile;
 }
