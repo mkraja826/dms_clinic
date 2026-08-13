@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { Linking, Pressable, Text, View } from "react-native";
+import { Alert, Linking, Pressable, Text, View } from "react-native";
 import { SecureStorageImage } from "@/components/SecureStorageImage";
 import { useResolvedStorageUrl } from "@/lib/storageUrls";
+import { useImmediateMutationLock } from "@/lib/useImmediateMutationLock";
 
 export default function ImageViewerScreen() {
   const params = useLocalSearchParams<{
@@ -15,6 +16,7 @@ export default function ImageViewerScreen() {
   const url = useResolvedStorageUrl(originalUrl);
   const name = typeof params.name === "string" ? params.name : "File";
   const type = typeof params.type === "string" ? params.type : "";
+  const externalOpenMutation = useImmediateMutationLock();
 
   const cleanUrl = url.toLowerCase().split("?")[0];
 
@@ -25,8 +27,15 @@ export default function ImageViewerScreen() {
     cleanUrl.includes("/object/public/");
 
   async function openExternally() {
-    if (!url) return;
-    await Linking.openURL(url);
+    if (!url || !externalOpenMutation.tryLock()) return;
+
+    try {
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert("Unable to open file", "Please try again or open the file from the patient record.");
+    } finally {
+      externalOpenMutation.release();
+    }
   }
 
   return (
@@ -43,6 +52,8 @@ export default function ImageViewerScreen() {
         }}
       >
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Back"
           onPress={() => router.back()}
           style={{
             width: 42,
@@ -67,7 +78,11 @@ export default function ImageViewerScreen() {
 
         {url ? (
           <Pressable
-            onPress={openExternally}
+            accessibilityRole="button"
+            accessibilityLabel={`Open ${name} externally`}
+            onPress={() => {
+              void openExternally();
+            }}
             style={{
               width: 42,
               height: 42,
@@ -101,7 +116,11 @@ export default function ImageViewerScreen() {
 
             {url ? (
               <Pressable
-                onPress={openExternally}
+                accessibilityRole="button"
+                accessibilityLabel={`Open ${name}`}
+                onPress={() => {
+                  void openExternally();
+                }}
                 style={{
                   minHeight: 48,
                   borderRadius: 999,
