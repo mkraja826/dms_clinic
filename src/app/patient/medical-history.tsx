@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Alert, Pressable, Text, View } from "react-native";
 import { AppButton } from "@/components/AppButton";
 import { AppInput } from "@/components/AppInput";
@@ -75,6 +75,7 @@ export default function EditMedicalHistoryScreen() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const saveHistoryLockRef = useRef(false);
 
   async function load() {
     if (!patientId) {
@@ -127,11 +128,14 @@ export default function EditMedicalHistoryScreen() {
   }, [patientId]);
 
   async function save() {
+    if (saving || saveHistoryLockRef.current) return;
+
     if (!patientId) {
       Alert.alert("Patient missing", "Open this screen from patient profile or visit screen.");
       return;
     }
 
+    saveHistoryLockRef.current = true;
     setSaving(true);
 
     try {
@@ -161,6 +165,7 @@ export default function EditMedicalHistoryScreen() {
     } catch (error) {
       Alert.alert("Save failed", getErrorMessage(error));
     } finally {
+      saveHistoryLockRef.current = false;
       setSaving(false);
     }
   }
@@ -310,6 +315,9 @@ function HealthToggle({
 }) {
   return (
     <Pressable
+      accessibilityRole="switch"
+      accessibilityLabel={title}
+      accessibilityState={{ checked: value }}
       onPress={onPress}
       style={{
         minHeight: 72,

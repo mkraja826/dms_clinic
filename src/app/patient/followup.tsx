@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Pressable,
@@ -148,6 +148,7 @@ export default function PatientFollowupReminderScreen() {
   const [notes, setNotes] = useState("Follow-up reminder");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const saveReminderLockRef = useRef(false);
 
   async function loadPatient() {
     if (!patientId) {
@@ -204,6 +205,8 @@ export default function PatientFollowupReminderScreen() {
   const selectedDateTime = makeDateTime(selectedDate.date, selectedTime);
 
   async function saveReminder() {
+    if (saving || saveReminderLockRef.current) return;
+
     if (!patientId) {
       Alert.alert("Patient missing", "Open follow-up from patient profile.");
       return;
@@ -214,6 +217,7 @@ export default function PatientFollowupReminderScreen() {
       return;
     }
 
+    saveReminderLockRef.current = true;
     setSaving(true);
 
     try {
@@ -245,6 +249,7 @@ export default function PatientFollowupReminderScreen() {
     } catch (error) {
       Alert.alert("Follow-up save failed", getErrorMessage(error));
     } finally {
+      saveReminderLockRef.current = false;
       setSaving(false);
     }
   }
@@ -318,6 +323,9 @@ export default function PatientFollowupReminderScreen() {
             return (
               <Pressable
                 key={option.key}
+                accessibilityRole="button"
+                accessibilityLabel={`Select follow-up date ${option.date.toLocaleDateString()}`}
+                accessibilityState={{ disabled: !hasFutureSlot, selected }}
                 disabled={!hasFutureSlot}
                 onPress={() => setSelectedDateKey(option.key)}
                 style={{
@@ -379,6 +387,9 @@ export default function PatientFollowupReminderScreen() {
             return (
               <Pressable
                 key={slot.label}
+                accessibilityRole="button"
+                accessibilityLabel={`Select follow-up time ${slot.label}`}
+                accessibilityState={{ disabled: slot.disabled, selected }}
                 disabled={slot.disabled}
                 onPress={() => setSelectedTimeIndex(slot.index)}
                 style={{

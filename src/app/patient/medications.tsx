@@ -65,6 +65,7 @@ export default function PatientMedicationsScreen() {
   const [saving, setSaving] = useState(false);
   const patientRequestRef = useRef(0);
   const patientSearchMountedRef = useRef(false);
+  const saveMedicationLockRef = useRef(false);
 
   const homePath = getDashboardPath(profile?.role ?? "receptionist");
 
@@ -182,6 +183,8 @@ export default function PatientMedicationsScreen() {
   }
 
   async function save() {
+    if (saving || saveMedicationLockRef.current) return;
+
     if (!enabled) {
       Alert.alert("Disabled by owner", "Clinic owner has turned off prescribed tablets section.");
       return;
@@ -197,8 +200,10 @@ export default function PatientMedicationsScreen() {
       return;
     }
 
+    saveMedicationLockRef.current = true;
+    setSaving(true);
+
     try {
-      setSaving(true);
       await savePatientMedication({
         patient_id: selectedPatientId,
         medication_name: medicationName,
@@ -214,15 +219,20 @@ export default function PatientMedicationsScreen() {
       ]);
 
       clearForm(true);
-      const [suggestionRows, recentRows] = await Promise.all([
-        getMedicationSuggestions(),
-        getRecentPatientMedications(selectedPatientId),
-      ]);
-      setSuggestions(suggestionRows);
-      setRecent(recentRows);
+      try {
+        const [suggestionRows, recentRows] = await Promise.all([
+          getMedicationSuggestions(),
+          getRecentPatientMedications(selectedPatientId),
+        ]);
+        setSuggestions(suggestionRows);
+        setRecent(recentRows);
+      } catch (refreshError) {
+        console.warn("Medication saved, but recent entries could not refresh:", refreshError);
+      }
     } catch (error) {
       Alert.alert("Save failed", errorMessage(error));
     } finally {
+      saveMedicationLockRef.current = false;
       setSaving(false);
     }
   }
@@ -280,7 +290,7 @@ export default function PatientMedicationsScreen() {
           <View style={{ gap: 12 }}>
             <View style={{ minHeight: 54, borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background, flexDirection: "row", alignItems: "center", paddingHorizontal: 14, gap: 10 }}>
               <Ionicons name="search-outline" size={21} color={colors.muted} />
-              <TextInput value={patientSearch} onChangeText={setPatientSearch} placeholder="Search patient name, phone, or ID" placeholderTextColor={colors.muted} style={{ flex: 1, minHeight: 54, color: colors.text, fontSize: 16 }} />
+              <TextInput accessibilityLabel="Search patients" value={patientSearch} onChangeText={setPatientSearch} placeholder="Search patient name, phone, or ID" placeholderTextColor={colors.muted} style={{ flex: 1, minHeight: 54, color: colors.text, fontSize: 16 }} />
             </View>
 
             {loadingPatients ? (
@@ -290,6 +300,8 @@ export default function PatientMedicationsScreen() {
                 {filteredPatients.map((patient) => (
                   <Pressable
                     key={patient.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Select patient ${patient.name}`}
                     onPress={() => setSelectedPatientId(patient.id)}
                     style={({ pressed }) => ({
                       flexDirection: "row",
@@ -324,6 +336,8 @@ export default function PatientMedicationsScreen() {
             {suggestions.slice(0, 12).map((item) => (
               <Pressable
                 key={item.id}
+                accessibilityRole="button"
+                accessibilityLabel={`Use medicine ${item.name}`}
                 onPress={() => pickSuggestion(item)}
                 style={{
                   borderRadius: 999,
