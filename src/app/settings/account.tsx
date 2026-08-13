@@ -40,6 +40,18 @@ function toNumber(value: string) {
   return Number.isFinite(number) ? number : 0;
 }
 
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message.trim()) return error.message;
+  if (typeof error === "string" && error.trim()) return error;
+
+  if (error && typeof error === "object") {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string" && message.trim()) return message;
+  }
+
+  return fallback;
+}
+
 export default function AccountSettingsScreen() {
   const { profile, signOut } = useAuth();
   const [settings, setSettings] = useState<ClinicFeatureSettings>(
@@ -110,26 +122,64 @@ export default function AccountSettingsScreen() {
 
     try {
       setSaving(true);
-      const [updatedSettings, updatedPreferences] = await Promise.all([
+      const [settingsResult, preferencesResult] = await Promise.allSettled([
         updateClinicFeatureSettings({
           ...settings,
           op_fee_amount: cleanedOpFee,
         }),
         updateClinicPreferences(preferences),
       ]);
-      setSettings(updatedSettings);
-      setPreferences(updatedPreferences);
-      setOpFeeAmount(String(updatedSettings.op_fee_amount));
-      Alert.alert(
-        "Settings saved",
-        "Clinic currency, usual hours, OP fee, and optional features were updated."
-      );
+
+      if (settingsResult.status === "fulfilled") {
+        setSettings(settingsResult.value);
+        setOpFeeAmount(String(settingsResult.value.op_fee_amount));
+      }
+      if (preferencesResult.status === "fulfilled") {
+        setPreferences(preferencesResult.value);
+      }
+
+      if (settingsResult.status === "fulfilled") {
+        if (preferencesResult.status === "fulfilled") {
+          Alert.alert(
+            "Settings saved",
+            "Clinic currency, usual hours, OP fee, and optional features were updated."
+          );
+        } else {
+          Alert.alert(
+            "Settings partially saved",
+            `OP fee and optional features were saved. Country, currency, and usual hours could not be confirmed: ${getErrorMessage(
+              preferencesResult.reason,
+              "Review those fields and try again."
+            )}\n\nRefresh to check the current values before trying again.`
+          );
+        }
+      } else if (preferencesResult.status === "fulfilled") {
+        Alert.alert(
+          "Settings partially saved",
+          `Country, currency, and usual hours were saved. OP fee and optional features could not be confirmed: ${getErrorMessage(
+            settingsResult.reason,
+            "Review those fields and try again."
+          )}\n\nRefresh to check the current values before trying again.`
+        );
+      } else {
+        Alert.alert(
+          "Save could not be confirmed",
+          `The app could not confirm either settings group was saved. Clinic options: ${getErrorMessage(
+            settingsResult.reason,
+            "Update failed."
+          )}\n\nCountry, currency, and hours: ${getErrorMessage(
+            preferencesResult.reason,
+            "Update failed."
+          )}\n\nRefresh to check the current values before trying again.`
+        );
+      }
     } catch (error) {
       Alert.alert(
         "Save failed",
-        error instanceof Error
-          ? error.message
-          : "Only the clinic owner can update these options."
+        getErrorMessage(
+          error,
+          "Only the clinic owner can update these options."
+        )
       );
     } finally {
       saveMutation.release();
@@ -376,6 +426,10 @@ function FeatureSwitch({
       </View>
 
       <Switch
+        accessibilityRole="switch"
+        accessibilityLabel={title}
+        accessibilityHint={subtitle}
+        accessibilityState={{ checked: value }}
         value={value}
         onValueChange={onValueChange}
         trackColor={{ true: colors.primarySoft, false: colors.border }}
