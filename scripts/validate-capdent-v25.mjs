@@ -12,6 +12,8 @@ const rcMode =
   process.argv.includes("--rc") || process.env.CAPDENT_V25_RC === "true";
 const app = readJson("app.json");
 const pkg = readJson("package.json");
+const firebaseConfig = readJson("firebase.json");
+const environmentExample = readText(".env.example");
 const manifestPath =
   "docs/database/production-baseline-2026-08-13/manifest.json";
 const manifest = readJson(manifestPath);
@@ -20,6 +22,13 @@ const pricing = readText("src/lib/pricingV2.ts");
 const subscriptionScreen = readText("src/app/settings/subscription.tsx");
 const billing = readText("src/lib/googlePlayBilling.ts");
 const supabaseClient = readText("src/lib/supabase.ts");
+const analytics = readText("src/lib/firebaseAnalytics.ts");
+const analyticsCoordinator = readText(
+  "src/components/FirebaseAnalyticsCoordinator.tsx"
+);
+const paymentCoordinator = readText(
+  "src/components/PaymentNotificationCoordinator.tsx"
+);
 
 expect(app.expo?.name === "CapDent", "App name must remain CapDent.");
 expect(
@@ -69,6 +78,40 @@ expect(
   billing.includes("googlePlayPurchaseLaunchInFlight") &&
     billing.includes("unrecognized CapDent subscription product"),
   "Google Play purchase launch and product validation guards must remain present."
+);
+
+expect(
+  firebaseConfig?.["react-native"]?.analytics_auto_collection_enabled === false,
+  "Firebase Analytics automatic collection must default off."
+);
+expect(
+  firebaseConfig?.["react-native"]
+    ?.google_analytics_automatic_screen_reporting_enabled === false,
+  "Firebase automatic screen reporting must remain disabled; CapDent uses sanitized screen categories."
+);
+expect(
+  environmentExample.includes("EXPO_PUBLIC_ENABLE_FIREBASE_ANALYTICS=false"),
+  "Example environment must keep Firebase Analytics disabled by default."
+);
+expect(
+  analytics.includes("EXPO_PUBLIC_ENABLE_FIREBASE_ANALYTICS") &&
+    analytics.includes("ad_storage: false") &&
+    analytics.includes("ad_user_data: false") &&
+    analytics.includes("ad_personalization: false"),
+  "Firebase Analytics must stay build-flagged with advertising consent disabled."
+);
+expect(
+  !analytics.includes("setUserId(") &&
+    !analytics.includes("patient_id") &&
+    !analytics.includes("clinic_id") &&
+    !analytics.includes("payment_reference"),
+  "Analytics wrapper must not transmit user, patient, clinic, or payment identifiers."
+);
+expect(
+  analyticsCoordinator.includes('"capdent_app_ready"') &&
+    analyticsCoordinator.includes('"capdent_screen_view"') &&
+    paymentCoordinator.includes("FirebaseAnalyticsCoordinator"),
+  "Privacy-safe analytics coordinator must be mounted in the app runtime."
 );
 
 expect(
@@ -126,9 +169,24 @@ if (rcMode) {
     pkg.scripts?.["build:android:play-internal"]?.includes("check:v25:rc"),
     "RC mode requires Android build commands to run the strict V25 gate."
   );
+  expect(
+    pkg.dependencies?.["@react-native-firebase/app"] &&
+      pkg.dependencies?.["@react-native-firebase/analytics"],
+    "RC mode requires React Native Firebase app and analytics dependencies to be installed with the lockfile updated."
+  );
+  const analyticsPlugin = app.expo?.plugins?.find(
+    (plugin) => Array.isArray(plugin) && plugin[0] === "@react-native-firebase/analytics"
+  );
+  expect(
+    analyticsPlugin?.[1]?.ios?.withoutAdIdSupport === true,
+    "RC mode requires the Firebase Analytics Expo plugin with iOS Ad ID support disabled."
+  );
 } else {
   notes.push(
     `Pre-RC mode: Android versionCode is ${app.expo?.android?.versionCode ?? "unknown"}; no native version bump is required yet.`
+  );
+  notes.push(
+    "Firebase Analytics application instrumentation is staged; native packages/plugin remain an RC-gated local install."
   );
 }
 
