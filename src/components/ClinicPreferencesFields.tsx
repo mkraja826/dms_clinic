@@ -61,6 +61,9 @@ export function ClinicPreferencesFields({ value, onChange }: Props) {
         </Text>
 
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Country or region. ${selectedCountry.countryName}. Suggested currency ${selectedCountry.currencyCode}`}
+          accessibilityState={{ expanded: countryPickerOpen }}
           onPress={() => setCountryPickerOpen(true)}
           style={({ pressed }) => ({
             minHeight: 56,
@@ -74,7 +77,7 @@ export function ClinicPreferencesFields({ value, onChange }: Props) {
             gap: 12,
           })}
         >
-          <Ionicons name="earth-outline" size={22} color={colors.primary} />
+          <Ionicons name="earth-outline" size={22} color={colors.primary} accessibilityElementsHidden importantForAccessibility="no" />
           <View style={{ flex: 1 }}>
             <Text style={{ color: colors.text, fontSize: 16, fontWeight: "900" }}>
               {selectedCountry.countryName}
@@ -83,7 +86,7 @@ export function ClinicPreferencesFields({ value, onChange }: Props) {
               {selectedCountry.countryCode} · Suggested currency {selectedCountry.currencyCode}
             </Text>
           </View>
-          <Ionicons name="chevron-down" size={20} color={colors.muted} />
+          <Ionicons name="chevron-down" size={20} color={colors.muted} accessibilityElementsHidden importantForAccessibility="no" />
         </Pressable>
 
         <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 17 }}>
@@ -171,6 +174,8 @@ export function ClinicPreferencesFields({ value, onChange }: Props) {
                 </Text>
               </View>
               <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Close country picker"
                 onPress={() => setCountryPickerOpen(false)}
                 hitSlop={10}
                 style={{
@@ -182,7 +187,7 @@ export function ClinicPreferencesFields({ value, onChange }: Props) {
                   justifyContent: "center",
                 }}
               >
-                <Ionicons name="close" size={24} color={colors.text} />
+                <Ionicons name="close" size={24} color={colors.text} accessibilityElementsHidden importantForAccessibility="no" />
               </Pressable>
             </View>
 
@@ -199,8 +204,9 @@ export function ClinicPreferencesFields({ value, onChange }: Props) {
                 gap: 10,
               }}
             >
-              <Ionicons name="search-outline" size={20} color={colors.muted} />
+              <Ionicons name="search-outline" size={20} color={colors.muted} accessibilityElementsHidden importantForAccessibility="no" />
               <TextInput
+                accessibilityLabel="Search country or currency"
                 value={countrySearch}
                 onChangeText={setCountrySearch}
                 placeholder="Search country or currency"
@@ -221,6 +227,9 @@ export function ClinicPreferencesFields({ value, onChange }: Props) {
 
               return (
                 <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${item.countryName}. ${item.countryCode}. Currency ${item.currencyCode}`}
+                  accessibilityState={{ selected }}
                   onPress={() => selectCountry(item.countryCode)}
                   style={({ pressed }) => ({
                     borderRadius: 18,
@@ -243,7 +252,7 @@ export function ClinicPreferencesFields({ value, onChange }: Props) {
                     </Text>
                   </View>
                   {selected ? (
-                    <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
+                    <Ionicons name="checkmark-circle" size={24} color={colors.primary} accessibilityElementsHidden importantForAccessibility="no" />
                   ) : null}
                 </Pressable>
               );
