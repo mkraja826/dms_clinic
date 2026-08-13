@@ -145,6 +145,7 @@ export function Screen({
             refreshControl={
               onRefresh ? (
                 <RefreshControl
+                  accessibilityLabel="Refresh screen content"
                   refreshing={refreshing}
                   onRefresh={onRefresh}
                   tintColor={colors.primary}
