@@ -19,6 +19,7 @@ const limits = readText("src/lib/v25Limits.ts");
 const pricing = readText("src/lib/pricingV2.ts");
 const subscriptionScreen = readText("src/app/settings/subscription.tsx");
 const billing = readText("src/lib/googlePlayBilling.ts");
+const supabaseClient = readText("src/lib/supabase.ts");
 
 expect(app.expo?.name === "CapDent", "App name must remain CapDent.");
 expect(
@@ -95,6 +96,11 @@ if (manifest.replay_ready !== true) {
   expect(
     newerMigrations.length === 0,
     `No additive V25 migration may exist before replay_ready=true. Found: ${newerMigrations.join(", ")}`
+  );
+  expect(
+    supabaseClient.includes("unlimited: true") &&
+      supabaseClient.includes('level: "none"'),
+    "Patient creation must remain fail-open before replay_ready=true; do not enforce the V25 quota client-side."
   );
   notes.push("Milestone 0 remains closed: production replay is not yet marked ready.");
 }
