@@ -23,9 +23,13 @@
     "sync:v21-version": "node scripts/sync-capdent-v21-version.mjs",
     "prepare:v21": "node scripts/prepare-capdent-v21-build.mjs",
     "validate:v21": "node scripts/validate-capdent-v21.mjs",
+    "validate:v25": "node scripts/validate-capdent-v25.mjs",
+    "validate:v25:rc": "node scripts/validate-capdent-v25.mjs --rc",
     "verify:android-signing": "node scripts/verify-android-signing.mjs",
     "check:v18": "npm run prepare:v18 && npm run validate:v18 && npm run typecheck",
-    "check:v21": "npm run prepare:v21 && npm run validate:v21 && npm run typecheck"
+    "check:v21": "npm run prepare:v21 && npm run validate:v21 && npm run typecheck",
+    "check:v25": "npm run validate:v25 && npm run typecheck",
+    "check:v25:rc": "npm run validate:v25:rc && npm run typecheck"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
