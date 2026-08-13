@@ -314,9 +314,13 @@ export default function ClinicalUploadScreen() {
       message: "Preparing selected file",
     });
 
-    try {
-      const fileName = getDefaultFileName(type, asset.uri);
+    const fileName = getDefaultFileName(type, asset.uri);
+    const billingRequested =
+      type === "xray" &&
+      Number(xrayAmount || 0) > 0 &&
+      xrayFeeStatus !== "waived";
 
+    try {
       await uploadPatientFile({
         patient_id: selectedPatientId,
         file_type: type,
@@ -356,6 +360,58 @@ export default function ClinicalUploadScreen() {
       ]);
     } catch (error) {
       const message = getErrorMessage(error);
+
+      if (billingRequested) {
+        const storedFileName = fileName.replace(/\.[^.]+$/, ".webp");
+
+        try {
+          const { data: persistedFile, error: verificationError } = await supabase
+            .from("files")
+            .select("id")
+            .eq("patient_id", selectedPatientId)
+            .eq("file_type", "xray")
+            .eq("file_name", storedFileName)
+            .limit(1)
+            .maybeSingle<{ id: string }>();
+
+          if (verificationError) throw verificationError;
+
+          if (persistedFile) {
+            setDone(true);
+            setUploadProgress((current) => ({
+              phase: "complete",
+              percent: 100,
+              bytesSent: current?.bytesSent,
+              totalBytes: current?.totalBytes,
+              message: "X-ray saved; billing needs review",
+            }));
+            Alert.alert(
+              "X-ray saved; billing needs attention",
+              `The X-ray is already saved in the patient gallery. Do not upload it again. Its billing record may be missing or incomplete and should be reviewed before collecting payment.\n\nBilling error: ${message}`,
+              [
+                {
+                  text: "Open Gallery",
+                  onPress: () =>
+                    router.replace({
+                      pathname: "/gallery",
+                      params: { patient_id: selectedPatientId },
+                    } as never),
+                },
+                {
+                  text: "Open Patient",
+                  onPress: () => router.replace(`/patient/${selectedPatientId}` as never),
+                },
+              ]
+            );
+            return;
+          }
+        } catch (verificationError) {
+          console.warn(
+            "Unable to verify whether the X-ray file persisted after billing failed:",
+            verificationError
+          );
+        }
+      }
 
       setUploadProgress((current) =>
         current
@@ -685,11 +741,17 @@ export default function ClinicalUploadScreen() {
         )}
 
         <AppButton
-          title={uploading ? `Uploading ${uploadProgress?.percent ?? 0}%` : `Upload ${config.label}`}
+          title={
+            done
+              ? `${config.label} Uploaded`
+              : uploading
+                ? `Uploading ${uploadProgress?.percent ?? 0}%`
+                : `Upload ${config.label}`
+          }
           icon="cloud-upload-outline"
           onPress={upload}
           loading={uploading}
-          disabled={uploading}
+          disabled={uploading || done}
         />
       </SectionCard>
 
