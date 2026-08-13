@@ -10,6 +10,7 @@ import { SectionCard } from "@/components/SectionCard";
 import { SecureStorageImage } from "@/components/SecureStorageImage";
 import { colors } from "@/constants/colors";
 import { ClinicBrand, getClinicBrand, updateClinicBrand } from "@/lib/clinicBranding";
+import { useImmediateMutationLock } from "@/lib/useImmediateMutationLock";
 
 export default function ClinicBrandingScreen() {
   const [brand, setBrand] = useState<ClinicBrand | null>(null);
@@ -19,6 +20,7 @@ export default function ClinicBrandingScreen() {
   const [logoUri, setLogoUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const saveMutation = useImmediateMutationLock();
 
   async function load() {
     try {
@@ -57,7 +59,10 @@ export default function ClinicBrandingScreen() {
   }
 
   async function save() {
+    if (!saveMutation.tryLock()) return;
+
     if (!name.trim()) {
+      saveMutation.release();
       Alert.alert("Clinic name required", "Enter the hospital/clinic name.");
       return;
     }
@@ -87,6 +92,7 @@ export default function ClinicBrandingScreen() {
         error instanceof Error ? error.message : "Please try again."
       );
     } finally {
+      saveMutation.release();
       setSaving(false);
     }
   }
