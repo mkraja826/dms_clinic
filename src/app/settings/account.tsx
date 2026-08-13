@@ -32,6 +32,7 @@ import {
   updateClinicPreferences,
 } from "@/lib/clinicPreferences";
 import { getDashboardPath } from "@/lib/supabase";
+import { useImmediateMutationLock } from "@/lib/useImmediateMutationLock";
 
 function toNumber(value: string) {
   const cleaned = value.replace(/[^0-9.]/g, "");
@@ -53,6 +54,8 @@ export default function AccountSettingsScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const saveMutation = useImmediateMutationLock();
+  const logoutMutation = useImmediateMutationLock();
 
   const canManage = canManageClinicFeatureSettings(profile);
   const homePath = getDashboardPath(profile?.role ?? "receptionist");
@@ -89,14 +92,18 @@ export default function AccountSettingsScreen() {
   }
 
   async function save() {
+    if (saving || !saveMutation.tryLock()) return;
+
     const cleanedOpFee = cleanClinicOpFee(toNumber(opFeeAmount));
 
     if (cleanedOpFee <= 0) {
+      saveMutation.release();
       Alert.alert("Invalid OP fee", "OP fee must be greater than zero.");
       return;
     }
 
     if (!/^[A-Z]{3}$/.test(preferences.currencyCode.trim().toUpperCase())) {
+      saveMutation.release();
       Alert.alert("Invalid currency", "Enter a valid three-letter currency code.");
       return;
     }
@@ -125,12 +132,13 @@ export default function AccountSettingsScreen() {
           : "Only the clinic owner can update these options."
       );
     } finally {
+      saveMutation.release();
       setSaving(false);
     }
   }
 
   async function logout() {
-    if (loggingOut) return;
+    if (loggingOut || !logoutMutation.tryLock()) return;
 
     try {
       setLoggingOut(true);
@@ -140,6 +148,7 @@ export default function AccountSettingsScreen() {
         "Logout failed",
         error instanceof Error ? error.message : "Please try again."
       );
+      logoutMutation.release();
       setLoggingOut(false);
     }
   }
