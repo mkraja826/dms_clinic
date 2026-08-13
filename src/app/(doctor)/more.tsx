@@ -28,7 +28,7 @@ export default function DoctorMoreToolsScreen() {
             justifyContent: "center",
           }}
         >
-          <Ionicons name="arrow-back-outline" size={22} color={colors.primary} />
+          <Ionicons name="arrow-back-outline" size={22} color={colors.primary} accessible={false} />
         </Pressable>
 
         <View style={{ flex: 1 }}>
@@ -114,7 +114,7 @@ function ToolRow({
           justifyContent: "center",
         }}
       >
-        <Ionicons name={icon} size={21} color={colors.primary} />
+        <Ionicons name={icon} size={21} color={colors.primary} accessible={false} />
       </View>
       <View style={{ flex: 1 }}>
         <Text numberOfLines={1} style={{ color: colors.text, fontWeight: "900", fontSize: 15 }}>
@@ -124,7 +124,7 @@ function ToolRow({
           {subtitle}
         </Text>
       </View>
-      <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+      <Ionicons name="chevron-forward" size={18} color={colors.muted} accessible={false} />
     </Pressable>
   );
 }
