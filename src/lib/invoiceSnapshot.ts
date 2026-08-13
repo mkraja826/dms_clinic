@@ -103,11 +103,11 @@ export async function loadCurrentInvoiceSnapshot(invoiceId: string): Promise<Cap
   const total = Number(invoiceData.total_amount || 0);
   const paid = Number(invoiceData.paid_amount || 0);
   const due = Number(invoiceData.due_amount || 0);
+  const refunded = Number(invoiceData.refunded_amount || 0);
 
   const adjustments = [
     positiveAdjustment("Discount", invoiceData.discount_amount),
     positiveAdjustment("Waived", invoiceData.waived_amount),
-    positiveAdjustment("Refunded", invoiceData.refunded_amount),
   ].filter((item): item is CapDentInvoiceAdjustment => Boolean(item));
 
   return {
@@ -138,6 +138,7 @@ export async function loadCurrentInvoiceSnapshot(invoiceId: string): Promise<Cap
     subtotal: originalTotal,
     total,
     paid,
+    refunded,
     due,
     paymentMethod: paymentData?.payment_method || null,
     notes: invoiceData.notes || null,
