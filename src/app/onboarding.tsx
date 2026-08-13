@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, Text, View } from "react-native";
 import { AppButton } from "@/components/AppButton";
 import { AppInput } from "@/components/AppInput";
@@ -78,8 +78,12 @@ export default function OnboardingScreen() {
   const [legalAccepted, setLegalAccepted] = useState(false);
 
   const [loading, setLoading] = useState(false);
+  const ownerCreateLockRef = useRef(false);
+  const inviteJoinLockRef = useRef(false);
 
   async function finishOwnerSetup() {
+    if (ownerCreateLockRef.current) return;
+
     if (!clinicName.trim() || !ownerName.trim()) {
       Alert.alert("Missing details", "Clinic name and head doctor name are required.");
       return;
@@ -103,6 +107,7 @@ export default function OnboardingScreen() {
       return;
     }
 
+    ownerCreateLockRef.current = true;
     setLoading(true);
 
     try {
@@ -135,16 +140,20 @@ export default function OnboardingScreen() {
     } catch (error) {
       Alert.alert("Clinic setup failed", getErrorMessage(error));
     } finally {
+      ownerCreateLockRef.current = false;
       setLoading(false);
     }
   }
 
   async function joinInvite() {
+    if (inviteJoinLockRef.current) return;
+
     if (!inviteCode.trim()) {
       Alert.alert("Invite code required", "Enter the clinic invite code.");
       return;
     }
 
+    inviteJoinLockRef.current = true;
     setLoading(true);
 
     try {
@@ -154,6 +163,7 @@ export default function OnboardingScreen() {
     } catch (error) {
       Alert.alert("Join failed", getErrorMessage(error));
     } finally {
+      inviteJoinLockRef.current = false;
       setLoading(false);
     }
   }
