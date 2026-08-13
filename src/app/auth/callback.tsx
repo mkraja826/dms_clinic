@@ -21,9 +21,7 @@ function paramsFromUrl(url: string) {
   return params;
 }
 
-async function completeAuthCallback(url: string | null) {
-  if (!url) return;
-
+async function completeAuthCallback(url: string) {
   const params = paramsFromUrl(url);
   const code = params.get("code");
   const accessToken = params.get("access_token");
@@ -47,7 +45,10 @@ async function completeAuthCallback(url: string | null) {
     });
 
     if (error) throw error;
+    return;
   }
+
+  throw new Error("This verification link does not contain a valid authentication callback.");
 }
 
 export default function AuthCallbackScreen() {
@@ -55,8 +56,19 @@ export default function AuthCallbackScreen() {
 
   useEffect(() => {
     let mounted = true;
+    let processing = false;
+    let lastHandledUrl: string | null = null;
 
     async function handleCallback(url: string | null) {
+      if (!url) {
+        if (mounted) setFailed(true);
+        return;
+      }
+
+      if (processing || lastHandledUrl === url) return;
+      processing = true;
+      lastHandledUrl = url;
+
       try {
         await completeAuthCallback(url);
 
@@ -73,6 +85,8 @@ export default function AuthCallbackScreen() {
           "Verification failed",
           error instanceof Error ? error.message : "Open the latest verification email and try again."
         );
+      } finally {
+        processing = false;
       }
     }
 
