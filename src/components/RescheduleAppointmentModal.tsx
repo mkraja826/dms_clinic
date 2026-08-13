@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -170,12 +170,17 @@ export function RescheduleAppointmentModal({
   const [emergencyMode, setEmergencyMode] = useState(false);
   const [selectedDateKey, setSelectedDateKey] = useState("");
   const [selectedTimeIndex, setSelectedTimeIndex] = useState(0);
+  const confirmLockRef = useRef(false);
 
   const usualTimeSlots = useMemo(
     () => buildUsualTimeSlots(openingTime, closingTime),
     [openingTime, closingTime]
   );
   const timeSlots = emergencyMode ? emergencyTimeSlots : usualTimeSlots;
+
+  useEffect(() => {
+    if (!visible || !saving) confirmLockRef.current = false;
+  }, [visible, saving]);
 
   useEffect(() => {
     if (!visible) return;
@@ -625,7 +630,9 @@ export function RescheduleAppointmentModal({
               accessibilityState={{ disabled: !canConfirm, busy: saving }}
               disabled={!canConfirm}
               onPress={() => {
-                if (selectedDateTime) onConfirm(selectedDateTime);
+                if (!selectedDateTime || confirmLockRef.current) return;
+                confirmLockRef.current = true;
+                onConfirm(selectedDateTime);
               }}
               style={({ pressed }) => ({
                 flex: 1.4,
