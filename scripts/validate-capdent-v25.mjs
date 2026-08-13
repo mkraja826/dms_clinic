@@ -8,7 +8,8 @@ const expect = (condition, message) => {
   if (!condition) failures.push(message);
 };
 
-const rcMode = process.env.CAPDENT_V25_RC === "true";
+const rcMode =
+  process.argv.includes("--rc") || process.env.CAPDENT_V25_RC === "true";
 const app = readJson("app.json");
 const pkg = readJson("package.json");
 const manifestPath =
@@ -25,7 +26,7 @@ expect(
   "Android package must remain com.dms.clinic."
 );
 expect(
-  pkg.dependencies?.["@Supabase/supabase-js"] || pkg.dependencies?.["@supabase/supabase-js"],
+  pkg.dependencies?.["@supabase/supabase-js"],
   "Supabase client dependency must remain present."
 );
 
