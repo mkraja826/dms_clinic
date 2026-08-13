@@ -15,6 +15,7 @@ import { AppButton } from "@/components/AppButton";
 import { AppInput } from "@/components/AppInput";
 import { colors } from "@/constants/colors";
 import { useAuth } from "@/lib/auth";
+import { useImmediateMutationLock } from "@/lib/useImmediateMutationLock";
 
 type SignupType = "clinic" | "employee";
 
@@ -28,6 +29,7 @@ export default function LoginScreen() {
 
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const authMutation = useImmediateMutationLock();
 
   async function submit() {
     if (!email.trim() || !password.trim()) {
@@ -39,6 +41,8 @@ export default function LoginScreen() {
       Alert.alert("Weak password", "Password must be at least 6 characters.");
       return;
     }
+
+    if (loading || googleLoading || !authMutation.tryLock()) return;
 
     setLoading(true);
 
@@ -67,12 +71,13 @@ export default function LoginScreen() {
         error instanceof Error ? error.message : "Please try again."
       );
     } finally {
+      authMutation.release();
       setLoading(false);
     }
   }
 
   async function submitGoogle() {
-    if (googleLoading || loading) return;
+    if (googleLoading || loading || !authMutation.tryLock()) return;
 
     try {
       setGoogleLoading(true);
@@ -83,6 +88,7 @@ export default function LoginScreen() {
         error instanceof Error ? error.message : "Please try again."
       );
     } finally {
+      authMutation.release();
       setGoogleLoading(false);
     }
   }
