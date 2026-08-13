@@ -45,7 +45,7 @@ export default function ReportIssueScreen() {
   const { profile } = useAuth();
   const [category, setCategory] = useState<IssueCategory>("bug");
   const [description, setDescription] = useState("");
-  const [includeAppMetadata, setIncludeAppMetadata] = useState(true);
+  const [includeAppMetadata, setIncludeAppMetadata] = useState(false);
   const [sending, setSending] = useState(false);
 
   const categoryLabel = ISSUE_CATEGORIES.find((item) => item.key === category)?.label ?? "Issue";
