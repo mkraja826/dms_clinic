@@ -45,6 +45,10 @@ function cleanPreferences(input?: Partial<ClinicPreferences> | null): ClinicPref
   };
 }
 
+function copyPreferences(preferences: ClinicPreferences): ClinicPreferences {
+  return { ...preferences };
+}
+
 export function canManageClinicPreferences(profile?: Profile | null) {
   return profile?.role === "head_doctor" || profile?.role === "owner";
 }
@@ -55,7 +59,7 @@ export async function getClinicPreferences(options?: {
   const profile = await getCurrentProfile();
   const defaults = getDefaultClinicPreferences();
 
-  if (!profile?.clinic_id) return defaults;
+  if (!profile?.clinic_id) return copyPreferences(defaults);
 
   const now = Date.now();
   if (
@@ -63,7 +67,7 @@ export async function getClinicPreferences(options?: {
     cachedClinicPreferences?.clinicId === profile.clinic_id &&
     cachedClinicPreferences.expiresAt > now
   ) {
-    return cachedClinicPreferences.preferences;
+    return copyPreferences(cachedClinicPreferences.preferences);
   }
 
   const { data, error } = await supabase
@@ -87,7 +91,7 @@ export async function getClinicPreferences(options?: {
     expiresAt: Date.now() + CLINIC_PREFERENCES_CACHE_TTL_MS,
   };
 
-  return preferences;
+  return copyPreferences(preferences);
 }
 
 export async function updateClinicPreferences(input: ClinicPreferences) {
@@ -127,5 +131,5 @@ export async function updateClinicPreferences(input: ClinicPreferences) {
     expiresAt: Date.now() + CLINIC_PREFERENCES_CACHE_TTL_MS,
   };
 
-  return updated;
+  return copyPreferences(updated);
 }
