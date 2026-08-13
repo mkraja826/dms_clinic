@@ -383,8 +383,15 @@ export async function recordGooglePlaySubscriptionPurchase(purchase: any) {
     purchase?.productId ||
       purchase?.id ||
       (Array.isArray(purchase?.productIds) ? purchase.productIds[0] : "") ||
-      GOOGLE_PLAY_PROFESSIONAL_PRODUCT_ID
-  );
+      ""
+  ).trim();
+
+  if (!productId) {
+    throw new Error("Google Play purchase product ID was not returned.");
+  }
+  if (!planKeyForProductId(productId)) {
+    throw new Error("Google Play returned an unrecognized CapDent subscription product.");
+  }
 
   const { data, error } = await supabase.functions.invoke("verify-google-play-subscription", {
     body: {
