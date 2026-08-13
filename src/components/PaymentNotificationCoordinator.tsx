@@ -43,6 +43,8 @@ export function PaymentNotificationCoordinator({
       registrationRunning = true;
       try {
         await registerPaymentPushToken(profile);
+      } catch (error) {
+        console.warn("Payment push token registration failed:", error);
       } finally {
         registrationRunning = false;
       }
