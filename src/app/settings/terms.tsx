@@ -3,11 +3,10 @@ import { Alert, Linking, ScrollView, Text, View } from "react-native";
 import { AppButton } from "@/components/AppButton";
 import { SectionCard } from "@/components/SectionCard";
 import { colors } from "@/constants/colors";
-
-const TERMS_URL = "https://dms.micirql.com/terms";
+import { CAPDENT_TERMS_URL } from "@/lib/legalLinks";
 
 function openTermsPage() {
-  Linking.openURL(TERMS_URL).catch(() => {
+  Linking.openURL(CAPDENT_TERMS_URL).catch(() => {
     Alert.alert("Unable to open link", "Please try again later.");
   });
 }
