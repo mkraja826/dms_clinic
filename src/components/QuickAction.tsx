@@ -28,7 +28,11 @@ export function QuickAction({ icon, label, onPress }: Props) {
         backgroundColor: pressed ? colors.primarySoft : colors.card,
       })}
     >
-      <View style={{ backgroundColor: colors.primarySoft, borderRadius: 999, padding: 9 }}>
+      <View
+        accessible={false}
+        importantForAccessibility="no-hide-descendants"
+        style={{ backgroundColor: colors.primarySoft, borderRadius: 999, padding: 9 }}
+      >
         <Ionicons name={icon} color={colors.primary} size={20} />
       </View>
       <Text style={{ color: colors.text, fontSize: 13, fontWeight: "800", textAlign: "center" }}>{label}</Text>
