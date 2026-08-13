@@ -40,6 +40,7 @@ export async function uploadPatientProfilePhoto(patientId: string, uri: string) 
     .maybeSingle();
 
   if (existingPatientError) throw existingPatientError;
+  if (!existingPatient) throw new Error("Patient not found in this clinic");
 
   const optimized = await optimizeUploadImage(uri, "patient_profile");
   const base64 = await FileSystem.readAsStringAsync(optimized.uri, {
@@ -72,7 +73,7 @@ export async function uploadPatientProfilePhoto(patientId: string, uri: string) 
     throw updateError;
   }
 
-  const previousPhoto = parseStorageObjectUrl(existingPatient?.photo_url);
+  const previousPhoto = parseStorageObjectUrl(existingPatient.photo_url);
   if (
     previousPhoto?.bucket === "patient-files" &&
     previousPhoto.path !== path
