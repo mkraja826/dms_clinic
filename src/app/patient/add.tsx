@@ -180,15 +180,40 @@ export default function AddPatientScreen() {
         },
       });
 
+      let photoWarning = "";
       if (features.enable_patient_photos && photoUri) {
-        await uploadPatientProfilePhoto(patient.id, photoUri);
+        try {
+          await uploadPatientProfilePhoto(patient.id, photoUri);
+        } catch (photoError) {
+          console.warn("Patient saved without profile photo:", photoError);
+          photoWarning =
+            "Patient was created, but the profile photo could not be added. Open the patient and retry only the photo.";
+        }
       }
 
-      const nextUsage = await getClinicPatientLimitStatus();
-      setLimitStatus(nextUsage);
+      let nextUsage: ClinicPatientLimitStatus | null = null;
+      try {
+        nextUsage = await getClinicPatientLimitStatus();
+        setLimitStatus(nextUsage);
+      } catch (usageError) {
+        console.warn("Patient saved, but updated limit status could not load:", usageError);
+      }
       void loadPricingObservation();
 
-      if (!nextUsage.unlimited && (nextUsage.level === "notice" || nextUsage.level === "warning")) {
+      if (photoWarning) {
+        const usageNotice =
+          nextUsage &&
+          !nextUsage.unlimited &&
+          (nextUsage.level === "notice" || nextUsage.level === "warning")
+            ? `\n\n${nextUsage.message}`
+            : "";
+        Alert.alert("Patient saved", `${photoWarning}${usageNotice}`, [
+          { text: "Open Patient", onPress: () => router.replace({ pathname: "/patient/[id]", params: { id: patient.id } }) },
+        ]);
+        return;
+      }
+
+      if (nextUsage && !nextUsage.unlimited && (nextUsage.level === "notice" || nextUsage.level === "warning")) {
         Alert.alert("Patient saved", nextUsage.message, [
           { text: "Open Patient", onPress: () => router.replace({ pathname: "/patient/[id]", params: { id: patient.id } }) },
         ]);
@@ -254,6 +279,8 @@ export default function AddPatientScreen() {
         {features.enable_patient_photos ? (
           <View style={{ alignItems: "center", gap: 10 }}>
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={photoUri ? "Change patient profile photo" : "Add patient profile photo"}
               onPress={pickPatientPhoto}
               style={{
                 width: 108,
@@ -301,6 +328,9 @@ export default function AddPatientScreen() {
           <View key={key} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
             <Text style={{ color: colors.text, fontWeight: "700" }}>{label}</Text>
             <Switch
+              accessibilityRole="switch"
+              accessibilityLabel={label}
+              accessibilityState={{ checked: historyFlags[key as keyof typeof historyFlags] }}
               value={historyFlags[key as keyof typeof historyFlags]}
               onValueChange={(value) => setHistoryFlags((current) => ({ ...current, [key]: value }))}
               trackColor={{ true: colors.primarySoft, false: colors.border }}

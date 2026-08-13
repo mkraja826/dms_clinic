@@ -68,6 +68,8 @@ export default function AddOldPatientScreen() {
   }, []);
 
   async function save(skipDuplicateCheck = false, skipLimitWarning = false) {
+    if (saving || saveOldPatientLockRef.current) return;
+
     if (!form.name.trim()) {
       Alert.alert("Name required", "Enter the old patient name.");
       return;
@@ -78,67 +80,64 @@ export default function AddOldPatientScreen() {
       return;
     }
 
-    if (!skipLimitWarning) {
-      try {
-        const usage = await getClinicPatientLimitStatus();
-        setLimitStatus(usage);
-
-        if (usage.level === "blocked") {
-          Alert.alert("Free patient limit reached", usage.message, [
-            { text: "Cancel", style: "cancel" },
-            { text: "View Plans", onPress: () => router.push("/settings/subscription" as never) },
-          ]);
-          return;
-        }
-
-        if (usage.level === "warning") {
-          Alert.alert("Free patient slots low", usage.message, [
-            { text: "Cancel", style: "cancel" },
-            { text: "Continue", onPress: () => void save(skipDuplicateCheck, true) },
-          ]);
-          return;
-        }
-
-        if (usage.level === "notice") {
-          Alert.alert("Free patient slots", usage.message);
-        }
-      } catch (error) {
-        Alert.alert("Patient limit check failed", error instanceof Error ? error.message : "Please try again.");
-        return;
-      }
-    }
-
-    const phone = form.phone.trim();
-
-    if (phone && !skipDuplicateCheck) {
-      setSaving(true);
-      try {
-        const matches = await searchPatients(phone);
-        const duplicate = matches.find((patient) => patient.phone?.trim() === phone);
-
-        if (duplicate) {
-          Alert.alert(
-            "Phone already exists",
-            `This phone number already belongs to ${duplicate.name}. Continue adding this old record?`,
-            [
-              { text: "Cancel", style: "cancel" },
-              { text: "Continue", onPress: () => save(true, skipLimitWarning) },
-            ]
-          );
-          return;
-        }
-      } catch (error) {
-        Alert.alert("Duplicate check failed", error instanceof Error ? error.message : "Please try again.");
-        return;
-      } finally {
-        setSaving(false);
-      }
-    }
-
-    if (saveOldPatientLockRef.current) return;
     saveOldPatientLockRef.current = true;
     setSaving(true);
+
     try {
+      if (!skipLimitWarning) {
+        try {
+          const usage = await getClinicPatientLimitStatus();
+          setLimitStatus(usage);
+
+          if (usage.level === "blocked") {
+            Alert.alert("Free patient limit reached", usage.message, [
+              { text: "Cancel", style: "cancel" },
+              { text: "View Plans", onPress: () => router.push("/settings/subscription" as never) },
+            ]);
+            return;
+          }
+
+          if (usage.level === "warning") {
+            Alert.alert("Free patient slots low", usage.message, [
+              { text: "Cancel", style: "cancel" },
+              { text: "Continue", onPress: () => void save(skipDuplicateCheck, true) },
+            ]);
+            return;
+          }
+
+          if (usage.level === "notice") {
+            Alert.alert("Free patient slots", usage.message);
+          }
+        } catch (error) {
+          Alert.alert("Patient limit check failed", error instanceof Error ? error.message : "Please try again.");
+          return;
+        }
+      }
+
+      const phone = form.phone.trim();
+
+      if (phone && !skipDuplicateCheck) {
+        try {
+          const matches = await searchPatients(phone);
+          const duplicate = matches.find((patient) => patient.phone?.trim() === phone);
+
+          if (duplicate) {
+            Alert.alert(
+              "Phone already exists",
+              `This phone number already belongs to ${duplicate.name}. Continue adding this old record?`,
+              [
+                { text: "Cancel", style: "cancel" },
+                { text: "Continue", onPress: () => void save(true, skipLimitWarning) },
+              ]
+            );
+            return;
+          }
+        } catch (error) {
+          Alert.alert("Duplicate check failed", error instanceof Error ? error.message : "Please try again.");
+          return;
+        }
+      }
+
       const oldNotes = [
         form.old_record_notes.trim(),
         form.opening_balance.trim()
@@ -170,10 +169,15 @@ export default function AddOldPatientScreen() {
         },
       });
 
-      const nextUsage = await getClinicPatientLimitStatus();
-      setLimitStatus(nextUsage);
+      let nextUsage: ClinicPatientLimitStatus | null = null;
+      try {
+        nextUsage = await getClinicPatientLimitStatus();
+        setLimitStatus(nextUsage);
+      } catch (usageError) {
+        console.warn("Old patient saved, but updated limit status could not load:", usageError);
+      }
 
-      if (!nextUsage.unlimited && (nextUsage.level === "notice" || nextUsage.level === "warning")) {
+      if (nextUsage && !nextUsage.unlimited && (nextUsage.level === "notice" || nextUsage.level === "warning")) {
         Alert.alert("Old patient saved", nextUsage.message, [
           { text: "Open Patient", onPress: () => router.replace({ pathname: "/patient/[id]", params: { id: patient.id } }) },
         ]);
@@ -283,6 +287,9 @@ export default function AddOldPatientScreen() {
           <View key={key} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
             <Text style={{ color: colors.text, fontWeight: "700" }}>{label}</Text>
             <Switch
+              accessibilityRole="switch"
+              accessibilityLabel={label}
+              accessibilityState={{ checked: historyFlags[key as keyof typeof historyFlags] }}
               value={historyFlags[key as keyof typeof historyFlags]}
               onValueChange={(value) => setHistoryFlags((current) => ({ ...current, [key]: value }))}
               trackColor={{ true: colors.primarySoft, false: colors.border }}

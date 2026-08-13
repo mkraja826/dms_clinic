@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Alert, Pressable, Text, View } from "react-native";
 import { AppButton } from "@/components/AppButton";
 import { AppInput } from "@/components/AppInput";
@@ -45,6 +45,7 @@ export default function EditPatientScreen() {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const savePatientLockRef = useRef(false);
 
   function setField(key: keyof typeof form, value: string) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -99,43 +100,42 @@ export default function EditPatientScreen() {
   }, [patientId]);
 
   async function save(skipDuplicateCheck = false) {
-    if (!patient) return;
+    if (!patient || saving || savePatientLockRef.current) return;
 
     if (!form.name.trim()) {
       Alert.alert("Name required", "Patient name cannot be blank.");
       return;
     }
 
-    const nextPhone = form.phone.trim();
-    if (nextPhone && nextPhone !== (patient.phone ?? "").trim() && !skipDuplicateCheck) {
-      setSaving(true);
-      try {
-        const matches = await searchPatients(nextPhone);
-        const duplicate = matches.find(
-          (row) => row.id !== patient.id && row.phone?.trim() === nextPhone
-        );
+    savePatientLockRef.current = true;
+    setSaving(true);
 
-        if (duplicate) {
-          Alert.alert(
-            "Phone already exists",
-            `This phone number already belongs to ${duplicate.name}. Continue?`,
-            [
-              { text: "Cancel", style: "cancel" },
-              { text: "Continue", onPress: () => save(true) },
-            ]
+    try {
+      const nextPhone = form.phone.trim();
+      if (nextPhone && nextPhone !== (patient.phone ?? "").trim() && !skipDuplicateCheck) {
+        try {
+          const matches = await searchPatients(nextPhone);
+          const duplicate = matches.find(
+            (row) => row.id !== patient.id && row.phone?.trim() === nextPhone
           );
+
+          if (duplicate) {
+            Alert.alert(
+              "Phone already exists",
+              `This phone number already belongs to ${duplicate.name}. Continue?`,
+              [
+                { text: "Cancel", style: "cancel" },
+                { text: "Continue", onPress: () => void save(true) },
+              ]
+            );
+            return;
+          }
+        } catch (error) {
+          Alert.alert("Duplicate check failed", error instanceof Error ? error.message : "Please try again.");
           return;
         }
-      } catch (error) {
-        Alert.alert("Duplicate check failed", error instanceof Error ? error.message : "Please try again.");
-        return;
-      } finally {
-        setSaving(false);
       }
-    }
 
-    setSaving(true);
-    try {
       await updatePatientWithAudit(
         patient.id,
         {
@@ -149,7 +149,19 @@ export default function EditPatientScreen() {
       );
 
       if (features.enable_patient_photos && photoUri) {
-        await uploadPatientProfilePhoto(patient.id, photoUri);
+        try {
+          await uploadPatientProfilePhoto(patient.id, photoUri);
+        } catch (photoError) {
+          console.warn("Patient updated without profile photo:", photoError);
+          Alert.alert(
+            "Patient updated",
+            "Patient details were saved, but the profile photo could not be added. Open the patient and retry only the photo.",
+            [
+              { text: "Open Profile", onPress: () => router.replace(`/patient/${patient.id}` as never) },
+            ]
+          );
+          return;
+        }
       }
 
       Alert.alert("Patient updated", "Patient details were saved.", [
@@ -158,6 +170,7 @@ export default function EditPatientScreen() {
     } catch (error) {
       Alert.alert("Save failed", error instanceof Error ? error.message : "Please try again.");
     } finally {
+      savePatientLockRef.current = false;
       setSaving(false);
     }
   }
@@ -195,6 +208,8 @@ export default function EditPatientScreen() {
         <SectionCard title="Patient Photo" subtitle="Optional profile photo controlled by clinic owner setting.">
           <View style={{ alignItems: "center", gap: 10 }}>
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={photoPreview ? "Change patient profile photo" : "Add patient profile photo"}
               onPress={pickPatientPhoto}
               style={{
                 width: 112,

@@ -62,15 +62,25 @@ export async function uploadPatientProfilePhoto(patientId: string, uri: string) 
 
   const { data } = supabase.storage.from("patient-files").getPublicUrl(path);
 
-  const { error: updateError } = await supabase
+  const { data: updatedPatient, error: updateError } = await supabase
     .from("patients")
     .update({ photo_url: data.publicUrl })
     .eq("id", patientId)
-    .eq("clinic_id", profile.clinic_id);
+    .eq("clinic_id", profile.clinic_id)
+    .select("id")
+    .maybeSingle();
 
-  if (updateError) {
-    await supabase.storage.from("patient-files").remove([path]);
-    throw updateError;
+  if (updateError || !updatedPatient) {
+    const { error: cleanupError } = await supabase.storage
+      .from("patient-files")
+      .remove([path]);
+
+    if (cleanupError) {
+      console.warn("Unable to remove an unlinked patient photo:", cleanupError.message);
+    }
+
+    if (updateError) throw updateError;
+    throw new Error("Patient photo could not be linked because the patient is no longer available.");
   }
 
   const previousPhoto = parseStorageObjectUrl(existingPatient.photo_url);
