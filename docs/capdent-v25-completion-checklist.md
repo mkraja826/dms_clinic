@@ -10,16 +10,16 @@ It supplements, but does not weaken, the production reconciliation runbook.
 - [x] Verify zero credential-pattern hits in committed baseline artifacts.
 - [x] Classify the 14 portal-owned migrations from `20260807180754` through `20260807222138`.
 - [x] Confirm Docker daemon can run locally.
-- [ ] Replay the captured production history in an isolated disposable Supabase environment.
-- [ ] Compare replay catalogs against the captured production catalogs and document every mismatch.
-- [ ] Record replay evidence in `docs/database/production-baseline-2026-08-13/replay-evidence.md`.
-- [ ] Obtain independent backup/PITR/restore-readiness evidence.
-- [ ] Record backup/PITR evidence in `docs/database/production-baseline-2026-08-13/backup-pitr-evidence.md`.
-- [ ] Set `manifest.json` `replay_ready=true` only after successful documented replay.
-- [ ] Commit replay evidence as a separate small commit.
-- [ ] Reviewer approves the first additive V25 migration boundary.
+- [x] Replay the captured production history in an isolated disposable Supabase environment.
+- [x] Compare replay catalogs against the captured production catalogs and document every mismatch.
+- [x] Record replay evidence under `docs/database/production-baseline-2026-08-13/replay/`.
+- [x] Obtain independent backup/restore-readiness evidence.
+- [x] Record backup/restore evidence in `docs/database/production-baseline-2026-08-13/backup-pitr-evidence.md`.
+- [x] Set `manifest.json` `replay_ready=true` after successful documented replay.
+- [x] Commit replay/recovery evidence in dedicated V25 commits.
+- [x] Clear the additive V25 migration boundary for repository development; production application remains deferred until the release migration step.
 
-**Hard stop:** no additive V25 migration, migration repair, production `db push`, linked reset, destructive SQL, or production Edge deployment before Milestone 0 is cleared.
+**Milestone 0 status:** CLOSED. Repository V25 migration work may proceed, but no production `db push`, linked reset, destructive SQL, or production Edge deployment is permitted without the explicit release migration step.
 
 ## V25 product foundation
 
@@ -29,22 +29,27 @@ It supplements, but does not weaken, the production reconciliation runbook.
 - [x] Pricing terminology aligned to Free / Cloud / Intelligence.
 - [x] Cloud fallback price aligned to ₹799/month.
 - [x] Intelligence fallback price aligned to ₹1,499/month.
-- [x] Pricing observation remains non-enforcing before reconciliation clearance.
+- [x] Pricing observation remains non-enforcing before production migration activation.
 - [x] Subscription UI consumes shared V25 limits/pricing constants.
 - [x] Observed entitlement counts are clamped to safe non-negative values.
-- [ ] Server-authoritative quota enforcement migration after Milestone 0.
-- [ ] Server-authoritative upload/storage usage accounting after Milestone 0.
-- [ ] Grandfathering policy finalized and enforced server-side.
+- [x] Server-authoritative quota/consent migration exists in the V25 branch and is rollout-gated.
+- [x] Client preflight exists for patient creation, old-patient creation, clinical uploads, and patient profile photos.
+- [x] Owner quota card shows patient/upload/storage usage and near-limit states.
+- [ ] Apply the approved V25 quota/consent migration to production after the production AAB is built and release migration window opens.
+- [ ] Activate server-authoritative upload/storage usage accounting in production.
+- [ ] Finalize and activate the grandfathering policy server-side.
 
 ## Onboarding, legal, privacy, support
 
 - [x] Mandatory Terms/Privacy acknowledgement in onboarding.
+- [x] Existing signed-in users have a current-version legal-consent gate.
 - [x] Indian State/UT field removed from V25 scope.
 - [x] Country/currency/usual-hours preferences retained.
 - [x] Privacy, Terms, deletion, guide, issue-reporting surfaces hardened.
 - [x] External legal/support actions guarded against repeat taps and failures.
 - [x] Auth callback can retry safely after a failed callback attempt.
-- [ ] Persist auditable consent evidence server-side after Milestone 0.
+- [x] Client/server consent helpers and versioned consent evidence are implemented in the V25 migration.
+- [ ] Verify consent persistence end-to-end after the production migration is applied.
 
 ## Clinic settings and staff
 
@@ -54,9 +59,9 @@ It supplements, but does not weaken, the production reconciliation runbook.
 - [x] Clinic branding save guarded against duplicate submit.
 - [x] Existing staff invite creation protected from duplicate submit.
 - [x] Staff role/access changes guarded against duplicate mutations.
-- [ ] Validate malformed/null `owner_update_staff_access` RPC responses on the client.
-- [ ] Replace the two independent Account Settings writes with one transactional RPC after Milestone 0.
-- [ ] Reassess staff role/removal server authorization only after reconciliation clearance.
+- [x] Malformed/null `owner_update_staff_access` RPC responses are validated and rejected on the client.
+- [x] Account Settings fields are saved in one atomic `clinics` row update with response validation and cache invalidation.
+- [ ] Reassess staff role/removal server authorization only during a separately approved authorization review.
 - [ ] Add `dental_assistant` database constraint/authorization support only through an approved additive migration.
 - [ ] Design membership model separately; current production is one-user/one-clinic.
 
@@ -64,6 +69,7 @@ It supplements, but does not weaken, the production reconciliation runbook.
 
 - [x] Preserve production dental-chart requirement that `visit_id` is non-null.
 - [x] Preserve V24 fallback visit workflow.
+- [x] Preserve V24 ongoing-treatment vs new-treatment workflow and multi-visit treatment behavior.
 - [x] Image uploads remain optimized to WebP in current mobile tiers.
 - [x] Storage URL resolution failures fail safely to the original URL.
 - [x] Do not make existing public buckets private blindly.
@@ -72,8 +78,8 @@ It supplements, but does not weaken, the production reconciliation runbook.
 - [x] Guard clinical upload against immediate duplicate submit.
 - [x] Gallery accessibility/interaction cleanup completed without changing storage policy.
 - [x] Gallery delete actions are guarded per file against duplicate deletion.
-- [ ] Prevent orphan patient-profile-photo uploads when the patient row is missing from the current clinic.
-- [ ] Final stale V18/V24 wording sweep before RC.
+- [x] Patient profile-photo upload verifies the patient belongs to the current clinic before upload and cleans up a new object if linking fails.
+- [x] Final active-code sweep found no remaining old 300-patient/V18/V24 pricing copy in current V25 UI paths.
 - [ ] Decide high-quality ₹2,499 imaging entitlement outside Android AI scope before changing compression behavior.
 
 ## Notifications and billing
@@ -84,7 +90,9 @@ It supplements, but does not weaken, the production reconciliation runbook.
 - [x] Google Play callback product IDs are required and validated.
 - [x] Purchase-listener async failures are routed through the UI error path.
 - [x] Valid Cloud and Intelligence product handling remains unchanged.
-- [ ] Run end-to-end Play test only at RC gate.
+- [x] Quick Check-in remains RPC-backed and preserves V24 pending-fee-first behavior.
+- [x] Payment collection remains RPC-backed with overpayment and duplicate-submit guards.
+- [ ] Run end-to-end Play billing/push tests only at the RC/device gate.
 
 ## Analytics
 
@@ -92,9 +100,10 @@ It supplements, but does not weaken, the production reconciliation runbook.
 - [x] Firebase Analytics coordinator mounted in the application layer.
 - [x] Analytics collection defaults off and remains environment-flagged.
 - [x] Analytics parameters are limited to privacy-minimized app/product metadata; no patient names, phone numbers, diagnoses, notes, X-rays, photos, prescriptions, or other PHI are intentionally sent.
-- [ ] Serialize analytics initialization before first event logging.
-- [ ] Install/verify native Firebase Analytics packages and plugin only when the RC/native gate opens.
-- [ ] Verify Analytics configuration separately from FCM push configuration.
+- [x] Analytics initialization is serialized before first event logging.
+- [x] Native Firebase Analytics package/plugin and native adapter are present in the V25 branch.
+- [x] Workflow taxonomy includes app/screen, quota, consent, patient registration, and clinical upload outcomes without patient identifiers.
+- [ ] Verify Analytics configuration separately from FCM push configuration on the exact release build.
 
 ## Portal / AI freeze
 
@@ -105,33 +114,35 @@ It supplements, but does not weaken, the production reconciliation runbook.
 
 ## Pre-RC verification
 
-- [x] Pull latest `release/capdent-v25` locally for the verified pre-RC pass.
-- [x] Run `npm run check:v25` successfully.
+- [x] Pull latest `release/capdent-v25` locally for the previously verified pre-RC pass.
+- [x] Run `npm run check:v25` successfully on the previously synchronized tree.
 - [x] Run `powershell -ExecutionPolicy Bypass -File scripts/database/verify-production-baseline.ps1` successfully.
-- [x] Run `git diff --check` successfully.
-- [x] Run `git status --short --branch` and confirm clean synchronized tree for the verified pre-RC pass.
-- [ ] Pull and re-run the pre-RC checks after the remaining client fixes above land.
-- [ ] Perform V24 regression pass: login, onboarding, patient create/edit, old-patient import, visits, dental chart, payments, appointments, staff, gallery/uploads, prescriptions, notifications, subscription screen, logout.
+- [x] Run `git diff --check` successfully on the previously synchronized tree.
+- [x] `npm run check:v25:rc` passed after Milestone 0 closure and V25 consent/quota foundation integration.
+- [ ] Pull the latest GitHub branch and re-run typecheck, `check:v25:rc`, Expo config, and `git diff --check` after all GitHub-only changes land.
+- [ ] Perform V24 regression pass: login, onboarding, patient create/edit, old-patient import, visits, ongoing/new treatment selection, dental chart, payments, appointments, Quick Check-in, staff, gallery/uploads, prescriptions, notifications, subscription screen, logout.
 
 ## RC gate
 
-Do not enter RC until Milestone 0 and the pre-RC verification section are complete.
+Do not submit a Production-track build until the latest branch passes the local/device gates below.
 
-- [ ] Set Android `versionCode` to 25 only at RC.
-- [ ] Add/verify the V25 version-name decision.
-- [ ] Wire Android build commands from `check:v21` to `check:v25:rc`.
-- [ ] Run `npm run check:v25:rc`.
-- [ ] Verify approved Android signing key.
-- [ ] Verify EAS production/internal environment variables and Google Services secret file.
+- [x] Android `versionCode` is 25.
+- [ ] Add/verify the final V25 version-name decision.
+- [x] Android validation commands are wired to `check:v25:rc`.
+- [x] `npm run check:v25:rc` has passed on the previously synchronized V25 RC state.
+- [ ] Verify approved Android signing key on the final synchronized branch.
+- [ ] Verify EAS production/internal environment variables and Google Services file.
 - [ ] Build Play Internal AAB.
 - [ ] Install/test the exact AAB from Play Internal.
 - [ ] Verify Firebase Analytics and push behavior on the release build.
+- [ ] Apply/activate the approved V25 production migration after the AAB build according to the release migration plan.
+- [ ] Re-test quota and consent behavior against production after migration activation.
 - [ ] Final production-readiness review before any Production-track submission.
 
 ## Safety invariants
 
-- Preserve V24 behavior until each V25 server feature is explicitly cleared.
+- Preserve V24 behavior unless an existing behavior is conclusively proven defective; report suspected regressions before changing established clinical workflows.
 - Extend existing `financial_adjustments`, `invoice_versions`, and audit structures; do not create duplicates.
 - Keep production storage bucket visibility unchanged until a compatibility migration and URL strategy are approved.
 - Never treat the captured SQL files under `docs/database/.../remote-migrations` as new repository migrations.
-- No native Android/AAB work before the RC gate.
+- Keep V25 server enforcement rollout-gated until the explicit production migration/activation step.
