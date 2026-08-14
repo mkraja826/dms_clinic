@@ -24,6 +24,26 @@ function usageRatio(used: number, limit: number | null) {
   return Math.max(0, Math.min(1, used / limit));
 }
 
+function warningCopy(label: string, percent: number, enforced: boolean) {
+  if (percent >= 100) {
+    return enforced
+      ? `${label} limit reached. Upgrade before adding more.`
+      : `${label} is at the configured V25 limit, but enforcement is currently off.`;
+  }
+
+  if (percent >= 90) {
+    return enforced
+      ? `${label} is almost at the limit. Consider upgrading before the clinic is blocked.`
+      : `${label} is above 90% of the configured V25 limit.`;
+  }
+
+  if (percent >= 80) {
+    return `${label} is approaching the configured V25 limit.`;
+  }
+
+  return null;
+}
+
 function UsageMetric({
   label,
   used,
@@ -35,6 +55,7 @@ function UsageMetric({
   const ratio = usageRatio(used, limit);
   const percent = Math.round(ratio * 100);
   const remaining = limit === null ? null : Math.max(0, limit - used);
+  const warning = limit === null ? null : warningCopy(label, percent, enforced);
 
   return (
     <View style={{ gap: 8 }}>
@@ -85,6 +106,29 @@ function UsageMetric({
           <Text style={{ color: colors.muted, fontSize: 12, fontWeight: "700" }}>
             {remaining === 0 ? "Limit reached" : `${format(remaining)} remaining`} • {percent}% used
           </Text>
+          {warning ? (
+            <View
+              style={{
+                borderRadius: 16,
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+                backgroundColor: percent >= 100 ? colors.warningSoft : colors.primarySoft,
+                borderWidth: 1,
+                borderColor: colors.border,
+              }}
+            >
+              <Text
+                style={{
+                  color: percent >= 100 ? colors.warning : colors.text,
+                  fontSize: 12,
+                  lineHeight: 18,
+                  fontWeight: "800",
+                }}
+              >
+                {warning}
+              </Text>
+            </View>
+          ) : null}
         </>
       ) : null}
     </View>
