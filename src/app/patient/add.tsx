@@ -16,6 +16,10 @@ import {
   type CapDentPricingV2Observation,
 } from "@/lib/pricingV2";
 import {
+  getCapDentEntitlementsV25,
+  patientQuotaMessage,
+} from "@/lib/pricingV25";
+import {
   ClinicPatientLimitStatus,
   createPatient,
   getClinicPatientLimitStatus,
@@ -109,6 +113,17 @@ export default function AddPatientScreen() {
     setSaving(true);
 
     try {
+      const serverEntitlements = await getCapDentEntitlementsV25();
+      const serverQuotaMessage = patientQuotaMessage(serverEntitlements);
+
+      if (serverQuotaMessage) {
+        Alert.alert("Patient limit reached", serverQuotaMessage, [
+          { text: "Cancel", style: "cancel" },
+          { text: "View Plans", onPress: () => router.push("/settings/subscription" as never) },
+        ]);
+        return;
+      }
+
       if (!skipLimitWarning) {
         const usage = await getClinicPatientLimitStatus();
         setLimitStatus(usage);

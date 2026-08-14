@@ -1,13 +1,11 @@
 name: Android release candidate check
 
 on:
-  push:
-    branches:
-      - android-release-candidate-2026-07-17
   pull_request:
     paths:
-      - "scripts/apply-android-rc-2026-07-17.mjs"
       - "src/**"
+      - "supabase/migrations/**"
+      - "scripts/validate-capdent-v25.mjs"
       - "app.json"
       - "eas.json"
       - "package.json"
@@ -34,8 +32,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Apply grouped Android RC updates
-        run: node scripts/apply-android-rc-2026-07-17.mjs
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Validate V25
+        run: npm run validate:v25
 
       - name: Check generated diff
         run: git diff --check

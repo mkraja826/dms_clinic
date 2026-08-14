@@ -15,9 +15,14 @@ import {
 } from "@/lib/clinicLocale";
 import { createOwnerClinicWithPreferences } from "@/lib/clinicSetup";
 import { CAPDENT_PRIVACY_URL, CAPDENT_TERMS_URL } from "@/lib/legalLinks";
+import { recordCapDentLegalConsent } from "@/lib/pricingV25";
 import { acceptStaffInviteByCode } from "@/lib/supabase";
 
 type AccountType = "clinic" | "employee" | null;
+
+const CAPDENT_TERMS_VERSION = "2026-08-14";
+const CAPDENT_PRIVACY_VERSION = "2026-08-14";
+const CAPDENT_APP_VERSION = "1.2.3";
 
 function getErrorMessage(error: unknown) {
   if (!error) return "Unknown error";
@@ -80,6 +85,23 @@ export default function OnboardingScreen() {
   const inviteJoinLockRef = useRef(false);
   const logoutLockRef = useRef(false);
 
+  async function recordLegalAcceptance() {
+    return recordCapDentLegalConsent({
+      termsVersion: CAPDENT_TERMS_VERSION,
+      privacyVersion: CAPDENT_PRIVACY_VERSION,
+      appVersion: CAPDENT_APP_VERSION,
+      platform: "android",
+    });
+  }
+
+  async function attachConsentToCurrentClinicBestEffort() {
+    try {
+      await recordLegalAcceptance();
+    } catch (error) {
+      console.warn("Legal consent was recorded but could not be linked to the refreshed clinic profile:", error);
+    }
+  }
+
   async function finishOwnerSetup() {
     if (ownerCreateLockRef.current) return;
 
@@ -110,6 +132,10 @@ export default function OnboardingScreen() {
     setLoading(true);
 
     try {
+      // Record acceptance before clinic creation so an RPC/network failure cannot
+      // leave a newly created clinic without auditable legal evidence.
+      await recordLegalAcceptance();
+
       await createOwnerClinicWithPreferences({
         clinicName: clinicName.trim(),
         ownerName: ownerName.trim(),
@@ -125,6 +151,7 @@ export default function OnboardingScreen() {
       });
 
       await refreshProfile();
+      await attachConsentToCurrentClinicBestEffort();
 
       Alert.alert(
         "Clinic created",
@@ -152,12 +179,22 @@ export default function OnboardingScreen() {
       return;
     }
 
+    if (!legalAccepted) {
+      Alert.alert(
+        "Agreement required",
+        "Please read and agree to the CapDent Terms of Service and Privacy Policy before joining the clinic."
+      );
+      return;
+    }
+
     inviteJoinLockRef.current = true;
     setLoading(true);
 
     try {
+      await recordLegalAcceptance();
       await acceptStaffInviteByCode(inviteCode.trim());
       await refreshProfile();
+      await attachConsentToCurrentClinicBestEffort();
       router.replace("/" as never);
     } catch (error) {
       Alert.alert("Join failed", getErrorMessage(error));
@@ -233,6 +270,53 @@ export default function OnboardingScreen() {
           color={selected ? colors.primary : colors.muted}
         />
       </Pressable>
+    );
+  }
+
+  function LegalAgreement() {
+    return (
+      <View style={{ gap: 8, paddingTop: 4 }}>
+        <Pressable
+          onPress={() => setLegalAccepted((value) => !value)}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: legalAccepted }}
+          accessibilityLabel="Agree to CapDent Terms of Service and Privacy Policy"
+          style={{
+            flexDirection: "row",
+            alignItems: "flex-start",
+            gap: 10,
+            paddingVertical: 8,
+          }}
+        >
+          <Ionicons
+            name={legalAccepted ? "checkbox" : "square-outline"}
+            size={24}
+            color={legalAccepted ? colors.primary : colors.muted}
+          />
+
+          <Text style={{ flex: 1, color: colors.text, lineHeight: 21 }}>
+            I have read and agree to the CapDent Terms of Service and Privacy Policy.
+          </Text>
+        </Pressable>
+
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, paddingLeft: 34 }}>
+          <Pressable
+            onPress={() => openLegalUrl(CAPDENT_TERMS_URL)}
+            accessibilityRole="link"
+            accessibilityLabel="Open CapDent Terms of Service"
+          >
+            <Text style={{ color: colors.primary, fontWeight: "800" }}>Terms of Service</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => openLegalUrl(CAPDENT_PRIVACY_URL)}
+            accessibilityRole="link"
+            accessibilityLabel="Open CapDent Privacy Policy"
+          >
+            <Text style={{ color: colors.primary, fontWeight: "800" }}>Privacy Policy</Text>
+          </Pressable>
+        </View>
+      </View>
     );
   }
 
@@ -312,48 +396,7 @@ export default function OnboardingScreen() {
             onChange={setPreferences}
           />
 
-          <View style={{ gap: 8, paddingTop: 4 }}>
-            <Pressable
-              onPress={() => setLegalAccepted((value) => !value)}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: legalAccepted }}
-              accessibilityLabel="Agree to CapDent Terms of Service and Privacy Policy"
-              style={{
-                flexDirection: "row",
-                alignItems: "flex-start",
-                gap: 10,
-                paddingVertical: 8,
-              }}
-            >
-              <Ionicons
-                name={legalAccepted ? "checkbox" : "square-outline"}
-                size={24}
-                color={legalAccepted ? colors.primary : colors.muted}
-              />
-
-              <Text style={{ flex: 1, color: colors.text, lineHeight: 21 }}>
-                I have read and agree to the CapDent Terms of Service and Privacy Policy.
-              </Text>
-            </Pressable>
-
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, paddingLeft: 34 }}>
-              <Pressable
-                onPress={() => openLegalUrl(CAPDENT_TERMS_URL)}
-                accessibilityRole="link"
-                accessibilityLabel="Open CapDent Terms of Service"
-              >
-                <Text style={{ color: colors.primary, fontWeight: "800" }}>Terms of Service</Text>
-              </Pressable>
-
-              <Pressable
-                onPress={() => openLegalUrl(CAPDENT_PRIVACY_URL)}
-                accessibilityRole="link"
-                accessibilityLabel="Open CapDent Privacy Policy"
-              >
-                <Text style={{ color: colors.primary, fontWeight: "800" }}>Privacy Policy</Text>
-              </Pressable>
-            </View>
-          </View>
+          <LegalAgreement />
 
           <AppButton
             title="Create Clinic Workspace"
@@ -378,6 +421,8 @@ export default function OnboardingScreen() {
             autoCorrect={false}
             placeholder="Enter staff invite code"
           />
+
+          <LegalAgreement />
 
           <AppButton
             title="Join With Staff Invite Code"
