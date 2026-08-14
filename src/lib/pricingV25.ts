@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { logCapDentAnalyticsEvent } from "@/lib/firebaseAnalytics";
 import { supabase } from "@/lib/supabase";
 import { CAPDENT_V25_LIMITS, formatStorageBytes } from "@/lib/v25Limits";
@@ -5,6 +6,8 @@ import { CAPDENT_V25_LIMITS, formatStorageBytes } from "@/lib/v25Limits";
 export const CAPDENT_TERMS_VERSION = "2026-08-14";
 export const CAPDENT_PRIVACY_VERSION = "2026-08-14";
 export const CAPDENT_APP_VERSION = "1.2.3";
+
+const CAPDENT_LEGAL_CONSENT_CACHE_PREFIX = "capdent:v25:legal-consent";
 
 export type CapDentPlanCodeV25 = "free" | "cloud" | "intelligence";
 
@@ -57,6 +60,32 @@ export const SAFE_V25_ENTITLEMENTS: CapDentEntitlementsV25 = {
   pricingVisible: false,
   subscriptionStatus: "free",
 };
+
+function currentLegalConsentCacheKey(userId: string) {
+  return [
+    CAPDENT_LEGAL_CONSENT_CACHE_PREFIX,
+    userId,
+    CAPDENT_TERMS_VERSION,
+    CAPDENT_PRIVACY_VERSION,
+  ].join(":");
+}
+
+async function hasCachedCurrentLegalConsent(userId: string) {
+  try {
+    return (await AsyncStorage.getItem(currentLegalConsentCacheKey(userId))) === "1";
+  } catch (error) {
+    console.warn("Unable to read cached CapDent legal consent:", error);
+    return false;
+  }
+}
+
+async function cacheCurrentLegalConsent(userId: string) {
+  try {
+    await AsyncStorage.setItem(currentLegalConsentCacheKey(userId), "1");
+  } catch (error) {
+    console.warn("Unable to cache CapDent legal consent:", error);
+  }
+}
 
 function numberOr(value: unknown, fallback: number) {
   const number = Number(value);
@@ -146,6 +175,10 @@ export async function hasCurrentCapDentLegalConsent() {
   if (userError) throw userError;
   if (!user) return false;
 
+  if (await hasCachedCurrentLegalConsent(user.id)) {
+    return true;
+  }
+
   const { data, error } = await supabase
     .from("capdent_legal_consents")
     .select("id")
@@ -156,7 +189,13 @@ export async function hasCurrentCapDentLegalConsent() {
     .maybeSingle<{ id: string }>();
 
   if (error) throw error;
-  return Boolean(data?.id);
+
+  const accepted = Boolean(data?.id);
+  if (accepted) {
+    await cacheCurrentLegalConsent(user.id);
+  }
+
+  return accepted;
 }
 
 export function patientQuotaMessage(entitlements: CapDentEntitlementsV25) {
@@ -228,6 +267,18 @@ export async function recordCapDentLegalConsent(input: {
   void logCapDentAnalyticsEvent("capdent_legal_consent_recorded", {
     platform,
   });
+
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user) {
+      await cacheCurrentLegalConsent(user.id);
+    }
+  } catch (cacheError) {
+    console.warn("Unable to cache confirmed CapDent legal consent:", cacheError);
+  }
 
   return data as {
     id: string;
