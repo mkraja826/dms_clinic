@@ -104,7 +104,11 @@ function UsageMetric({
             />
           </View>
           <Text style={{ color: colors.muted, fontSize: 12, fontWeight: "700" }}>
-            {remaining === 0 ? "Limit reached" : `${format(remaining)} remaining`} • {percent}% used
+            {remaining === null
+              ? "Unlimited"
+              : remaining === 0
+                ? "Limit reached"
+                : `${format(remaining)} remaining`} • {percent}% used
           </Text>
           {warning ? (
             <View
