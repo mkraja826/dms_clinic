@@ -42,9 +42,12 @@ type FirebaseAnalyticsAdapter = {
     ad_storage: boolean;
     ad_user_data: boolean;
     ad_personalization: boolean;
-  }) => Promise<unknown>;
-  setAnalyticsCollectionEnabled?: (enabled: boolean) => Promise<unknown>;
-  logEvent: (name: string, params?: FirebaseAnalyticsParams) => Promise<unknown>;
+  }) => void | Promise<unknown>;
+  setAnalyticsCollectionEnabled?: (enabled: boolean) => void | Promise<unknown>;
+  logEvent: (
+    name: string,
+    params?: FirebaseAnalyticsParams
+  ) => void | Promise<unknown>;
 };
 
 export const FIREBASE_ANALYTICS_ENABLED =
@@ -54,14 +57,7 @@ let initialized = false;
 let initializationPromise: Promise<boolean> | null = null;
 let analyticsAdapter: FirebaseAnalyticsAdapter | null = null;
 
-/**
- * Native Firebase is intentionally injected instead of imported here.
- *
- * Until @react-native-firebase/app and @react-native-firebase/analytics are
- * installed during the controlled V25 native/RC pass, Metro must not see a
- * static dependency on those packages. This keeps the current V24-compatible
- * bundle safe while allowing the native adapter to be connected later.
- */
+/** Keep the native SDK behind an adapter so privacy rules remain testable. */
 export function configureFirebaseAnalyticsAdapter(
   adapter: FirebaseAnalyticsAdapter | null
 ) {

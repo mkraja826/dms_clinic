@@ -19,7 +19,6 @@ import {
   ClinicFeatureSettings,
   DEFAULT_CLINIC_FEATURE_SETTINGS,
   getClinicFeatureSettings,
-  updateClinicFeatureSettings,
 } from "@/lib/clinicOptions";
 import {
   formatClinicMoney,
@@ -27,10 +26,8 @@ import {
   getCountryCurrencyOption,
   getDefaultClinicPreferences,
 } from "@/lib/clinicLocale";
-import {
-  getClinicPreferences,
-  updateClinicPreferences,
-} from "@/lib/clinicPreferences";
+import { getClinicPreferences } from "@/lib/clinicPreferences";
+import { updateClinicAccountSettings } from "@/lib/clinicAccountSettings";
 import { getDashboardPath } from "@/lib/supabase";
 import { useImmediateMutationLock } from "@/lib/useImmediateMutationLock";
 
@@ -88,7 +85,7 @@ export default function AccountSettingsScreen() {
         "Settings load failed",
         error instanceof Error
           ? error.message
-          : "Please run the clinic preferences SQL migration and try again."
+          : "Refresh Account Settings and try again."
       );
     } finally {
       setLoading(false);
@@ -106,13 +103,15 @@ export default function AccountSettingsScreen() {
   async function save() {
     if (saving || !saveMutation.tryLock()) return;
 
-    const cleanedOpFee = cleanClinicOpFee(toNumber(opFeeAmount));
+    const enteredOpFee = toNumber(opFeeAmount);
 
-    if (cleanedOpFee <= 0) {
+    if (enteredOpFee <= 0) {
       saveMutation.release();
       Alert.alert("Invalid OP fee", "OP fee must be greater than zero.");
       return;
     }
+
+    const cleanedOpFee = cleanClinicOpFee(enteredOpFee);
 
     if (!/^[A-Z]{3}$/.test(preferences.currencyCode.trim().toUpperCase())) {
       saveMutation.release();
@@ -122,64 +121,28 @@ export default function AccountSettingsScreen() {
 
     try {
       setSaving(true);
-      const [settingsResult, preferencesResult] = await Promise.allSettled([
-        updateClinicFeatureSettings({
+      const saved = await updateClinicAccountSettings({
+        settings: {
           ...settings,
           op_fee_amount: cleanedOpFee,
-        }),
-        updateClinicPreferences(preferences),
-      ]);
+        },
+        preferences,
+      });
 
-      if (settingsResult.status === "fulfilled") {
-        setSettings(settingsResult.value);
-        setOpFeeAmount(String(settingsResult.value.op_fee_amount));
-      }
-      if (preferencesResult.status === "fulfilled") {
-        setPreferences(preferencesResult.value);
-      }
-
-      if (settingsResult.status === "fulfilled") {
-        if (preferencesResult.status === "fulfilled") {
-          Alert.alert(
-            "Settings saved",
-            "Clinic currency, usual hours, OP fee, and optional features were updated."
-          );
-        } else {
-          Alert.alert(
-            "Settings partially saved",
-            `OP fee and optional features were saved. Country, currency, and usual hours could not be confirmed: ${getErrorMessage(
-              preferencesResult.reason,
-              "Review those fields and try again."
-            )}\n\nRefresh to check the current values before trying again.`
-          );
-        }
-      } else if (preferencesResult.status === "fulfilled") {
-        Alert.alert(
-          "Settings partially saved",
-          `Country, currency, and usual hours were saved. OP fee and optional features could not be confirmed: ${getErrorMessage(
-            settingsResult.reason,
-            "Review those fields and try again."
-          )}\n\nRefresh to check the current values before trying again.`
-        );
-      } else {
-        Alert.alert(
-          "Save could not be confirmed",
-          `The app could not confirm either settings group was saved. Clinic options: ${getErrorMessage(
-            settingsResult.reason,
-            "Update failed."
-          )}\n\nCountry, currency, and hours: ${getErrorMessage(
-            preferencesResult.reason,
-            "Update failed."
-          )}\n\nRefresh to check the current values before trying again.`
-        );
-      }
+      setSettings(saved.settings);
+      setPreferences(saved.preferences);
+      setOpFeeAmount(String(saved.settings.op_fee_amount));
+      Alert.alert(
+        "Settings saved",
+        "Clinic currency, usual hours, OP fee, and optional features were updated together."
+      );
     } catch (error) {
       Alert.alert(
-        "Save failed",
-        getErrorMessage(
+        "Save could not be confirmed",
+        `${getErrorMessage(
           error,
-          "Only the clinic owner can update these options."
-        )
+          "The clinic settings update could not be confirmed."
+        )}\n\nRefresh Account Settings before trying again.`
       );
     } finally {
       saveMutation.release();

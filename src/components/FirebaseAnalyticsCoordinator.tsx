@@ -7,6 +7,10 @@ import {
   initializeFirebaseAnalytics,
   logCapDentAnalyticsEvent,
 } from "@/lib/firebaseAnalytics";
+import { installFirebaseAnalyticsAdapter } from "@/lib/firebaseAnalyticsAdapter";
+
+// Install before any coordinator effect can initialize or emit an event.
+installFirebaseAnalyticsAdapter();
 
 export function FirebaseAnalyticsCoordinator({ children }: PropsWithChildren) {
   const pathname = usePathname();

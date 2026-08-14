@@ -12,6 +12,15 @@
     ],
     "plugins": [
       "expo-router",
+      "@react-native-firebase/app",
+      [
+        "@react-native-firebase/analytics",
+        {
+          "ios": {
+            "withoutAdIdSupport": true
+          }
+        }
+      ],
       [
         "expo-splash-screen",
         {
@@ -50,7 +59,7 @@
     ],
     "android": {
       "package": "com.dms.clinic",
-      "versionCode": 24,
+      "versionCode": 25,
       "allowBackup": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -61,6 +70,7 @@
         "android.permission.CAMERA"
       ],
       "blockedPermissions": [
+        "com.google.android.gms.permission.AD_ID",
         "android.permission.RECORD_AUDIO",
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.READ_EXTERNAL_STORAGE",
