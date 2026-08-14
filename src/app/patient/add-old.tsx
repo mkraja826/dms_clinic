@@ -6,6 +6,10 @@ import { AppInput } from "@/components/AppInput";
 import { Screen } from "@/components/Screen";
 import { SectionCard } from "@/components/SectionCard";
 import { colors } from "@/constants/colors";
+import {
+  getCapDentEntitlementsV25,
+  patientQuotaMessage,
+} from "@/lib/pricingV25";
 import { ClinicPatientLimitStatus, createOldPatient, getClinicPatientLimitStatus, searchPatients } from "@/lib/supabase";
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
@@ -84,6 +88,17 @@ export default function AddOldPatientScreen() {
     setSaving(true);
 
     try {
+      const serverEntitlements = await getCapDentEntitlementsV25();
+      const serverQuotaMessage = patientQuotaMessage(serverEntitlements);
+
+      if (serverQuotaMessage) {
+        Alert.alert("Patient limit reached", serverQuotaMessage, [
+          { text: "Cancel", style: "cancel" },
+          { text: "View Plans", onPress: () => router.push("/settings/subscription" as never) },
+        ]);
+        return;
+      }
+
       if (!skipLimitWarning) {
         try {
           const usage = await getClinicPatientLimitStatus();
