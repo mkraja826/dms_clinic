@@ -7,6 +7,7 @@ import { AppInput } from "@/components/AppInput";
 import { QuickAction } from "@/components/QuickAction";
 import { SectionCard } from "@/components/SectionCard";
 import { StatusChip } from "@/components/StatusChip";
+import { SuccessNotice } from "@/components/SuccessNotice";
 import { colors } from "@/constants/colors";
 import { Appointment, createAppointment, getTodayAppointments, searchPatients, updateAppointmentStatus } from "@/lib/supabase";
 import { useImmediateMutationLock } from "@/lib/useImmediateMutationLock";
@@ -20,6 +21,7 @@ export default function AppointmentsScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [updatingAppointmentId, setUpdatingAppointmentId] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const createMutation = useImmediateMutationLock();
   const statusMutation = useImmediateMutationLock();
 
@@ -47,6 +49,7 @@ export default function AppointmentsScreen() {
     if (saving || !createMutation.tryLock()) return;
 
     setSaving(true);
+    setSuccessMessage(null);
     try {
       const matches = await searchPatients(term);
       const patient = matches.find((item) => item.phone === term || item.name.toLowerCase() === term.toLowerCase());
@@ -59,6 +62,7 @@ export default function AppointmentsScreen() {
       await createAppointment({ patient_id: patient.id, appointment_time: new Date(dateTime).toISOString(), notes });
       setPatientPhone("");
       setNotes("");
+      setSuccessMessage("Appointment scheduled successfully.");
       await load();
     } catch (error) {
       Alert.alert("Save failed", error instanceof Error ? error.message : "Unable to create appointment.");
@@ -72,8 +76,10 @@ export default function AppointmentsScreen() {
     if (updatingAppointmentId || !statusMutation.tryLock()) return;
 
     setUpdatingAppointmentId(appointmentId);
+    setSuccessMessage(null);
     try {
       await updateAppointmentStatus(appointmentId, status);
+      setSuccessMessage(status === "completed" ? "Appointment marked completed." : "Appointment marked no-show.");
       await load();
     } catch (error) {
       Alert.alert(
@@ -88,6 +94,7 @@ export default function AppointmentsScreen() {
 
   return (
     <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: 16, gap: 16 }}>
+      {successMessage ? <SuccessNotice title="Appointment updated" message={successMessage} /> : null}
       <SectionCard title="Create Appointment" subtitle="Schedule a patient visit using exact phone number or patient name.">
         <AppInput label="Patient phone or exact name" value={patientPhone} onChangeText={setPatientPhone} />
         <AppInput label="Date and time" value={dateTime} onChangeText={setDateTime} placeholder="YYYY-MM-DDTHH:mm" />
