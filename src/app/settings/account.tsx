@@ -7,6 +7,7 @@ import { ClinicPreferencesFields } from "@/components/ClinicPreferencesFields";
 import { EmptyState } from "@/components/EmptyState";
 import { Screen } from "@/components/Screen";
 import { SectionCard } from "@/components/SectionCard";
+import { V25QuotaUsageCard } from "@/components/V25QuotaUsageCard";
 import { colors } from "@/constants/colors";
 import { useAuth } from "@/lib/auth";
 import {
@@ -215,9 +216,13 @@ export default function AccountSettingsScreen() {
         </Text>
         <Text style={{ color: colors.muted, fontSize: 15, lineHeight: 21 }}>
           Clinic owner can manage the clinic's country, currency, usual hours,
-          OP fee, and optional modules.
+          OP fee, optional modules, and V25 plan usage.
         </Text>
       </View>
+
+      <V25QuotaUsageCard
+        onViewPlans={() => router.push("/settings/subscription" as never)}
+      />
 
       <SectionCard
         title="Clinic Country, Currency & Hours"
