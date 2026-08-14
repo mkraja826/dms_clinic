@@ -74,39 +74,21 @@ function indexById<T extends { id: string }>(rows: T[]) {
 }
 
 function getTreatmentInvoices(treatment: TreatmentRow, invoices: InvoiceMini[]) {
-  if (treatment.visit_id) {
-    return invoices.filter(
-      (invoice) => invoice.visit_id === treatment.visit_id
-    );
-  }
+  const visitInvoices = invoices.filter((invoice) => invoice.visit_id && invoice.visit_id === treatment.visit_id);
 
-  // Legacy/unlinked treatments must never absorb invoices belonging to a
-  // different visit. Only consider patient-level invoices that are also
-  // explicitly unlinked to a visit.
-  return invoices.filter(
-    (invoice) =>
-      invoice.patient_id === treatment.patient_id && !invoice.visit_id
-  );
+  if (visitInvoices.length > 0) return visitInvoices;
+
+  return invoices.filter((invoice) => invoice.patient_id === treatment.patient_id);
 }
 
 function getTreatmentPaymentTotals(treatment: TreatmentRow, invoices: InvoiceMini[]) {
   const relevantInvoices = getTreatmentInvoices(treatment, invoices);
-  const treatmentCost = toNumber(treatment.cost);
-
-  if (!relevantInvoices.length) {
-    return {
-      totalAmount: treatmentCost,
-      paidAmount: 0,
-      dueAmount: treatmentCost,
-    };
-  }
-
   const invoiceTotal = relevantInvoices.reduce((sum, invoice) => sum + toNumber(invoice.total_amount), 0);
   const paidAmount = relevantInvoices.reduce((sum, invoice) => sum + toNumber(invoice.paid_amount), 0);
   const dueAmount = relevantInvoices.reduce((sum, invoice) => sum + toNumber(invoice.due_amount), 0);
 
   return {
-    totalAmount: invoiceTotal || treatmentCost,
+    totalAmount: invoiceTotal || toNumber(treatment.cost),
     paidAmount,
     dueAmount,
   };
