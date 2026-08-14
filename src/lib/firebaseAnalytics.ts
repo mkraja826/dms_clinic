@@ -18,6 +18,16 @@ type CapDentAnalyticsScreen =
   | "image_viewer"
   | "other";
 
+type CapDentQuotaResource = "patient" | "upload" | "storage";
+type CapDentClinicalFileType =
+  | "prescription"
+  | "xray"
+  | "before_photo"
+  | "after_photo"
+  | "report"
+  | "other";
+type CapDentAnalyticsPlatform = "android" | "ios" | "web" | "unknown";
+
 type FirebaseAnalyticsParams = Record<string, string | number | boolean>;
 
 type CapDentAnalyticsEvents = {
@@ -29,11 +39,29 @@ type CapDentAnalyticsEvents = {
     role: CapDentAnalyticsRole;
     signed_in: boolean;
   };
+  capdent_patient_registered: {
+    profile_photo_requested: boolean;
+  };
+  capdent_quota_blocked: {
+    resource: CapDentQuotaResource;
+    plan: "free" | "cloud" | "intelligence" | "unknown";
+  };
+  capdent_legal_consent_recorded: {
+    platform: CapDentAnalyticsPlatform;
+  };
+  capdent_clinical_upload_complete: {
+    file_type: CapDentClinicalFileType;
+    billing_requested: boolean;
+  };
 };
 
 const SAFE_ANALYTICS_EVENTS = new Set<keyof CapDentAnalyticsEvents>([
   "capdent_app_ready",
   "capdent_screen_view",
+  "capdent_patient_registered",
+  "capdent_quota_blocked",
+  "capdent_legal_consent_recorded",
+  "capdent_clinical_upload_complete",
 ]);
 
 type FirebaseAnalyticsAdapter = {
@@ -92,6 +120,28 @@ const SAFE_ANALYTICS_SCREENS = new Set<CapDentAnalyticsScreen>([
   "other",
 ]);
 
+const SAFE_QUOTA_RESOURCES = new Set<CapDentQuotaResource>([
+  "patient",
+  "upload",
+  "storage",
+]);
+
+const SAFE_FILE_TYPES = new Set<CapDentClinicalFileType>([
+  "prescription",
+  "xray",
+  "before_photo",
+  "after_photo",
+  "report",
+  "other",
+]);
+
+const SAFE_PLATFORMS = new Set<CapDentAnalyticsPlatform>([
+  "android",
+  "ios",
+  "web",
+  "unknown",
+]);
+
 function safeAnalyticsRole(value: unknown): CapDentAnalyticsRole {
   return SAFE_ANALYTICS_ROLES.has(value as CapDentAnalyticsRole)
     ? (value as CapDentAnalyticsRole)
@@ -104,19 +154,53 @@ function safeAnalyticsScreen(value: unknown): CapDentAnalyticsScreen {
     : "other";
 }
 
+function safePlan(value: unknown): "free" | "cloud" | "intelligence" | "unknown" {
+  if (value === "free" || value === "cloud" || value === "intelligence") return value;
+  return "unknown";
+}
+
 function sanitizeParams<EventName extends keyof CapDentAnalyticsEvents>(
   eventName: EventName,
   params: CapDentAnalyticsEvents[EventName]
 ): FirebaseAnalyticsParams {
   if (eventName === "capdent_app_ready") {
-    return { role: safeAnalyticsRole(params.role) };
+    const appReady = params as CapDentAnalyticsEvents["capdent_app_ready"];
+    return { role: safeAnalyticsRole(appReady.role) };
   }
 
-  const screenParams = params as CapDentAnalyticsEvents["capdent_screen_view"];
+  if (eventName === "capdent_screen_view") {
+    const screenParams = params as CapDentAnalyticsEvents["capdent_screen_view"];
+    return {
+      screen_name: safeAnalyticsScreen(screenParams.screen_name),
+      role: safeAnalyticsRole(screenParams.role),
+      signed_in: screenParams.signed_in === true,
+    };
+  }
+
+  if (eventName === "capdent_patient_registered") {
+    const patientParams = params as CapDentAnalyticsEvents["capdent_patient_registered"];
+    return { profile_photo_requested: patientParams.profile_photo_requested === true };
+  }
+
+  if (eventName === "capdent_quota_blocked") {
+    const quotaParams = params as CapDentAnalyticsEvents["capdent_quota_blocked"];
+    return {
+      resource: SAFE_QUOTA_RESOURCES.has(quotaParams.resource) ? quotaParams.resource : "patient",
+      plan: safePlan(quotaParams.plan),
+    };
+  }
+
+  if (eventName === "capdent_legal_consent_recorded") {
+    const consentParams = params as CapDentAnalyticsEvents["capdent_legal_consent_recorded"];
+    return {
+      platform: SAFE_PLATFORMS.has(consentParams.platform) ? consentParams.platform : "unknown",
+    };
+  }
+
+  const uploadParams = params as CapDentAnalyticsEvents["capdent_clinical_upload_complete"];
   return {
-    screen_name: safeAnalyticsScreen(screenParams.screen_name),
-    role: safeAnalyticsRole(screenParams.role),
-    signed_in: screenParams.signed_in === true,
+    file_type: SAFE_FILE_TYPES.has(uploadParams.file_type) ? uploadParams.file_type : "other",
+    billing_requested: uploadParams.billing_requested === true,
   };
 }
 
