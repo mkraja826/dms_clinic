@@ -2,6 +2,10 @@ import { logCapDentAnalyticsEvent } from "@/lib/firebaseAnalytics";
 import { supabase } from "@/lib/supabase";
 import { CAPDENT_V25_LIMITS, formatStorageBytes } from "@/lib/v25Limits";
 
+export const CAPDENT_TERMS_VERSION = "2026-08-14";
+export const CAPDENT_PRIVACY_VERSION = "2026-08-14";
+export const CAPDENT_APP_VERSION = "1.2.3";
+
 export type CapDentPlanCodeV25 = "free" | "cloud" | "intelligence";
 
 export type CapDentEntitlementsV25 = {
@@ -131,6 +135,28 @@ export async function getCapDentEntitlementsV25(): Promise<CapDentEntitlementsV2
     console.warn("CapDent V25 entitlements failed open:", error);
     return { ...SAFE_V25_ENTITLEMENTS };
   }
+}
+
+export async function hasCurrentCapDentLegalConsent() {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError) throw userError;
+  if (!user) return false;
+
+  const { data, error } = await supabase
+    .from("capdent_legal_consents")
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("terms_version", CAPDENT_TERMS_VERSION)
+    .eq("privacy_version", CAPDENT_PRIVACY_VERSION)
+    .limit(1)
+    .maybeSingle<{ id: string }>();
+
+  if (error) throw error;
+  return Boolean(data?.id);
 }
 
 export function patientQuotaMessage(entitlements: CapDentEntitlementsV25) {
