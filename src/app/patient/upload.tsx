@@ -20,6 +20,10 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { colors } from "@/constants/colors";
 import { searchPatientsPage } from "@/lib/patientDirectory";
 import {
+  getCapDentEntitlementsV25,
+  uploadQuotaMessage,
+} from "@/lib/pricingV25";
+import {
   FileType,
   Patient,
   supabase,
@@ -311,7 +315,7 @@ export default function ClinicalUploadScreen() {
     setUploadProgress({
       phase: "preparing",
       percent: 0,
-      message: "Preparing selected file",
+      message: "Checking clinic upload limits",
     });
 
     const fileName = getDefaultFileName(type, asset.uri);
@@ -321,6 +325,27 @@ export default function ClinicalUploadScreen() {
       xrayFeeStatus !== "waived";
 
     try {
+      const entitlements = await getCapDentEntitlementsV25();
+      const quotaMessage = uploadQuotaMessage(entitlements);
+
+      if (quotaMessage) {
+        setUploadProgress(null);
+        Alert.alert("Upload limit reached", quotaMessage, [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "View Plans",
+            onPress: () => router.push("/settings/subscription" as never),
+          },
+        ]);
+        return;
+      }
+
+      setUploadProgress({
+        phase: "preparing",
+        percent: 0,
+        message: "Preparing selected file",
+      });
+
       await uploadPatientFile({
         patient_id: selectedPatientId,
         file_type: type,
