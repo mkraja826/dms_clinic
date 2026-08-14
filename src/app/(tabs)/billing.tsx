@@ -8,6 +8,7 @@ import { QuickAction } from "@/components/QuickAction";
 import { Screen } from "@/components/Screen";
 import { SectionCard } from "@/components/SectionCard";
 import { StatusChip } from "@/components/StatusChip";
+import { SuccessNotice } from "@/components/SuccessNotice";
 import { colors } from "@/constants/colors";
 import { searchPatientsPage } from "@/lib/patientDirectory";
 import { addPayment, createInvoice, getPendingPayments, Invoice, Patient } from "@/lib/supabase";
@@ -18,6 +19,13 @@ const RUPEE = "\u20B9";
 
 function money(value: number | string | null | undefined) {
   return `${RUPEE}${Math.round(Number(value || 0)).toLocaleString("en-IN")}`;
+}
+
+function paymentState(invoice: Invoice) {
+  const paid = Number(invoice.paid_amount || 0);
+  const due = Number(invoice.due_amount || 0);
+  if (due <= 0) return "Paid";
+  return paid > 0 ? "Partially paid" : "Unpaid";
 }
 
 function patientMatches(patient: Patient, query: string) {
@@ -52,6 +60,8 @@ export default function BillingScreen() {
   const [loadingPatients, setLoadingPatients] = useState(true);
   const [savingInvoice, setSavingInvoice] = useState(false);
   const [savingPayment, setSavingPayment] = useState(false);
+  const [invoiceSuccess, setInvoiceSuccess] = useState<string | null>(null);
+  const [paymentSuccess, setPaymentSuccess] = useState<string | null>(null);
   const patientRequestRef = useRef(0);
   const patientSearchMountedRef = useRef(false);
   const invoiceMutation = useImmediateMutationLock();
@@ -137,6 +147,7 @@ export default function BillingScreen() {
     const paidAmount = Number(paid || 0);
 
     setSavingInvoice(true);
+    setInvoiceSuccess(null);
     try {
       if (!patient && typedPatient) {
         const result = await searchPatientsPage({
@@ -161,6 +172,7 @@ export default function BillingScreen() {
       }
 
       await createInvoice({ patient_id: patient.id, total_amount: totalAmount, paid_amount: paidAmount });
+      setInvoiceSuccess(`Invoice created for ${patient.name}.`);
       setPatientPhone("");
       setSelectedInvoicePatientId(null);
       setTotal("");
@@ -195,8 +207,10 @@ export default function BillingScreen() {
     if (savingPayment || !paymentMutation.tryLock()) return;
 
     setSavingPayment(true);
+    setPaymentSuccess(null);
     try {
       await addPayment({ invoice_id: invoice.id, patient_id: invoice.patient_id, amount, payment_method: "cash" });
+      setPaymentSuccess(`${money(amount)} payment recorded for invoice ${invoice.id.slice(0, 8)}.`);
       setPaymentInvoice("");
       setSelectedPaymentInvoiceId(null);
       setPaymentAmount("");
@@ -212,12 +226,14 @@ export default function BillingScreen() {
   return (
     <Screen refreshing={loading} onRefresh={load}>
       <SectionCard title="Add Invoice" subtitle="Search and select the patient before creating a treatment or service invoice.">
+        {invoiceSuccess ? <SuccessNotice title="Invoice created" message={invoiceSuccess} /> : null}
         <AppInput
           label="Find patient"
           value={patientPhone}
           onChangeText={(value) => {
             setPatientPhone(value);
             setSelectedInvoicePatientId(null);
+            setInvoiceSuccess(null);
           }}
           placeholder="Name, phone, or patient code"
         />
@@ -245,12 +261,14 @@ export default function BillingScreen() {
       </SectionCard>
 
       <SectionCard title="Add Payment" subtitle="Select the pending invoice first so payment is recorded against the right patient.">
+        {paymentSuccess ? <SuccessNotice title="Payment recorded" message={paymentSuccess} /> : null}
         <AppInput
           label="Find pending invoice"
           value={paymentInvoice}
           onChangeText={(value) => {
             setPaymentInvoice(value);
             setSelectedPaymentInvoiceId(null);
+            setPaymentSuccess(null);
           }}
           placeholder="Invoice ID, patient name, or phone"
         />
@@ -286,7 +304,10 @@ export default function BillingScreen() {
           <View key={invoice.id} style={{ gap: 8, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
             <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}>
               <Text style={{ flex: 1, color: colors.text, fontWeight: "800", fontSize: 16 }}>{invoice.patients?.name ?? "Patient"}</Text>
-              <StatusChip label={`Due ${money(invoice.due_amount)}`} tone="warning" />
+              <View style={{ alignItems: "flex-end", gap: 6 }}>
+                <StatusChip label={paymentState(invoice)} tone="warning" />
+                <StatusChip label={`Due ${money(invoice.due_amount)}`} tone="warning" />
+              </View>
             </View>
             <Text selectable style={{ color: colors.muted }}>
               Invoice {invoice.id.slice(0, 8)} - Total {money(invoice.total_amount)} - Paid {money(invoice.paid_amount)}
@@ -409,13 +430,13 @@ function InvoiceSelectList({
               <Text numberOfLines={1} style={{ flex: 1, color: colors.text, fontSize: 15, fontWeight: "800" }}>
                 {invoice.patients?.name ?? "Patient"}
               </Text>
-              <StatusChip label={selected ? "Selected" : `Due ${money(invoice.due_amount)}`} tone={selected ? "success" : "warning"} />
+              <StatusChip label={selected ? "Selected" : paymentState(invoice)} tone={selected ? "success" : "warning"} />
             </View>
             <Text selectable numberOfLines={1} style={{ color: colors.muted, fontSize: 13 }}>
               Invoice {invoice.id.slice(0, 8)} - {invoice.patients?.phone || "No phone"}
             </Text>
             <Text numberOfLines={1} style={{ color: colors.muted, fontSize: 12 }}>
-              Total {money(invoice.total_amount)} - Paid {money(invoice.paid_amount)}
+              Total {money(invoice.total_amount)} - Paid {money(invoice.paid_amount)} - Due {money(invoice.due_amount)}
             </Text>
           </Pressable>
         );
