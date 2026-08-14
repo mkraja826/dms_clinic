@@ -119,8 +119,9 @@ It supplements, but does not weaken, the production reconciliation runbook.
 - [x] Run `powershell -ExecutionPolicy Bypass -File scripts/database/verify-production-baseline.ps1` successfully.
 - [x] Run `git diff --check` successfully on the previously synchronized tree.
 - [x] `npm run check:v25:rc` passed after Milestone 0 closure and V25 consent/quota foundation integration.
-- [ ] Pull the latest GitHub branch and re-run typecheck, `check:v25:rc`, Expo config, and `git diff --check` after all GitHub-only changes land.
-- [ ] Perform V24 regression pass: login, onboarding, patient create/edit, old-patient import, visits, ongoing/new treatment selection, dental chart, payments, appointments, Quick Check-in, staff, gallery/uploads, prescriptions, notifications, subscription screen, logout.
+- [x] Pull the latest GitHub branch and re-run `check:v25:rc` after the final quota UI fix.
+- [ ] Re-run Expo config and `git diff --check` after all GitHub-only changes land.
+- [ ] Perform targeted V25 changed-area smoke pass: legal consent gates, quota usage card/preflights, upload/profile-photo guard, subscription launch guard, push registration containment, Firebase Analytics release-build initialization, and login/logout sanity.
 
 ## RC gate
 
@@ -129,7 +130,7 @@ Do not submit a Production-track build until the latest branch passes the local/
 - [x] Android `versionCode` is 25.
 - [ ] Add/verify the final V25 version-name decision.
 - [x] Android validation commands are wired to `check:v25:rc`.
-- [x] `npm run check:v25:rc` has passed on the previously synchronized V25 RC state.
+- [x] `npm run check:v25:rc` has passed on the final synchronized V25 RC state after the quota UI fix.
 - [ ] Verify approved Android signing key on the final synchronized branch.
 - [ ] Verify EAS production/internal environment variables and Google Services file.
 - [ ] Build Play Internal AAB.
