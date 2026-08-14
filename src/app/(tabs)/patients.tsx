@@ -1,8 +1,9 @@
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, ScrollView, View } from "react-native";
 import { AppButton } from "@/components/AppButton";
 import { AppInput } from "@/components/AppInput";
+import { EmptyState } from "@/components/EmptyState";
 import { PatientCard } from "@/components/PatientCard";
 import { colors } from "@/constants/colors";
 import { Patient, searchPatients } from "@/lib/supabase";
@@ -38,7 +39,11 @@ export default function PatientsScreen() {
       {loading ? <ActivityIndicator color={colors.primary} /> : null}
 
       {!loading && !patients.length ? (
-        <Text style={{ color: colors.muted, textAlign: "center", padding: 24 }}>No patients found.</Text>
+        <EmptyState
+          title={query.trim() ? "No matching patients" : "No patients yet"}
+          body={query.trim() ? "Try a different name or phone number." : "Add your first patient to begin."}
+          icon="people-outline"
+        />
       ) : null}
 
       <View style={{ gap: 12 }}>
