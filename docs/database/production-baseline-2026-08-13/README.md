@@ -1,4 +1,4 @@
-# CapDent production database baseline — 2026-08-13
+# CapDent production database baseline â€” 2026-08-13
 
 This directory is a read-only, secret-scanned snapshot of the linked Supabase
 project `mzjtdcpbvoximdukpukd` (`MDMS`). It exists to reconcile the production
@@ -29,9 +29,10 @@ database before CapDent V25 migrations are designed.
 - `catalog/edge-functions.json`: deployed function metadata and code hashes only.
 - `catalog/advisors.json`: Supabase security and performance advisor findings.
 
-The catalog is an inspection artifact rather than a `pg_dump`. It is sufficient
-to expose drift and establish comparison contracts, but it is not yet a complete
-restorable Supabase environment.
+The catalog remains an inspection artifact rather than a production-data
+backup. Schema-only dumps were captured outside the repository and used to
+validate the disposable replay; neither artifact is a complete restorable
+Supabase production environment.
 
 ## Production fingerprint
 
@@ -59,23 +60,34 @@ The portal also reads shared clinical tables, including `clinics`, `profiles`,
 `invoices`, `financial_adjustments`, and `dental_chart_entries`. V25 changes to
 those contracts must be additive and portal-regression reviewed.
 
-## Known blockers
+## Current reconciliation status
 
-1. The repository's 37 migration files are not a canonical replay chain.
-2. Production contains 32 later migrations and several earlier identity/content
-   differences.
-3. Only eight local migration files matched production migration bodies under
-   conservative newline normalization.
-4. A schema-only `pg_dump` cannot currently be obtained: Docker is stopped,
-   native PostgreSQL tools are absent, and the CLI lacks a database password.
-5. Backup, PITR and restore readiness remain unverified.
-6. Production security findings—including public clinical buckets, broad core
-   table policies, and privileged RPC exposure—must be handled as separately
+1. A synthesized pre-ledger bootstrap plus all 73 ledger identities now replays
+   twice from an empty disposable local database. This is 72 captured bodies
+   plus one verified replay-only serialization repair for `20260727012628`.
+2. A guarded, generated replay-only catalog completion closes application-owned
+   final-state gaps. After documented platform exclusions, the production and
+   replay application catalogs match with no unexplained drift.
+3. The captured `20260727012628` body required a documented four-semicolon
+   serialization repair for replay only.
+4. The production organization remains on Supabase Free and PITR is not
+   available under the verified configuration.
+5. A V25 recovery drill subsequently restored the public application database,
+   durable Auth users/identities, and all 367 referenced Storage objects.
+6. All 17 restored application profiles matched a restored Auth user.
+7. An off-device recovery archive was retained and the recovery gate was
+   approved for V25 migration work.
+6. Production security findingsâ€”including public clinical buckets, broad core
+   table policies, and privileged RPC exposureâ€”must be handled as separately
    reviewed compatibility changes, not folded into baseline recovery.
+
+See [replay/reconciliation-result.md](replay/reconciliation-result.md) and
+[backup-pitr-evidence.md](backup-pitr-evidence.md).
 
 ## Required completion gate
 
 Follow [reconciliation-runbook.md](reconciliation-runbook.md). V25 database work
 may resume only after an isolated environment can replay the authoritative
-baseline and its normalized catalog matches this snapshot, with documented and
-approved exclusions for Supabase-managed and portal-owned resources.
+baseline, its normalized catalog matches this snapshot with approved
+exclusions, backup and restore readiness is verified, and the synthetic recovery
+artifacts plus serialization repair are reviewed. The required recovery and reconciliation checks have now been completed and the manifest is explicitly set to `replay_ready=true`.

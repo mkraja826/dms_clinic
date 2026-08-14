@@ -42,8 +42,24 @@ if ($manifest.artifact_type -ne 'capture-only-production-database-baseline') {
 if ($manifest.project_ref -ne 'mzjtdcpbvoximdukpukd') {
   throw 'Unexpected production project reference.'
 }
-if ($manifest.replay_ready -ne $false) {
-  throw 'This evidence snapshot must remain explicitly marked replay_ready=false until replay succeeds.'
+if ($manifest.replay_ready -eq $true) {
+  $requiredClosureEvidence = @(
+    (Join-Path $baseline 'backup-pitr-evidence.md'),
+    (Join-Path $baseline 'replay\reconciliation-result.md')
+  )
+
+  foreach ($evidencePath in $requiredClosureEvidence) {
+    if (-not (Test-Path -LiteralPath $evidencePath)) {
+      throw "replay_ready=true requires closure evidence: $evidencePath"
+    }
+  }
+
+  if (@($manifest.replay_blockers).Count -ne 0) {
+    throw 'replay_ready=true requires an empty replay_blockers list.'
+  }
+}
+elseif ($manifest.replay_ready -ne $false) {
+  throw 'Manifest replay_ready must be explicitly true or false.'
 }
 if ([int]$ledger.migration_count -ne [int]$manifest.migration_count) {
   throw 'Manifest and migration-ledger counts disagree.'

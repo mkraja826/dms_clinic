@@ -1,48 +1,60 @@
 {
-  "artifact_type": "capture-only-production-database-baseline",
-  "project_ref": "mzjtdcpbvoximdukpukd",
-  "project_name": "MDMS",
-  "region": "ap-northeast-1",
-  "database_version": "17.6.1.127",
-  "server_version_num": 170006,
-  "captured_for_branch": "release/capdent-v25",
-  "captured_for_commit": "f6271bb768f374212e8bef91d8e1375b9a358fca",
-  "supabase_cli_version": "2.106.0",
-  "migration_count": 73,
-  "first_migration": "20260704104435",
-  "last_migration": "20260807222138",
-  "migration_files_verified": 73,
-  "migration_hash_failures": 0,
-  "catalog": {
-    "tables": 44,
-    "columns": 513,
-    "functions": 94,
-    "security_definer_functions": 87,
-    "policies": 57,
-    "table_grants": 688,
-    "column_grants": 4922,
-    "triggers": 28,
-    "buckets": 5,
-    "extensions": 7,
-    "publications": 2,
-    "edge_functions": 9,
-    "security_advisories": 72,
-    "performance_advisories": 52
-  },
-  "secret_scan": {
-    "credential_pattern_hits": 0,
-    "production_rows_included": false,
-    "auth_users_included": false,
-    "storage_objects_included": false,
-    "vault_values_included": false,
-    "edge_function_secrets_included": false
-  },
-  "replay_ready": false,
-  "replay_blockers": [
-    "Docker daemon is stopped",
-    "No native pg_dump or psql is installed",
-    "No approved production database password is available",
-    "Backup, PITR, and restore readiness are unverified",
-    "A sanitized canonical schema dump has not been replayed"
-  ]
+    "artifact_type":  "capture-only-production-database-baseline",
+    "project_ref":  "mzjtdcpbvoximdukpukd",
+    "project_name":  "MDMS",
+    "region":  "ap-northeast-1",
+    "database_version":  "17.6.1.127",
+    "server_version_num":  170006,
+    "captured_for_branch":  "release/capdent-v25",
+    "captured_for_commit":  "f6271bb768f374212e8bef91d8e1375b9a358fca",
+    "supabase_cli_version":  "2.106.0",
+    "migration_count":  73,
+    "first_migration":  "20260704104435",
+    "last_migration":  "20260807222138",
+    "migration_files_verified":  73,
+    "migration_hash_failures":  0,
+    "catalog":  {
+                    "tables":  44,
+                    "columns":  513,
+                    "functions":  94,
+                    "security_definer_functions":  87,
+                    "policies":  57,
+                    "table_grants":  688,
+                    "column_grants":  4922,
+                    "triggers":  28,
+                    "buckets":  5,
+                    "extensions":  7,
+                    "publications":  2,
+                    "edge_functions":  9,
+                    "security_advisories":  72,
+                    "performance_advisories":  52
+                },
+    "secret_scan":  {
+                        "credential_pattern_hits":  0,
+                        "production_rows_included":  false,
+                        "auth_users_included":  false,
+                        "storage_objects_included":  false,
+                        "vault_values_included":  false,
+                        "edge_function_secrets_included":  false
+                    },
+    "replay_evidence":  {
+                            "validated_at_utc":  "2026-08-13T17:18:54.2124286Z",
+                            "production_ledger_identities":  73,
+                            "captured_migration_bodies_replayed":  72,
+                            "replay_only_serialization_repairs":  [
+                                                                      "20260727012628"
+                                                                  ],
+                            "portal_owned_migrations_preserved":  14,
+                            "synthetic_pre_ledger_bootstrap":  true,
+                            "synthetic_catalog_completion":  true,
+                            "empty_replay_passes":  2,
+                            "final_catalog_complete_replay_passes":  2,
+                            "deterministic_schema_dumps":  true,
+                            "application_catalog_match":  true,
+                            "unexplained_application_drift":  0
+                        },
+    "replay_ready":  true,
+    "replay_blockers":  [
+
+                        ]
 }

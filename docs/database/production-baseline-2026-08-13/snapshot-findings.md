@@ -29,9 +29,19 @@ and storage-URL compatibility plans.
 
 ## Release gate status
 
-`BLOCKED_FOR_V25_DATABASE_MIGRATIONS`
+`READY_FOR_REVIEWED_V25_DATABASE_MIGRATIONS`
 
-The read-only catalog and migration statements are now recovered and protected,
-but a restorable schema dump, backup/PITR evidence and disposable replay are still
-missing. App-only work that depends on future database contracts should also wait
-to avoid designing against the wrong schema.
+The synthesized recovery chain replays deterministically twice and the
+application catalog matches the production capture after explicit platform
+exclusions.
+
+A subsequent recovery drill successfully restored the application database,
+durable Auth records, and all 367 referenced Storage objects. Application
+profile-to-Auth integrity also passed with 17 of 17 profiles linked to restored
+Auth users.
+
+The Milestone 0 recovery gate is closed and `replay_ready=true`.
+
+The production project remains on Supabase Free without PITR. PITR and stronger
+independently encrypted off-device backup handling remain recommended
+operational hardening work.
