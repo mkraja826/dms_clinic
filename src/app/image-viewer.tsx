@@ -72,7 +72,7 @@ export default function ImageViewerScreen() {
             {name}
           </Text>
           <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 12 }}>
-            {looksLikeImage ? "Image preview" : "Open document"}
+            {!url ? "File unavailable" : looksLikeImage ? "Image preview" : "Open document"}
           </Text>
         </View>
 
@@ -98,7 +98,34 @@ export default function ImageViewerScreen() {
       </View>
 
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        {url && looksLikeImage ? (
+        {!url ? (
+          <View style={{ alignItems: "center", gap: 12, padding: 24 }}>
+            <Ionicons name="cloud-offline-outline" size={58} color="#FFFFFF" />
+            <Text style={{ color: "#FFFFFF", fontSize: 18, fontWeight: "900", textAlign: "center" }}>
+              File unavailable
+            </Text>
+            <Text style={{ color: "rgba(255,255,255,0.65)", textAlign: "center", lineHeight: 21 }}>
+              CapDent could not resolve this file for viewing. Go back to the gallery and refresh before trying again.
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Back to gallery"
+              onPress={() => router.back()}
+              style={{
+                minHeight: 48,
+                borderRadius: 999,
+                paddingHorizontal: 18,
+                backgroundColor: "#FFFFFF",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Text style={{ color: "#000000", fontWeight: "900" }}>
+                Back to Gallery
+              </Text>
+            </Pressable>
+          </View>
+        ) : looksLikeImage ? (
           <SecureStorageImage
             uri={url}
             style={{ width: "100%", height: "100%" }}
@@ -114,27 +141,25 @@ export default function ImageViewerScreen() {
               This file type may need to be opened externally.
             </Text>
 
-            {url ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Open ${name}`}
-                onPress={() => {
-                  void openExternally();
-                }}
-                style={{
-                  minHeight: 48,
-                  borderRadius: 999,
-                  paddingHorizontal: 18,
-                  backgroundColor: "#FFFFFF",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Text style={{ color: "#000000", fontWeight: "900" }}>
-                  Open File
-                </Text>
-              </Pressable>
-            ) : null}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${name}`}
+              onPress={() => {
+                void openExternally();
+              }}
+              style={{
+                minHeight: 48,
+                borderRadius: 999,
+                paddingHorizontal: 18,
+                backgroundColor: "#FFFFFF",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Text style={{ color: "#000000", fontWeight: "900" }}>
+                Open File
+              </Text>
+            </Pressable>
           </View>
         )}
       </View>
