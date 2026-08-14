@@ -1,3 +1,4 @@
+import { logCapDentAnalyticsEvent } from "@/lib/firebaseAnalytics";
 import { supabase } from "@/lib/supabase";
 import { CAPDENT_V25_LIMITS, formatStorageBytes } from "@/lib/v25Limits";
 
@@ -167,17 +168,22 @@ export async function recordCapDentLegalConsent(input: {
   appVersion?: string | null;
   platform?: "android" | "ios" | "web";
 }) {
+  const platform = input.platform ?? "android";
   const { data, error } = await supabase.rpc("record_capdent_legal_consent", {
     p_terms_version: input.termsVersion,
     p_privacy_version: input.privacyVersion,
     p_app_version: input.appVersion ?? null,
-    p_platform: input.platform ?? "android",
+    p_platform: platform,
   });
 
   if (error) throw error;
   if (!data || typeof data !== "object" || Array.isArray(data)) {
     throw new Error("Consent could not be confirmed by the server.");
   }
+
+  void logCapDentAnalyticsEvent("capdent_legal_consent_recorded", {
+    platform,
+  });
 
   return data as {
     id: string;
