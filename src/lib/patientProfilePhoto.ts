@@ -1,5 +1,9 @@
 import * as FileSystem from "expo-file-system/legacy";
 import { optimizeUploadImage } from "@/lib/imageCompression";
+import {
+  getCapDentEntitlementsV25,
+  uploadQuotaMessage,
+} from "@/lib/pricingV25";
 import { parseStorageObjectUrl } from "@/lib/storageUrls";
 import { getCurrentProfile, supabase } from "@/lib/supabase";
 
@@ -31,6 +35,14 @@ export async function uploadPatientProfilePhoto(patientId: string, uri: string) 
 
   if (!profile?.clinic_id) throw new Error("Clinic profile not found");
   if (!patientId) throw new Error("Patient ID missing");
+
+  // Check V25 server-reported upload/storage availability before doing image
+  // compression and transfer work. The entitlement helper intentionally fails
+  // open while the rollout RPC is unavailable; the database remains the final
+  // quota authority once enforcement is enabled.
+  const entitlements = await getCapDentEntitlementsV25();
+  const quotaMessage = uploadQuotaMessage(entitlements);
+  if (quotaMessage) throw new Error(quotaMessage);
 
   const { data: existingPatient, error: existingPatientError } = await supabase
     .from("patients")
