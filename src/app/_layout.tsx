@@ -11,6 +11,7 @@ import { isSupabaseConfigured, normalizeRole } from "@/lib/supabase";
 import { VisitDraftProvider } from "@/lib/visitDraft";
 
 const appLogo = require("../../assets/icon.png");
+const LEGAL_CONSENT_CHECK_TIMEOUT_MS = 10000;
 
 function ConfigurationErrorScreen() {
   return (
@@ -37,6 +38,18 @@ function isConsentMigrationUnavailable(error: unknown) {
   if (!error || typeof error !== "object") return false;
   const code = "code" in error ? String((error as { code?: unknown }).code ?? "") : "";
   return code === "PGRST205" || code === "42P01";
+}
+
+async function withLegalConsentTimeout<T>(promise: Promise<T>): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(
+        () => reject(new Error("CapDent legal consent check timed out")),
+        LEGAL_CONSENT_CHECK_TIMEOUT_MS
+      )
+    ),
+  ]);
 }
 
 function RootStack() {
@@ -67,7 +80,7 @@ function RootStack() {
     setLegalConsentChecking(true);
     setLegalConsentSatisfied(false);
 
-    void hasCurrentCapDentLegalConsent()
+    void withLegalConsentTimeout(hasCurrentCapDentLegalConsent())
       .then((accepted) => {
         if (cancelled) return;
         setLegalConsentSatisfied(accepted);
@@ -80,7 +93,8 @@ function RootStack() {
 
         // V25 AAB creation/device testing may happen before the additive consent
         // migration is applied. Only a genuinely missing migration fails open;
-        // all other verification failures keep clinic workflows gated.
+        // all other verification failures keep clinic workflows gated, but must
+        // not leave the user on an endless splash screen.
         if (isConsentMigrationUnavailable(error)) {
           console.warn("V25 legal consent migration is not applied yet; consent gate is temporarily inactive.");
           setLegalConsentSatisfied(true);
@@ -101,6 +115,10 @@ function RootStack() {
   }, [pathname, profile?.clinic_id, session]);
 
   if (loading || legalConsentChecking) {
+    const currentLoadingMessage = legalConsentChecking
+      ? "Checking your current CapDent agreement..."
+      : loadingMessage || "Preparing your dental workspace...";
+
     return (
       <View style={styles.loadingScreen}>
         <StatusBar style="dark" />
@@ -114,12 +132,7 @@ function RootStack() {
 
         <View style={styles.loadingStatus}>
           <ActivityIndicator color={colors.primary} />
-          <Text style={styles.loadingMessage}>
-            {loadingMessage ||
-              (legalConsentChecking
-                ? "Checking your current CapDent agreement..."
-                : "Preparing your dental workspace...")}
-          </Text>
+          <Text style={styles.loadingMessage}>{currentLoadingMessage}</Text>
         </View>
       </View>
     );
