@@ -1,9 +1,12 @@
-import { Stack } from "expo-router";
+import { router, Stack, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { useEffect, useState } from "react";
 import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { colors } from "@/constants/colors";
+import { FirebaseAnalyticsCoordinator } from "@/components/FirebaseAnalyticsCoordinator";
 import { PaymentNotificationCoordinator } from "@/components/PaymentNotificationCoordinator";
+import { hasCurrentCapDentLegalConsent } from "@/lib/pricingV25";
 import { isSupabaseConfigured, normalizeRole } from "@/lib/supabase";
 import { VisitDraftProvider } from "@/lib/visitDraft";
 
@@ -30,10 +33,74 @@ function ConfigurationErrorScreen() {
   );
 }
 
-function RootStack() {
-  const { loading, loadingMessage, session, profile } = useAuth();
+function isConsentMigrationUnavailable(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+  const code = "code" in error ? String((error as { code?: unknown }).code ?? "") : "";
+  return code === "PGRST205" || code === "42P01";
+}
 
-  if (loading) {
+function RootStack() {
+  const pathname = usePathname();
+  const { loading, loadingMessage, session, profile } = useAuth();
+  const [legalConsentChecking, setLegalConsentChecking] = useState(false);
+  const [legalConsentSatisfied, setLegalConsentSatisfied] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!session || !profile?.clinic_id) {
+      setLegalConsentChecking(false);
+      setLegalConsentSatisfied(true);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (pathname === "/legal-consent") {
+      setLegalConsentChecking(false);
+      setLegalConsentSatisfied(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setLegalConsentChecking(true);
+    setLegalConsentSatisfied(false);
+
+    void hasCurrentCapDentLegalConsent()
+      .then((accepted) => {
+        if (cancelled) return;
+        setLegalConsentSatisfied(accepted);
+        if (!accepted) {
+          router.replace("/legal-consent" as never);
+        }
+      })
+      .catch((error) => {
+        if (cancelled) return;
+
+        // V25 AAB creation/device testing may happen before the additive consent
+        // migration is applied. Only a genuinely missing migration fails open;
+        // all other verification failures keep clinic workflows gated.
+        if (isConsentMigrationUnavailable(error)) {
+          console.warn("V25 legal consent migration is not applied yet; consent gate is temporarily inactive.");
+          setLegalConsentSatisfied(true);
+          return;
+        }
+
+        console.warn("Unable to verify current CapDent legal consent:", error);
+        setLegalConsentSatisfied(false);
+        router.replace("/legal-consent" as never);
+      })
+      .finally(() => {
+        if (!cancelled) setLegalConsentChecking(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname, profile?.clinic_id, session]);
+
+  if (loading || legalConsentChecking) {
     return (
       <View style={styles.loadingScreen}>
         <StatusBar style="dark" />
@@ -48,7 +115,10 @@ function RootStack() {
         <View style={styles.loadingStatus}>
           <ActivityIndicator color={colors.primary} />
           <Text style={styles.loadingMessage}>
-            {loadingMessage || "Preparing your dental workspace..."}
+            {loadingMessage ||
+              (legalConsentChecking
+                ? "Checking your current CapDent agreement..."
+                : "Preparing your dental workspace...")}
           </Text>
         </View>
       </View>
@@ -57,7 +127,7 @@ function RootStack() {
 
   const hasSession = Boolean(session);
   const hasClinicProfile = Boolean(profile?.clinic_id);
-  const appReady = hasSession && hasClinicProfile;
+  const appReady = hasSession && hasClinicProfile && legalConsentSatisfied;
   const role = profile ? normalizeRole(profile.role) : null;
 
   return (
@@ -89,6 +159,17 @@ function RootStack() {
               headerStyle: { backgroundColor: colors.background },
               headerTintColor: colors.text,
               headerShadowVisible: false,
+            }}
+          />
+          <Stack.Screen
+            name="legal-consent"
+            options={{
+              headerShown: true,
+              title: "Terms & Privacy",
+              headerStyle: { backgroundColor: colors.background },
+              headerTintColor: colors.text,
+              headerShadowVisible: false,
+              gestureEnabled: false,
             }}
           />
           <Stack.Screen name="settings/change-password" options={{ headerShown: true, title: "Change Password" }} />
@@ -218,11 +299,13 @@ export default function Layout() {
 
   return (
     <AuthProvider>
-      <PaymentNotificationCoordinator>
-        <VisitDraftProvider>
-          <RootStack />
-        </VisitDraftProvider>
-      </PaymentNotificationCoordinator>
+      <FirebaseAnalyticsCoordinator>
+        <PaymentNotificationCoordinator>
+          <VisitDraftProvider>
+            <RootStack />
+          </VisitDraftProvider>
+        </PaymentNotificationCoordinator>
+      </FirebaseAnalyticsCoordinator>
     </AuthProvider>
   );
 }
