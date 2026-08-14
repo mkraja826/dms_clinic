@@ -136,6 +136,12 @@ export async function getCapDentEntitlementsV25(): Promise<CapDentEntitlementsV2
 export function patientQuotaMessage(entitlements: CapDentEntitlementsV25) {
   if (!entitlements.patientLimitEnforced || entitlements.patientLimit === null) return null;
   if (entitlements.canAddPatient) return null;
+
+  void logCapDentAnalyticsEvent("capdent_quota_blocked", {
+    resource: "patient",
+    plan: entitlements.plan,
+  });
+
   return `This clinic has reached its ${entitlements.patientLimit}-patient ${entitlements.planLabel} limit. Upgrade the plan to register another patient.`;
 }
 
@@ -146,6 +152,10 @@ export function uploadQuotaMessage(entitlements: CapDentEntitlementsV25) {
       entitlements.uploadLimit !== null &&
       entitlements.uploadCount >= entitlements.uploadLimit
     ) {
+      void logCapDentAnalyticsEvent("capdent_quota_blocked", {
+        resource: "upload",
+        plan: entitlements.plan,
+      });
       return `This clinic has reached its ${entitlements.uploadLimit}-upload ${entitlements.planLabel} limit. Upgrade the plan before uploading another clinical file.`;
     }
 
@@ -153,9 +163,17 @@ export function uploadQuotaMessage(entitlements: CapDentEntitlementsV25) {
       entitlements.storageLimitEnforced &&
       entitlements.storageUsedBytes >= entitlements.storageLimitBytes
     ) {
+      void logCapDentAnalyticsEvent("capdent_quota_blocked", {
+        resource: "storage",
+        plan: entitlements.plan,
+      });
       return `This clinic has reached its ${formatStorageBytes(entitlements.storageLimitBytes)} storage limit. Upgrade the plan or remove unneeded files before uploading.`;
     }
 
+    void logCapDentAnalyticsEvent("capdent_quota_blocked", {
+      resource: "upload",
+      plan: entitlements.plan,
+    });
     return "This clinic cannot upload another file under its current plan.";
   }
 
