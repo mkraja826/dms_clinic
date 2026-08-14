@@ -1,8 +1,10 @@
 # CapDent V25 regression hardening audit
 
-Status: BUILD REVIEW IN PROGRESS
+Status: TARGETED V25 RELEASE GATE IN PROGRESS
 
-This document records the V24 -> V25 mutation-path review before the final production AAB and physical-device regression pass.
+This document records the V25 mutation-path review before the final production AAB and targeted release-build smoke pass.
+
+Stable V24 workflows are not treated as open V25 blockers by this audit. The production gate focuses only on areas changed or newly activated for V25: consent, quota/entitlements, upload accounting, billing guards, push containment, Firebase Analytics, signing/environment, and production migration activation.
 
 ## Patient creation authority
 
@@ -12,8 +14,8 @@ Reviewed client paths:
 
 - Standard Add Patient: V25 entitlement preflight plus existing patient-limit UX.
 - Add Old Patient: V25 entitlement preflight plus existing patient-limit UX.
-- Appointment booking: can create a new patient before booking an appointment. It currently relies on the shared patient creation function and ultimately the database patient trigger for authoritative enforcement. Client-side V25 preflight parity remains a UX follow-up.
-- Reception Quick Check-in: can create a new patient through `reception_quick_checkin`. It already shows the legacy patient-limit warning. The V25 database patient trigger remains the final quota authority for the insert. Client-side V25 entitlement parity remains a UX follow-up.
+- Appointment booking: can create a new patient before booking an appointment. It currently relies on the shared patient creation function and ultimately the database patient trigger for authoritative enforcement. Client-side V25 preflight parity remains a UX follow-up, not a release blocker.
+- Reception Quick Check-in: can create a new patient through `reception_quick_checkin`. It already shows the legacy patient-limit warning. The V25 database patient trigger remains the final quota authority for the insert. Client-side V25 entitlement parity remains a UX follow-up, not a release blocker.
 
 ## Upload authority
 
@@ -36,9 +38,9 @@ Reviewed `patient/payment` flow:
 - payment cannot exceed the selected invoice/patient pending amount;
 - collection uses the server `record_patient_payment` RPC;
 - client does not separately insert a payment and then patch an invoice;
-- timeout/error handling preserves an explicit failure state for later device verification.
+- timeout/error handling preserves an explicit failure state.
 
-Physical-device regression still required for network interruption immediately after server commit, repeated taps, pending invoice refresh, and push-notification side effects.
+Payment flow is not an open V25 blocker. Release-build smoke should only verify the changed duplicate-submit/error-state behavior and notification side effects if the exact AAB is available.
 
 ## Appointment mutation safety
 
@@ -50,7 +52,7 @@ Reviewed appointment booking flow:
 - when a new patient is created successfully but appointment creation fails, the UI explicitly tells the user the patient already exists and must not be registered again;
 - appointment creation invalidates appointment/dashboard caches through the shared data layer.
 
-Physical-device regression still required for rapid taps, offline/timeout behavior, new-patient partial success, and appointment list refresh.
+Appointment flow is not an open V25 blocker. Release-build smoke should only verify the changed duplicate-submit/error-state behavior if the exact AAB is available.
 
 ## Legal consent
 
@@ -68,47 +70,38 @@ Production migration must exist before final rollout so existing-user consent be
 
 V25 native Firebase Analytics remains disabled by build configuration until native verification. Event design intentionally excludes patient names, phone numbers, patient IDs, notes, diagnoses, file paths, and other clinical content.
 
-Covered taxonomy includes app readiness, screen categories, quota blocks, legal consent, patient registration, and clinical upload completion. Physical-device validation is required before analytics collection is enabled.
+Covered taxonomy includes app readiness, screen categories, quota blocks, legal consent, patient registration, and clinical upload completion. Release-build validation is required before analytics collection is enabled.
 
 ## Release blockers still open
 
-1. Run TypeScript and V25 RC validation after syncing the latest GitHub commits locally.
-2. Re-run local disposable Supabase replay with the V25 quota/consent migration included.
-3. Verify appointment-new-patient and reception-new-patient UX against the V25 entitlement RPC; server trigger already remains authoritative.
-4. Verify Android signing credential matches the previously approved CapDent Play signing/upload key.
-5. Build production versionCode 25 AAB.
-6. Perform physical-device V24 -> V25 regression testing.
-7. Apply the reviewed additive V25 Supabase migration after the AAB is proven.
-8. Keep quota rollout flags disabled initially; validate entitlement reads and usage counts in production.
+1. Re-run local validation after this documentation-only update: `npm run check:v25:rc`, Expo config check, and `git diff --check`.
+2. Verify Android signing credential matches the previously approved CapDent Play signing/upload key.
+3. Verify EAS production/internal environment variables and Google Services file.
+4. Build production/internal versionCode 25 AAB.
+5. Install/test the exact AAB from Play Internal for targeted V25 changes only.
+6. Apply the reviewed additive V25 Supabase migration after the AAB is proven.
+7. Keep quota rollout flags disabled initially; validate entitlement reads and usage counts in production.
+8. Verify consent persistence and quota reads after production migration activation.
 9. Enable enforcement deliberately only after smoke testing and clinic rollout policy approval.
 10. Upload the proven AAB to Google Play Production.
 
-## Must-pass device regression
+## Targeted V25 release-build smoke gate
 
-- login/session restore
-- owner onboarding and clinic creation
-- staff invite onboarding
-- existing-user legal consent gate
-- add patient
-- add old patient
-- quick check-in existing patient
-- quick check-in new patient
-- appointment booking existing patient
-- appointment booking new patient
-- visits and dental chart
-- treatments
-- OP/X-ray/medication/treatment/pending payments
-- invoices and dues
-- X-ray upload
-- prescription upload
-- before/after photo upload
-- patient profile photo upload
-- gallery/image viewer
-- push notifications
-- Google Play subscription state
-- owner Account Settings atomic save
-- quota usage card
-- quota block/upgrade messages
-- logout/login again
+This is not a full V24 regression list. V24-stable workflows are assumed to remain valid unless touched by V25.
+
+Must verify only the changed/new V25 areas:
+
+- owner onboarding Terms + Privacy acknowledgement;
+- staff invite Terms + Privacy acknowledgement;
+- existing-user legal consent gate after migration activation;
+- quota usage card loads patient/upload/storage counts;
+- patient and old-patient quota preflight messages;
+- clinical upload and patient profile-photo quota/storage preflight;
+- quota block/upgrade message copy when limits are simulated or reached;
+- Google Play subscription launch guard/error state;
+- push registration failure containment and payment-route notification sanity;
+- Firebase Analytics release-build initialization with PHI-safe event payloads;
+- login/logout sanity on an existing clinic;
+- one existing-patient read sanity to confirm no obvious session/data break.
 
 No production Supabase change is performed by this audit.
