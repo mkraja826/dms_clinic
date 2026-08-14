@@ -75,6 +75,7 @@ export function OngoingTreatmentsSection({
   const { profile } = useAuth();
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const updateLocksRef = useRef(new Set<string>());
 
@@ -83,8 +84,12 @@ export function OngoingTreatmentsSection({
       if (showLoading) setLoading(true);
       const rows = await getOngoingTreatments({ limit, doctorOnly });
       setItems(rows);
+      if (showLoading) setLoadError(null);
     } catch (error) {
       console.warn("Ongoing treatments load failed:", error);
+      if (showLoading) {
+        setLoadError("CapDent could not load ongoing treatments. Check your connection and try again.");
+      }
     } finally {
       if (showLoading) setLoading(false);
     }
@@ -173,7 +178,7 @@ export function OngoingTreatmentsSection({
         ) : null}
       </View>
 
-      {!loading && items.length ? (
+      {!loading && !loadError && items.length ? (
         <Text style={{ color: colors.muted, fontSize: 12, fontWeight: "800" }}>
           {cleanSearch
             ? `${filteredItems.length} of ${items.length} matching`
@@ -185,6 +190,16 @@ export function OngoingTreatmentsSection({
         <View style={{ padding: 14, borderRadius: 18, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }}>
           <Text style={{ color: colors.muted, fontWeight: "800" }}>Loading ongoing treatments...</Text>
         </View>
+      ) : loadError ? (
+        <EmptyState
+          title="Could not load treatments"
+          message={loadError}
+          icon="cloud-offline-outline"
+          actionTitle="Try Again"
+          onAction={() => {
+            void load();
+          }}
+        />
       ) : filteredItems.length ? (
         <View style={{ gap: 10 }}>
           {filteredItems.map((item) => (
