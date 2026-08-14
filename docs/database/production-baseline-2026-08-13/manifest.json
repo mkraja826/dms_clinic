@@ -37,12 +37,19 @@
     "vault_values_included": false,
     "edge_function_secrets_included": false
   },
-  "replay_ready": false,
-  "replay_blockers": [
-    "Docker daemon is stopped",
-    "No native pg_dump or psql is installed",
-    "No approved production database password is available",
-    "Backup, PITR, and restore readiness are unverified",
-    "A sanitized canonical schema dump has not been replayed"
-  ]
+  "replay_ready": true,
+  "replay_blockers": [],
+  "replay_closure": {
+    "closed_at": "2026-08-14",
+    "authoritative_migration_identities": 73,
+    "deterministic_replay_passes": 2,
+    "unexplained_application_owned_drift": 0,
+    "portal_owned_migrations_preserved": 14,
+    "public_restore_verified": true,
+    "auth_restore_verified": true,
+    "storage_restore_verified": true,
+    "off_device_recovery_copy_verified_present": true,
+    "pitr_available": false,
+    "pitr_note": "PITR is unavailable on the current Supabase Free plan; V25 recovery readiness is based on tested logical database, durable Auth, and Storage-object backup/restore procedures."
+  }
 }
