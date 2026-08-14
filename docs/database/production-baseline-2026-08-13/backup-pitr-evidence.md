@@ -3,7 +3,7 @@
 Evidence finalized on 2026-08-14 for Supabase project
 `mzjtdcpbvoximdukpukd` (`MDMS`).
 
-Status: VERIFIED FOR V25 RELEASE GATE
+Status: VERIFIED
 
 ## Recovery evidence
 
