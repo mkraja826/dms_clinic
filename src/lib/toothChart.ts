@@ -302,9 +302,16 @@ export function summarizeToothFindings(findings: ToothFinding[]) {
   };
 }
 
+function normalizedRole(value?: string | null) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+}
+
 export function canEditDentalChart(role?: string | null) {
   return ["owner", "head_doctor", "working_doctor", "doctor"].includes(
-    role ?? ""
+    normalizedRole(role)
   );
 }
 
