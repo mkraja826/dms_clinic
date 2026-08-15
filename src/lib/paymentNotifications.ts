@@ -12,6 +12,7 @@ import { getCurrentProfile, Profile, supabase } from "@/lib/supabase";
 
 const INSTALL_ID_KEY = "capdent:payment-push:install-id:v1";
 export const PAYMENT_NOTIFICATION_CHANNEL_ID = "payments";
+export const PAYMENT_NOTIFICATION_SOUND = "coin-drop.wav";
 
 export type PaymentPushRegistrationResult =
   | { status: "registered"; token: string }
@@ -27,8 +28,16 @@ export type PaymentPushRegistrationResult =
       reason?: string;
     };
 
+function normalizedRole(value?: string | null) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+}
+
 function isEligibleRecipient(profile: Profile | null | undefined) {
-  return profile?.role === "owner" || profile?.role === "head_doctor";
+  const role = normalizedRole(profile?.role);
+  return role === "owner" || role === "head_doctor";
 }
 
 function createInstallId() {
@@ -68,7 +77,7 @@ async function ensureAndroidNotificationChannel() {
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 200, 150, 200],
       lightColor: "#0F766E",
-      sound: "default",
+      sound: PAYMENT_NOTIFICATION_SOUND,
       lockscreenVisibility:
         Notifications.AndroidNotificationVisibility.PRIVATE,
     }
