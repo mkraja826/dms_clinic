@@ -11,8 +11,8 @@ import {
 import { getCurrentProfile, Profile, supabase } from "@/lib/supabase";
 
 const INSTALL_ID_KEY = "capdent:payment-push:install-id:v1";
-export const PAYMENT_NOTIFICATION_CHANNEL_ID = "payments";
-export const PAYMENT_NOTIFICATION_SOUND = "coin-drop.wav";
+export const PAYMENT_NOTIFICATION_CHANNEL_ID = "payments_coin_drop_v1";
+export const PAYMENT_NOTIFICATION_SOUND = "coin_drop.wav";
 
 export type PaymentPushRegistrationResult =
   | { status: "registered"; token: string }
