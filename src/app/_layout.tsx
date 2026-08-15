@@ -1,4 +1,4 @@
-import { router, Stack, usePathname } from "expo-router";
+import { router, Stack, usePathname, useRootNavigationState } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native";
@@ -54,40 +54,35 @@ async function withLegalConsentTimeout<T>(promise: Promise<T>): Promise<T> {
 
 function RootStack() {
   const pathname = usePathname();
+  const rootNavigationState = useRootNavigationState();
   const { loading, loadingMessage, session, profile } = useAuth();
-  const [legalConsentSatisfied, setLegalConsentSatisfied] = useState(true);
+  const [needsLegalConsent, setNeedsLegalConsent] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
     if (!session || !profile?.clinic_id) {
-      setLegalConsentSatisfied(true);
+      setNeedsLegalConsent(false);
       return () => {
         cancelled = true;
       };
     }
 
     if (pathname === "/legal-consent") {
-      setLegalConsentSatisfied(false);
+      setNeedsLegalConsent(false);
       return () => {
         cancelled = true;
       };
     }
 
-    // Do not hold the entire clinic behind this network check. V25 must remain
-    // usable while the agreement verification runs, and only redirect to the
-    // consent screen when the server clearly says the current version is missing.
-    setLegalConsentSatisfied(true);
+    // Keep the clinic usable while agreement verification runs. Navigation is
+    // handled by a separate mounted effect so Expo Router is ready first.
+    setNeedsLegalConsent(false);
 
     void withLegalConsentTimeout(hasCurrentCapDentLegalConsent())
       .then((accepted) => {
         if (cancelled) return;
-        if (!accepted) {
-          setLegalConsentSatisfied(false);
-          router.replace("/legal-consent" as never);
-          return;
-        }
-        setLegalConsentSatisfied(true);
+        setNeedsLegalConsent(!accepted);
       })
       .catch((error) => {
         if (cancelled) return;
@@ -98,13 +93,27 @@ function RootStack() {
           console.warn("Unable to verify current CapDent legal consent; opening clinic workspace:", error);
         }
 
-        setLegalConsentSatisfied(true);
+        setNeedsLegalConsent(false);
       });
 
     return () => {
       cancelled = true;
     };
   }, [pathname, profile?.clinic_id, session?.user?.id]);
+
+  useEffect(() => {
+    if (loading) return;
+    if (!needsLegalConsent) return;
+    if (!session || !profile?.clinic_id) return;
+    if (pathname === "/legal-consent") return;
+    if (!rootNavigationState?.key) return;
+
+    const timer = setTimeout(() => {
+      router.replace("/legal-consent" as never);
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [loading, needsLegalConsent, pathname, profile?.clinic_id, rootNavigationState?.key, session?.user?.id]);
 
   if (loading) {
     const currentLoadingMessage = loadingMessage || "Preparing your dental workspace...";
@@ -130,7 +139,7 @@ function RootStack() {
 
   const hasSession = Boolean(session);
   const hasClinicProfile = Boolean(profile?.clinic_id);
-  const appReady = hasSession && hasClinicProfile && legalConsentSatisfied;
+  const appReady = hasSession && hasClinicProfile;
   const role = profile ? normalizeRole(profile.role) : null;
 
   return (
