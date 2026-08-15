@@ -42,8 +42,16 @@ export function cleanClinicOpFee(value: unknown) {
   return amount;
 }
 
+function normalizedRole(value?: string | null) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+}
+
 export function canManageClinicFeatureSettings(profile?: Profile | null) {
-  return profile?.role === "head_doctor" || profile?.role === "owner";
+  const role = normalizedRole(profile?.role);
+  return role === "head_doctor" || role === "owner";
 }
 
 export async function getClinicFeatureSettings(options?: { force?: boolean }): Promise<ClinicFeatureSettings> {
