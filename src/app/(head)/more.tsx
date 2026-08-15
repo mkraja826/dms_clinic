@@ -56,6 +56,7 @@ export default function HeadMoreToolsScreen() {
       <ToolSection title="Admin">
         <ToolRow title="Staff" subtitle="Invite and manage clinic access" icon="people-circle-outline" target="/staff" />
         <ToolRow title="Clinic Branding" subtitle="Logo and clinic identity" icon="brush-outline" target="/clinic/branding" />
+        <ToolRow title="Clinic Feature Settings" subtitle="Dental chart, payment push, photos, and prescription features" icon="options-outline" target="/settings/clinic-features" />
         <ToolRow title="View Plans" subtitle="Free, Cloud, and Clinic Intelligence" icon="card-outline" target="/settings/subscription" />
         <ToolRow title="Legal & Account" subtitle="Logout, support, privacy, and account settings" icon="shield-checkmark-outline" target="/settings/legal" />
       </ToolSection>
