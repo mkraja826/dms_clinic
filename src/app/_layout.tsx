@@ -55,14 +55,12 @@ async function withLegalConsentTimeout<T>(promise: Promise<T>): Promise<T> {
 function RootStack() {
   const pathname = usePathname();
   const { loading, loadingMessage, session, profile } = useAuth();
-  const [legalConsentChecking, setLegalConsentChecking] = useState(false);
   const [legalConsentSatisfied, setLegalConsentSatisfied] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
 
     if (!session || !profile?.clinic_id) {
-      setLegalConsentChecking(false);
       setLegalConsentSatisfied(true);
       return () => {
         cancelled = true;
@@ -70,54 +68,46 @@ function RootStack() {
     }
 
     if (pathname === "/legal-consent") {
-      setLegalConsentChecking(false);
       setLegalConsentSatisfied(false);
       return () => {
         cancelled = true;
       };
     }
 
-    setLegalConsentChecking(true);
-    setLegalConsentSatisfied(false);
+    // Do not hold the entire clinic behind this network check. V25 must remain
+    // usable while the agreement verification runs, and only redirect to the
+    // consent screen when the server clearly says the current version is missing.
+    setLegalConsentSatisfied(true);
 
     void withLegalConsentTimeout(hasCurrentCapDentLegalConsent())
       .then((accepted) => {
         if (cancelled) return;
-        setLegalConsentSatisfied(accepted);
         if (!accepted) {
+          setLegalConsentSatisfied(false);
           router.replace("/legal-consent" as never);
+          return;
         }
+        setLegalConsentSatisfied(true);
       })
       .catch((error) => {
         if (cancelled) return;
 
-        // V25 AAB creation/device testing may happen before the additive consent
-        // migration is applied. Only a genuinely missing migration fails open;
-        // all other verification failures keep clinic workflows gated, but must
-        // not leave the user on an endless splash screen.
         if (isConsentMigrationUnavailable(error)) {
           console.warn("V25 legal consent migration is not applied yet; consent gate is temporarily inactive.");
-          setLegalConsentSatisfied(true);
-          return;
+        } else {
+          console.warn("Unable to verify current CapDent legal consent; opening clinic workspace:", error);
         }
 
-        console.warn("Unable to verify current CapDent legal consent:", error);
-        setLegalConsentSatisfied(false);
-        router.replace("/legal-consent" as never);
-      })
-      .finally(() => {
-        if (!cancelled) setLegalConsentChecking(false);
+        setLegalConsentSatisfied(true);
       });
 
     return () => {
       cancelled = true;
     };
-  }, [pathname, profile?.clinic_id, session]);
+  }, [pathname, profile?.clinic_id, session?.user?.id]);
 
-  if (loading || legalConsentChecking) {
-    const currentLoadingMessage = legalConsentChecking
-      ? "Checking your current CapDent agreement..."
-      : loadingMessage || "Preparing your dental workspace...";
+  if (loading) {
+    const currentLoadingMessage = loadingMessage || "Preparing your dental workspace...";
 
     return (
       <View style={styles.loadingScreen}>
