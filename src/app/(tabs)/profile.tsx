@@ -28,7 +28,7 @@ export default function ProfileScreen() {
           title="Clinic Feature Settings"
           icon="options-outline"
           variant="secondary"
-          onPress={() => router.push("/settings/clinic-features")}
+          onPress={() => router.push("/settings/clinic-features" as never)}
         />
       ) : null}
 
