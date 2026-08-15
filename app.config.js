@@ -2,7 +2,7 @@ const { existsSync, mkdirSync, writeFileSync } = require("node:fs");
 const { dirname } = require("node:path");
 
 const localGoogleServicesFile = "./google-services.json";
-const coinDropSoundFile = "./assets/sounds/coin-drop.wav";
+const coinDropSoundFile = "./assets/sounds/coin_drop.wav";
 
 function writeUInt16LE(buffer, value, offset) {
   buffer.writeUInt16LE(value, offset);
