@@ -40,7 +40,10 @@
       [
         "expo-notifications",
         {
-          "defaultChannel": "payments"
+          "defaultChannel": "payments",
+          "sounds": [
+            "./assets/sounds/coin-drop.wav"
+          ]
         }
       ],
       [
