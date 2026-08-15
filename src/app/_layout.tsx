@@ -224,6 +224,7 @@ function RootStack() {
           <Stack.Screen name="reports/staff-performance" options={{ headerShown: true, title: "Staff Performance" }} />
           <Stack.Screen name="reports/treatments" options={{ headerShown: true, title: "Treatment Report" }} />
           <Stack.Screen name="settings/account" options={{ headerShown: true, title: "Account" }} />
+          <Stack.Screen name="settings/clinic-features" options={{ headerShown: true, title: "Clinic Features" }} />
           <Stack.Screen name="settings/delete-account" options={{ headerShown: true, title: "Delete Account" }} />
           <Stack.Screen name="settings/legal" options={{ headerShown: true, title: "Legal" }} />
           <Stack.Screen name="settings/privacy" options={{ headerShown: true, title: "Privacy Policy" }} />
