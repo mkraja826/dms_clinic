@@ -4,11 +4,9 @@ import { AppButton } from "@/components/AppButton";
 import { SectionCard } from "@/components/SectionCard";
 import { colors } from "@/constants/colors";
 import { useAuth } from "@/lib/auth";
-import { canManageClinicFeatureSettings } from "@/lib/clinicOptions";
 
 export default function ProfileScreen() {
   const { profile, signOut } = useAuth();
-  const canManageClinicSettings = canManageClinicFeatureSettings(profile);
 
   return (
     <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: 16, gap: 16 }}>
@@ -23,14 +21,12 @@ export default function ProfileScreen() {
         <AppButton title="Staff Management" onPress={() => router.push("/staff")} />
       ) : null}
 
-      {canManageClinicSettings ? (
-        <AppButton
-          title="Clinic Feature Settings"
-          icon="options-outline"
-          variant="secondary"
-          onPress={() => router.push("/settings/clinic-features" as never)}
-        />
-      ) : null}
+      <AppButton
+        title="Clinic Feature Settings"
+        icon="options-outline"
+        variant="secondary"
+        onPress={() => router.push("/settings/clinic-features" as never)}
+      />
 
       <AppButton
         title="Subscription"
