@@ -216,12 +216,14 @@ if (rcMode) {
   }
 
   const githubRefName = process.env.GITHUB_REF_NAME?.trim() || "";
+  const githubHeadRef = process.env.GITHUB_HEAD_REF?.trim() || "";
   const branchMatches =
     localBranch === "release/capdent-v26" ||
-    githubRefName === "release/capdent-v26";
+    githubRefName === "release/capdent-v26" ||
+    githubHeadRef === "release/capdent-v26";
   expect(
     branchMatches,
-    `V26 RC validation must run from release/capdent-v26 (local: ${localBranch || "detached"}, GitHub ref: ${githubRefName || "none"}).`
+    `V26 RC validation must run from release/capdent-v26 (local: ${localBranch || "detached"}, GitHub ref: ${githubRefName || "none"}, GitHub head: ${githubHeadRef || "none"}).`
   );
 
   expect(
