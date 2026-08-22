@@ -76,7 +76,10 @@ expect(
   "Advertising ID permission must remain blocked."
 );
 
-expect(existsSync("package-lock.json"), "package-lock.json must remain tracked for deterministic npm ci installs.");
+expect(
+  existsSync("package-lock.json"),
+  "package-lock.json must remain tracked for deterministic npm ci installs."
+);
 expect(
   pkg.dependencies?.["@react-native-firebase/app"] === "26.2.0" &&
     pkg.dependencies?.["@react-native-firebase/analytics"] === "26.2.0",
@@ -90,8 +93,14 @@ expect(
   pkg.dependencies?.["expo-device"]?.startsWith("~57."),
   "Expo SDK 57 device dependency must remain installed."
 );
-expect(Boolean(pkg.dependencies?.["react-native-iap"]), "Google Play Billing dependency must remain installed.");
-expect(Boolean(pkg.dependencies?.["react-native-svg"]), "Dental chart SVG dependency must remain installed.");
+expect(
+  Boolean(pkg.dependencies?.["react-native-iap"]),
+  "Google Play Billing dependency must remain installed."
+);
+expect(
+  Boolean(pkg.dependencies?.["react-native-svg"]),
+  "Dental chart SVG dependency must remain installed."
+);
 expect(
   existsSync("scripts/verify-android-signing.mjs"),
   "Android signing verification script must remain present."
@@ -124,11 +133,22 @@ expect(
   eas.cli?.appVersionSource === "local",
   "EAS local app versioning must remain authoritative."
 );
-for (const profileName of ["development", "preview", "production", "play-internal"]) {
+for (const profileName of [
+  "development",
+  "preview",
+  "production",
+  "play-internal",
+]) {
   const profile = eas.build?.[profileName];
   expect(Boolean(profile), `${profileName} EAS build profile must exist.`);
-  expect(profile?.credentialsSource === "local", `${profileName} must use the approved local signing credential.`);
-  expect(profile?.autoIncrement === false, `${profileName} must keep deterministic local versioning.`);
+  expect(
+    profile?.credentialsSource === "local",
+    `${profileName} must use the approved local signing credential.`
+  );
+  expect(
+    profile?.autoIncrement === false,
+    `${profileName} must keep deterministic local versioning.`
+  );
 }
 expect(
   eas.build?.production?.android?.buildType === "app-bundle" &&
@@ -142,11 +162,26 @@ expect(
 );
 for (const profileName of ["production", "play-internal"]) {
   const env = eas.build?.[profileName]?.env;
-  expect(env?.EXPO_PUBLIC_ENABLE_PAID_PLANS === "true", `${profileName} must enable server-verified paid plans.`);
-  expect(env?.EXPO_PUBLIC_ENABLE_PAYMENT_PUSH === "true", `${profileName} must enable payment push.`);
-  expect(env?.EXPO_PUBLIC_ENABLE_TOOTH_CHART === "true", `${profileName} must enable the dental chart.`);
-  expect(env?.EXPO_PUBLIC_ENABLE_REALTIME === "true", `${profileName} must enable realtime.`);
-  expect(env?.EXPO_PUBLIC_USE_SIGNED_STORAGE_URLS === "true", `${profileName} must use signed storage URLs.`);
+  expect(
+    env?.EXPO_PUBLIC_ENABLE_PAID_PLANS === "true",
+    `${profileName} must enable server-verified paid plans.`
+  );
+  expect(
+    env?.EXPO_PUBLIC_ENABLE_PAYMENT_PUSH === "true",
+    `${profileName} must enable payment push.`
+  );
+  expect(
+    env?.EXPO_PUBLIC_ENABLE_TOOTH_CHART === "true",
+    `${profileName} must enable the dental chart.`
+  );
+  expect(
+    env?.EXPO_PUBLIC_ENABLE_REALTIME === "true",
+    `${profileName} must enable realtime.`
+  );
+  expect(
+    env?.EXPO_PUBLIC_USE_SIGNED_STORAGE_URLS === "true",
+    `${profileName} must use signed storage URLs.`
+  );
   expect(
     env?.EXPO_PUBLIC_ENABLE_FIREBASE_ANALYTICS === "false" ||
       env?.EXPO_PUBLIC_ENABLE_FIREBASE_ANALYTICS === "true",
@@ -171,17 +206,23 @@ expect(
 );
 
 if (rcMode) {
+  let localBranch = "";
   try {
-    const branch = execFileSync("git", ["branch", "--show-current"], {
+    localBranch = execFileSync("git", ["branch", "--show-current"], {
       encoding: "utf8",
     }).trim();
-    expect(
-      branch === "release/capdent-v26",
-      `V26 RC validation must run from release/capdent-v26 (current: ${branch || "detached"}).`
-    );
   } catch {
-    notes.push("Could not determine current Git branch; branch identity was not verified.");
+    notes.push("Could not determine the local Git branch.");
   }
+
+  const githubRefName = process.env.GITHUB_REF_NAME?.trim() || "";
+  const branchMatches =
+    localBranch === "release/capdent-v26" ||
+    githubRefName === "release/capdent-v26";
+  expect(
+    branchMatches,
+    `V26 RC validation must run from release/capdent-v26 (local: ${localBranch || "detached"}, GitHub ref: ${githubRefName || "none"}).`
+  );
 
   expect(
     existsSync("assets/sounds/coin_drop.wav") ||
