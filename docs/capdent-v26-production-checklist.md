@@ -7,10 +7,12 @@ V26 is based directly on the frozen V25 release branch. Do not merge `main` into
 
 - [x] Create `release/capdent-v26` directly from `release/capdent-v25`.
 - [x] Set Expo app version to `1.2.6`.
+- [x] Set `package.json` app version to `1.2.6`.
 - [x] Set Android `versionCode` to `26`.
 - [x] Preserve package id `com.dms.clinic`.
 - [x] Preserve Android compile/target SDK 36.
 - [x] Preserve `package-lock.json` for deterministic installs.
+- [ ] Refresh the package-lock root version metadata from `1.2.3` to `1.2.6` locally without dependency changes. This is release housekeeping, not an `npm ci` compatibility blocker.
 - [ ] Run `npm ci` locally on the final branch.
 
 ## V25 regression protection
@@ -29,6 +31,8 @@ V26 is based directly on the frozen V25 release branch. Do not merge `main` into
 ## V26 release gates
 
 - [x] Add `scripts/validate-capdent-v26.mjs`.
+- [x] Require V26 app/package version, versionCode, API 36, Firebase, push channel/sound, billing, dental-chart dependency, signing gate, EAS profiles, and release feature flags in the V26 validator.
+- [x] Make the RC branch check compatible with both a local V26 checkout and GitHub Actions detached-HEAD checkout via `GITHUB_REF_NAME`.
 - [x] Wire all V26 Android build commands through `check:v26:rc`.
 - [x] Wire GitHub Actions on `release/capdent-v26` to run `npm ci`, V26 validation/typecheck, `git diff --check`, and Expo config validation.
 - [ ] Confirm the V26 GitHub Actions run completes successfully.
