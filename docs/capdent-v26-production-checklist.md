@@ -6,8 +6,8 @@ V26 is based directly on the frozen V25 release branch. Do not merge `main` into
 ## Branch and version safety
 
 - [x] Create `release/capdent-v26` directly from `release/capdent-v25`.
-- [ ] Set Expo app version to `1.2.6`.
-- [ ] Set Android `versionCode` to `26`.
+- [x] Set Expo app version to `1.2.6`.
+- [x] Set Android `versionCode` to `26`.
 - [x] Preserve package id `com.dms.clinic`.
 - [x] Preserve Android compile/target SDK 36.
 - [x] Preserve `package-lock.json` for deterministic installs.
@@ -29,14 +29,16 @@ V26 is based directly on the frozen V25 release branch. Do not merge `main` into
 ## V26 release gates
 
 - [x] Add `scripts/validate-capdent-v26.mjs`.
-- [ ] Wire all V26 Android build commands through `check:v26:rc`.
-- [ ] Run `npm run check:v26`.
-- [ ] Run `npm run check:v26:rc` from `release/capdent-v26`.
-- [ ] Run `git diff --check`.
-- [ ] Run Expo config inspection and confirm package/version/permissions/plugins.
+- [x] Wire all V26 Android build commands through `check:v26:rc`.
+- [x] Wire GitHub Actions on `release/capdent-v26` to run `npm ci`, V26 validation/typecheck, `git diff --check`, and Expo config validation.
+- [ ] Confirm the V26 GitHub Actions run completes successfully.
+- [ ] Run `npm run check:v26` locally.
+- [ ] Run `npm run check:v26:rc` from `release/capdent-v26` locally.
+- [ ] Run `git diff --check` locally.
+- [ ] Run Expo config inspection and confirm package/version/permissions/plugins locally.
 - [ ] Verify approved Android signing certificate.
 - [ ] Verify release Google Services configuration.
-- [ ] Verify EAS production environment values.
+- [x] Verify EAS Production and Play Internal profiles retain app-bundle output, local versioning/signing policy, and separate Play tracks.
 
 ## Device smoke test
 
