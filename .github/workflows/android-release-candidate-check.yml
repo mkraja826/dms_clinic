@@ -37,8 +37,8 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
-      - name: Run V26 validation and typecheck
-        run: npm run check:v26
+      - name: Run strict V26 RC validation and typecheck
+        run: npm run check:v26:rc
 
       - name: Check repository diff formatting
         run: git diff --check
