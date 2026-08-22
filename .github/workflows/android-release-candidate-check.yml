@@ -1,15 +1,18 @@
-name: Android release candidate check
+name: CapDent V26 release candidate check
 
 on:
   push:
     branches:
-      - android-release-candidate-2026-07-17
+      - release/capdent-v26
   pull_request:
     paths:
-      - "scripts/apply-android-rc-2026-07-17.mjs"
       - "src/**"
+      - "scripts/validate-capdent-v26.mjs"
+      - "scripts/verify-android-signing.mjs"
+      - "app.config.js"
       - "app.json"
       - "eas.json"
+      - "firebase.json"
       - "package.json"
       - "package-lock.json"
       - ".env.example"
@@ -22,7 +25,7 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out release candidate
+      - name: Check out V26 release candidate
         uses: actions/checkout@v4
 
       - name: Use Node.js
@@ -31,14 +34,14 @@ jobs:
           node-version: 22.13.1
           cache: npm
 
-      - name: Install dependencies
+      - name: Install locked dependencies
         run: npm ci
 
-      - name: Apply grouped Android RC updates
-        run: node scripts/apply-android-rc-2026-07-17.mjs
+      - name: Run V26 validation and typecheck
+        run: npm run check:v26
 
-      - name: Check generated diff
+      - name: Check repository diff formatting
         run: git diff --check
 
-      - name: Validate Expo Android configuration
-        run: npx expo config --type public > /tmp/capdent-expo-config.txt
+      - name: Validate Expo public configuration
+        run: npx expo config --type public > /tmp/capdent-v26-expo-config.txt
