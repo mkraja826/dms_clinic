@@ -14,6 +14,7 @@ const rcMode =
 
 const app = readJson("app.json");
 const pkg = readJson("package.json");
+const lock = readJson("package-lock.json");
 const eas = readJson("eas.json");
 const appConfig = readText("app.config.js");
 const environmentExample = readText(".env.example");
@@ -28,6 +29,11 @@ expect(
   "V26 requires Android versionCode 26."
 );
 expect(app.expo?.version === "1.2.6", "V26 Expo version must be 1.2.6.");
+expect(pkg.version === "1.2.6", "V26 package.json version must be 1.2.6.");
+expect(
+  lock?.name === pkg.name && lock?.packages?.[""]?.name === pkg.name,
+  "package-lock.json root package identity must match package.json."
+);
 
 const buildPropertiesPlugin = app.expo?.plugins?.find(
   (plugin) => Array.isArray(plugin) && plugin[0] === "expo-build-properties"
