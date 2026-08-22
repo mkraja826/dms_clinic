@@ -3,7 +3,7 @@
     "name": "CapDent",
     "slug": "dmsdms",
     "scheme": "dms",
-    "version": "1.1.0",
+    "version": "1.2.6",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "icon": "./assets/icon.png",
@@ -42,7 +42,7 @@
     ],
     "android": {
       "package": "com.dms.clinic",
-      "versionCode": 16,
+      "versionCode": 26,
       "allowBackup": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -68,6 +68,11 @@
         "NSPhotoLibraryUsageDescription": "CapDent needs photo library access to upload patient photos, prescriptions, X-rays, and reports.",
         "ITSAppUsesNonExemptEncryption": false
       }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/icon.png"
     },
     "experiments": {
       "typedRoutes": true

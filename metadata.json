@@ -1,0 +1,10 @@
+{
+  "name": "CapDent",
+  "description": "Dental Clinic Management System for patient records, appointments, visits, prescriptions, X-rays, billing, and staff workflow.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
