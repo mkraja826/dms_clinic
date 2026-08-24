@@ -25,8 +25,8 @@ expect(
   "Android package must remain com.dms.clinic."
 );
 expect(
-  app.expo?.android?.versionCode === 26,
-  "V26 requires Android versionCode 26."
+  app.expo?.android?.versionCode === 27,
+  "V26 requires Android versionCode 27."
 );
 expect(app.expo?.version === "1.2.6", "V26 Expo version must be 1.2.6.");
 expect(pkg.version === "1.2.6", "V26 package.json version must be 1.2.6.");
