@@ -36,7 +36,7 @@ expect(!pkg.dependencies?.openai && !pkg.dependencies?.["@anthropic-ai/sdk"] && 
 expect(quota.includes("patientLimit: 100"), "Free patient limit must remain 100.");
 expect(quota.includes("uploadLimit: 150"), "Free upload limit must remain 150.");
 expect(quota.includes("uploadWarningAt: 120"), "Free upload warning must remain 120.");
-expect(quota.includes("storageLimitBytes: GIB"), "Free storage limit must remain 1 GiB.");
+expect(quota.includes("storageLimitBytes: 1024 * 1024 * 1024"), "Free storage limit must remain 1 GiB.");
 
 expect(pricing.includes('supabase.rpc("get_capdent_entitlements_v25")'), "V28 quota UI must keep server entitlement authority.");
 expect(billing.includes('supabase.functions.invoke("verify-google-play-subscription"'), "Paid access must continue through the server Google Play verifier.");
