@@ -54,10 +54,13 @@ export default function HeadMoreToolsScreen() {
       </ToolSection>
 
       <ToolSection title="Admin">
+        <ToolRow title="Clinic Health" subtitle="V28 plan usage, quota, billing, and notification readiness" icon="pulse-outline" target="/settings/clinic-health" />
         <ToolRow title="Staff" subtitle="Invite and manage clinic access" icon="people-circle-outline" target="/staff" />
         <ToolRow title="Clinic Branding" subtitle="Logo and clinic identity" icon="brush-outline" target="/clinic/branding" />
         <ToolRow title="Clinic Feature Settings" subtitle="Dental chart, payment push, photos, and prescription features" icon="options-outline" target="/settings/clinic-features" />
         <ToolRow title="View Plans" subtitle="Free, Cloud, and Clinic Intelligence" icon="card-outline" target="/settings/subscription" />
+        <ToolRow title="App Guide" subtitle="Clinic setup and workflow help" icon="book-outline" target="/settings/guide" />
+        <ToolRow title="Feedback & Support" subtitle="Report an issue or send product feedback" icon="chatbox-ellipses-outline" target="/settings/report-issue" />
         <ToolRow title="Legal & Account" subtitle="Logout, support, privacy, and account settings" icon="shield-checkmark-outline" target="/settings/legal" />
       </ToolSection>
     </Screen>
