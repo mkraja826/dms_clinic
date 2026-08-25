@@ -28,6 +28,27 @@ export type PaymentPushRegistrationResult =
       reason?: string;
     };
 
+export type PaymentPushHealth = {
+  globallyEnabled: boolean;
+  clinicEnabled: boolean;
+  eligibleRole: boolean;
+  physicalDevice: boolean;
+  expoGo: boolean;
+  permissionGranted: boolean;
+  projectIdConfigured: boolean;
+  ready: boolean;
+  status:
+    | "ready"
+    | "disabled"
+    | "ineligible-role"
+    | "simulator"
+    | "expo-go"
+    | "permission-denied"
+    | "missing-project-id"
+    | "unavailable";
+  reason?: string;
+};
+
 function normalizedRole(value?: string | null) {
   return String(value || "")
     .trim()
@@ -90,6 +111,112 @@ async function requestNotificationPermission() {
 
   const requested = await Notifications.requestPermissionsAsync();
   return requested.granted;
+}
+
+/**
+ * Read-only V28 health check. This never requests notification permission and
+ * never creates or updates a push token. It is safe to call from owner status
+ * screens to explain why payment push is or is not ready on this device.
+ */
+export async function getPaymentPushHealth(
+  suppliedProfile?: Profile | null
+): Promise<PaymentPushHealth> {
+  const base = {
+    globallyEnabled: PAYMENT_PUSH_GLOBALLY_ENABLED,
+    clinicEnabled: false,
+    eligibleRole: false,
+    physicalDevice: Device.isDevice,
+    expoGo: isExpoGo(),
+    permissionGranted: false,
+    projectIdConfigured: Boolean(getEasProjectId()),
+  };
+
+  try {
+    const profile = suppliedProfile ?? (await getCurrentProfile());
+    const eligibleRole = isEligibleRecipient(profile);
+    const clinicSettings = profile?.clinic_id
+      ? await getClinicFeatureSettings()
+      : null;
+    const clinicEnabled = Boolean(clinicSettings?.payment_push_enabled);
+    const permission = await Notifications.getPermissionsAsync();
+    const permissionGranted = permission.granted;
+
+    const snapshot = {
+      ...base,
+      clinicEnabled,
+      eligibleRole,
+      permissionGranted,
+    };
+
+    if (!snapshot.globallyEnabled || !snapshot.clinicEnabled) {
+      return {
+        ...snapshot,
+        ready: false,
+        status: "disabled",
+        reason: !snapshot.globallyEnabled
+          ? "Payment notifications are disabled in this build."
+          : "Payment notifications are disabled in clinic settings.",
+      };
+    }
+
+    if (!snapshot.eligibleRole) {
+      return {
+        ...snapshot,
+        ready: false,
+        status: "ineligible-role",
+        reason: "Payment notifications are available to the owner or head doctor.",
+      };
+    }
+
+    if (!snapshot.physicalDevice) {
+      return {
+        ...snapshot,
+        ready: false,
+        status: "simulator",
+        reason: "Push notifications require a physical device.",
+      };
+    }
+
+    if (snapshot.expoGo) {
+      return {
+        ...snapshot,
+        ready: false,
+        status: "expo-go",
+        reason: "Remote Android push requires a development or release build.",
+      };
+    }
+
+    if (!snapshot.permissionGranted) {
+      return {
+        ...snapshot,
+        ready: false,
+        status: "permission-denied",
+        reason: "Notification permission has not been granted on this device.",
+      };
+    }
+
+    if (!snapshot.projectIdConfigured) {
+      return {
+        ...snapshot,
+        ready: false,
+        status: "missing-project-id",
+        reason: "The EAS project identifier is missing from this build.",
+      };
+    }
+
+    return {
+      ...snapshot,
+      ready: true,
+      status: "ready",
+    };
+  } catch (error) {
+    return {
+      ...base,
+      ready: false,
+      status: "unavailable",
+      reason: error instanceof Error ? error.message : "Push health is unavailable.",
+    };
+  }
 }
 
 export async function registerPaymentPushToken(
