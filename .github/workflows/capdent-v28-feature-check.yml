@@ -1,0 +1,50 @@
+name: CapDent V28 feature check
+
+on:
+  push:
+    branches:
+      - feature/capdent-v28
+  pull_request:
+    branches:
+      - release/capdent-v28
+    paths:
+      - "src/**"
+      - "scripts/validate-capdent-v28-feature.mjs"
+      - "app.config.js"
+      - "app.json"
+      - "eas.json"
+      - "package.json"
+      - "package-lock.json"
+      - "docs/capdent-v28-*.md"
+      - ".github/workflows/capdent-v28-feature-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out V28 feature branch
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.1
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Run V28 feature invariants and TypeScript
+        run: npm run check:v28:feature
+
+      - name: Check repository diff formatting
+        run: git diff --check
+
+      - name: Validate Expo public configuration
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_feature_validation_only_123456789012345678901234567890123456
+        run: npx expo config --type public > /tmp/capdent-v28-expo-config.txt
