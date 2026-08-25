@@ -28,17 +28,17 @@ function warningCopy(label: string, percent: number, enforced: boolean) {
   if (percent >= 100) {
     return enforced
       ? `${label} limit reached. Upgrade before adding more.`
-      : `${label} is at the configured V25 limit, but enforcement is currently off.`;
+      : `${label} is at the configured plan limit, but enforcement is currently off.`;
   }
 
   if (percent >= 90) {
     return enforced
       ? `${label} is almost at the limit. Consider upgrading before the clinic is blocked.`
-      : `${label} is above 90% of the configured V25 limit.`;
+      : `${label} is above 90% of the configured plan limit.`;
   }
 
   if (percent >= 80) {
-    return `${label} is approaching the configured V25 limit.`;
+    return `${label} is approaching the configured plan limit.`;
   }
 
   return null;
@@ -165,7 +165,7 @@ export function V25QuotaUsageCard({
 
   return (
     <SectionCard
-      title="V25 Plan Usage"
+      title="Plan Usage"
       subtitle="Server-reported clinic usage. Quota enforcement remains controlled centrally and may be disabled during rollout."
     >
       {loading && !entitlements ? (
@@ -180,11 +180,11 @@ export function V25QuotaUsageCard({
               <Text style={{ color: colors.muted, marginTop: 3, lineHeight: 19 }}>
                 {grandfathered
                   ? "Existing clinic protection is active. Limits are visible but not enforced until rollout eligibility changes."
-                  : "This clinic follows the current V25 quota policy."}
+                  : "This clinic follows the current CapDent quota policy."}
               </Text>
             </View>
             <StatusBadge
-              label={grandfathered ? "Grandfathered" : "V25 policy"}
+              label={grandfathered ? "Grandfathered" : "Current policy"}
               tone={grandfathered ? "success" : "primary"}
             />
           </View>
