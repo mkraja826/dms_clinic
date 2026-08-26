@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import Constants from "expo-constants";
 import { router } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { useState } from "react";
@@ -9,7 +10,6 @@ import { SectionCard } from "@/components/SectionCard";
 import { colors } from "@/constants/colors";
 import { CAPDENT_PRIVACY_URL, CAPDENT_TERMS_URL } from "@/lib/legalLinks";
 import {
-  CAPDENT_APP_VERSION,
   CAPDENT_PRIVACY_VERSION,
   CAPDENT_TERMS_VERSION,
   recordCapDentLegalConsent,
@@ -36,7 +36,7 @@ export default function LegalConsentScreen() {
       await recordCapDentLegalConsent({
         termsVersion: CAPDENT_TERMS_VERSION,
         privacyVersion: CAPDENT_PRIVACY_VERSION,
-        appVersion: CAPDENT_APP_VERSION,
+        appVersion: Constants.expoConfig?.version || "unknown",
         platform: "android",
       });
 
