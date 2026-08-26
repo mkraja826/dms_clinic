@@ -349,7 +349,7 @@ async function dispatchJob(jobId: string) {
       const messages = tokenChunk.map((token) => ({
         to: token.expo_push_token,
         sound: "default",
-        channelId: "payments",
+        channelId: "payments_coin_drop_v1",
         priority: "high",
         title: "Payment received",
         body: `${
