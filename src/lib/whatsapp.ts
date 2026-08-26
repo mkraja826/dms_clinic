@@ -1,8 +1,23 @@
 import { Alert, Linking } from "react-native";
+import type { CapDentInvoiceSnapshot } from "@/lib/invoiceDocument";
 
 function normalizePhone(phone?: string | null) {
   if (!phone) return "";
   return phone.replace(/[^\d]/g, "");
+}
+
+function invoiceMoney(value: number, currencyCode?: string | null) {
+  const currency = String(currencyCode || "INR").toUpperCase();
+  const amount = Number.isFinite(Number(value)) ? Number(value) : 0;
+  try {
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  } catch {
+    return `${currency} ${amount.toFixed(2)}`;
+  }
 }
 
 export async function openWhatsApp(phone: string | null | undefined, message: string) {
@@ -31,4 +46,37 @@ export function paymentReminderMessage(input: { patientName: string; clinicName?
 
 export function visitFollowUpMessage(input: { patientName: string; clinicName?: string }) {
   return `Hello ${input.patientName}, thank you for visiting ${input.clinicName ?? "our clinic"}. Please follow the doctor's advice and contact us if you have pain, swelling, or questions.`;
+}
+
+export function finalizedInvoiceMessage(
+  snapshot: CapDentInvoiceSnapshot,
+  options?: { paymentUrl?: string | null }
+) {
+  const currency = snapshot.currencyCode || "INR";
+  const invoiceNumber = snapshot.invoiceNumber || snapshot.invoiceId.slice(0, 8).toUpperCase();
+  const lines = snapshot.lines
+    .map((line) => `${line.label}: ${invoiceMoney(line.amount, currency)}`)
+    .join("\n");
+  const paymentUrl = options?.paymentUrl?.trim() || "";
+  const statusLine = snapshot.due > 0
+    ? `Balance due: ${invoiceMoney(snapshot.due, currency)}`
+    : "Status: PAID";
+
+  return [
+    `Hello ${snapshot.patient.name},`,
+    "",
+    `Final invoice from ${snapshot.clinic.name}`,
+    `Invoice: ${invoiceNumber}`,
+    "",
+    lines,
+    "",
+    `Total: ${invoiceMoney(snapshot.total, currency)}`,
+    `Paid: ${invoiceMoney(snapshot.paid, currency)}`,
+    statusLine,
+    paymentUrl && snapshot.due > 0 ? `Pay remaining balance securely: ${paymentUrl}` : "",
+    "",
+    "Please contact reception if you have any questions about this invoice.",
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
