@@ -12,15 +12,28 @@ verify_jwt = false
 # The pg_cron/pg_net caller authenticates with a separate Vault-held secret.
 verify_jwt = false
 
+[functions.connect-card-payment-account]
+# Owner/head-doctor authenticated entry point. It returns a one-time Stripe
+# Account Link that must be opened in the system browser, never an embedded WebView.
+verify_jwt = true
+
+[functions.sync-card-payment-account]
+# Owner/head-doctor authenticated status refresh for the clinic's Stripe account.
+verify_jwt = true
+
 [functions.create-patient-payment-checkout]
-# Reception/owner must be authenticated; the function then calls the
-# server-authoritative prepare RPC before any provider request is created.
+# Reception/owner must be authenticated; the function calls the authoritative
+# remaining-balance RPC before creating PhonePe or connected-account card checkout.
 verify_jwt = true
 
 [functions.phonepe-patient-payment-webhook]
 # PhonePe cannot present a Supabase user JWT. The function authenticates the
-# callback itself using PhonePe's configured SHA webhook credentials before it
-# reads or mutates any payment request state.
+# callback itself using PhonePe SHA webhook credentials before touching payment state.
+verify_jwt = false
+
+[functions.stripe-patient-payment-webhook]
+# Stripe Connect events have no Supabase user JWT. The function validates the
+# Stripe-Signature against the server-only endpoint secret before processing them.
 verify_jwt = false
 
 [functions.hello-world]
