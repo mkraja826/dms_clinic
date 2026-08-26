@@ -74,6 +74,7 @@ export default function ReceptionMoreToolsScreen() {
 
       <ToolSection title="Collections">
         <ToolRow title="Review Final Invoice" subtitle="Combine selected OP, X-ray, medication, treatment, and other charges before sending" icon="document-text-outline" target="/reception/final-invoice" />
+        <ToolRow title="Finalized Invoices" subtitle="Review frozen invoices and manually send them to patients" icon="documents-outline" target="/reception/finalized-invoices" />
         <ToolRow title="Pending Payments" subtitle="Collect old due or treatment balance" icon="wallet-outline" target="/patient/payment" />
         <ToolRow title="OP Fee" subtitle="Collect OP consultation fee" icon="receipt-outline" target={{ pathname: "/payment/fee", params: { fee_type: "op_fee" } }} />
         <ToolRow title="X-ray Fee" subtitle="Collect separate X-ray amount" icon="scan-outline" target={{ pathname: "/payment/fee", params: { fee_type: "xray_fee" } }} />
