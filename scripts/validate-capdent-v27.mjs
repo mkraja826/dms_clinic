@@ -22,6 +22,7 @@ try {
 const patientsScreen = readText("src/app/(tabs)/patients.tsx");
 const addPatientScreen = readText("src/app/patient/add.tsx");
 const uploadScreen = readText("src/app/patient/upload.tsx");
+const loginScreen = readText("src/app/login.tsx");
 const subscriptionScreen = readText("src/app/settings/subscription.tsx");
 const recoveryScreen = readText("src/app/settings/subscription-recovery.tsx");
 const recoveryService = readText("src/lib/googlePlayRecovery.ts");
@@ -30,9 +31,14 @@ const notificationHealthService = readText("src/lib/paymentNotificationHealth.ts
 const paymentNotifications = readText("src/lib/paymentNotifications.ts");
 const notificationCoordinator = readText("src/components/PaymentNotificationCoordinator.tsx");
 const paymentNotificationDispatcher = readText("supabase/functions/send-payment-notification/index.ts");
+const analyticsCoordinator = readText("src/components/FirebaseAnalyticsCoordinator.tsx");
+const firebaseAnalytics = readText("src/lib/firebaseAnalytics.ts");
+const pricingV25 = readText("src/lib/pricingV25.ts");
+const ownerReviewScreen = readText("src/app/reports/owner-review.tsx");
 const headMore = readText("src/app/(head)/more.tsx");
 const headDashboard = readText("src/app/(head)/dashboard.tsx");
 const limits = readText("src/lib/v25Limits.ts");
+const eas = JSON.parse(readText("eas.json"));
 
 expect(
   patientsScreen.includes("Plan & Patient Capacity"),
@@ -178,6 +184,78 @@ expect(
     headMore.includes("/settings/notification-health"),
   "V27 owner tools must provide a visible route to notification health."
 );
+
+expect(
+  eas.build?.production?.env?.EXPO_PUBLIC_ENABLE_FIREBASE_ANALYTICS === "true" &&
+    eas.build?.["play-internal"]?.env?.EXPO_PUBLIC_ENABLE_FIREBASE_ANALYTICS === "true" &&
+    eas.build?.development?.env?.EXPO_PUBLIC_ENABLE_FIREBASE_ANALYTICS === "false" &&
+    eas.build?.preview?.env?.EXPO_PUBLIC_ENABLE_FIREBASE_ANALYTICS === "false",
+  "V27 Firebase Analytics must be enabled only for Play Internal and Production release profiles."
+);
+expect(
+  firebaseAnalytics.includes("capdent_auth_result") &&
+    firebaseAnalytics.includes("capdent_quota_blocked") &&
+    firebaseAnalytics.includes("capdent_plan_viewed") &&
+    firebaseAnalytics.includes("capdent_billing_recovery") &&
+    firebaseAnalytics.includes("capdent_notification_health") &&
+    firebaseAnalytics.includes("capdent_owner_review"),
+  "V27 analytics must keep an explicit allowlist for authentication, quota, plan, billing-recovery, notification-health, and owner-review events."
+);
+expect(
+  firebaseAnalytics.includes("analytics_storage: FIREBASE_ANALYTICS_ENABLED") &&
+    firebaseAnalytics.includes("ad_storage: false") &&
+    firebaseAnalytics.includes("ad_user_data: false") &&
+    firebaseAnalytics.includes("ad_personalization: false"),
+  "V27 analytics consent must enable only analytics storage and keep advertising consent disabled."
+);
+expect(
+  !firebaseAnalytics.includes("patient_name") &&
+    !firebaseAnalytics.includes("patient_phone") &&
+    !firebaseAnalytics.includes("diagnosis") &&
+    !firebaseAnalytics.includes("purchase_token") &&
+    !firebaseAnalytics.includes("order_id") &&
+    !firebaseAnalytics.includes("clinic_id"),
+  "V27 analytics schema must not accept patient, clinical, purchase-token, order, or clinic identifiers."
+);
+expect(
+  loginScreen.includes("analyticsAuthFailureCategory") &&
+    loginScreen.includes('"capdent_auth_result"') &&
+    loginScreen.includes('failure_category: "none"'),
+  "V27 login analytics must record only safe success/failure categories without credentials or email values."
+);
+expect(
+  pricingV25.includes('"capdent_quota_blocked"') &&
+    pricingV25.includes('resource: "patient"') &&
+    pricingV25.includes('resource: "upload"') &&
+    pricingV25.includes('resource: "storage"'),
+  "V27 quota analytics must distinguish patient, upload-count, and storage blocks through the server-authoritative quota helpers."
+);
+expect(
+  addPatientScreen.includes('"capdent_patient_registered"') &&
+    addPatientScreen.includes("profile_photo_requested"),
+  "V27 patient-registration analytics must record only the non-identifying profile-photo-requested flag."
+);
+expect(
+  analyticsCoordinator.includes('"capdent_plan_viewed"') &&
+    analyticsCoordinator.includes('pathname === "/settings/subscription"') &&
+    analyticsCoordinator.includes('"capdent_billing_recovery"') &&
+    analyticsCoordinator.includes('action: "view"') &&
+    analyticsCoordinator.includes('outcome: "viewed"'),
+  "V27 analytics coordinator must count plan and billing-recovery screen views without reading billing tokens."
+);
+expect(
+  notificationHealthScreen.includes('"capdent_notification_health"') &&
+    notificationHealthScreen.includes('outcome: "permission_denied"') &&
+    notificationHealthScreen.includes('outcome: "unavailable"'),
+  "V27 notification-health analytics must expose safe health and repair outcomes without raw tokens."
+);
+expect(
+  ownerReviewScreen.includes('"capdent_owner_review"') &&
+    ownerReviewScreen.includes("analyticsAttentionBucket") &&
+    ownerReviewScreen.includes("analyticsOwnerReviewItem"),
+  "V27 owner-review analytics must use bucketed attention levels and fixed review categories instead of patient details."
+);
+
 expect(
   limits.includes("patientLimit: 100") &&
     limits.includes("uploadLimit: 150") &&
