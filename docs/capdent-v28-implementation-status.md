@@ -1,180 +1,163 @@
 # CapDent V28 — Implementation Status
 
-This file is the working completion ledger for `feature/capdent-v28`. A checked item means the code path exists and is integrated on the feature branch; it does **not** mean Production has been changed.
+This is the working completion ledger for `feature/capdent-v28`. A checked item means the code path exists on the feature branch. It does **not** mean Production has been changed, a real clinic has been onboarded, or a real patient payment has been tested.
 
-## Completed / already present and retained
+## Branch baseline and safety
 
-- [x] Core role dashboards for owner/head doctor, doctor, and reception.
-- [x] Patient registration/directory and patient history flows.
-- [x] Visit workflow and immediate mutation locks on critical writes where already implemented.
-- [x] Ongoing treatments and treatment reporting.
-- [x] Tooth-chart module and existing tooth-chart tests/history behavior.
-- [x] Appointments, check-in, reminders, follow-ups.
-- [x] Payment entry/review and owner payment reports.
-- [x] Invoice document/snapshot utilities already present in the codebase.
-- [x] WhatsApp handover utility already present in the codebase.
-- [x] Image compression before supported clinical uploads.
-- [x] Signed-storage URL support behind the existing release flag.
-- [x] V25 server-authoritative quota/consent migration exists and is additive/default-off.
-- [x] Free-tier policy constants: 100 patients / 150 uploads / warning at 120 / 1 GB.
-- [x] Google Play purchase path uses server verification before paid activation.
-- [x] Firebase Analytics wrapper is allow-listed and designed to avoid PHI.
-- [x] In-app guide, legal/account, privacy/terms, report-issue/feedback screens exist.
-- [x] Owner reports: clinic, activity, export, follow-ups, payments, treatments, staff performance, owner review.
+- [x] Latest green V27 baseline reconciled into V28 through merge commit `6478e54fd7d719e591e921e55279a3aeeca93322`.
+- [x] V28 is now ahead of the current V27 head and no longer behind it.
+- [x] Pre-reconciliation V28 state preserved at `backup/capdent-v28-pre-reconcile-20260826`.
+- [x] V27 analytics, notification-health, Google Play recovery, quota UX, and version-aware payment-push routing retained.
+- [x] V28 billing/provider work retained during reconciliation.
+- [ ] No V28 migration or patient-payment Edge Function has been approved for Production deployment yet.
+- [ ] No real PhonePe clinic merchant account or patient transaction has been used for V28 validation yet.
 
-## Implemented specifically on V28 branch
+## Core CapDent behavior retained
 
-- [x] Feature-complete V28 scope document and release gates.
-- [x] Owner **Clinic Health** screen.
-- [x] Server entitlement usage meters for patients, uploads, and storage.
-- [x] Grandfathering/status visibility in Clinic Health.
-- [x] Read-only payment push health check that does not prompt or mutate tokens.
-- [x] Explicit owner repair/register action for payment push.
-- [x] Guide and feedback/support surfaced directly in owner More tools.
-- [x] Google Play restore/recovery helper for reinstall/device-change scenarios.
-- [x] Restore path reuses CapDent server verification; local purchase data never unlocks paid access by itself.
-- [x] Owner-visible Restore Subscription screen.
-- [x] Additive `clinic_payment_accounts` migration committed to the V28 branch only; Production has not been changed.
-- [x] Patient payment receiving-account table explicitly stores only non-secret provider metadata.
-- [x] Authenticated Android users have no direct insert/update/delete access to provider account metadata.
-- [x] Server-safe payment-account status RPC derives clinic context from the signed-in profile.
-- [x] Country routing rule locked: explicit India (`IN`) → PhonePe; other explicitly configured countries → card only.
-- [x] Missing/invalid country disables online payment routing rather than inferring India from phone/IP/SIM/device locale.
-- [x] Owner-visible **Patient Payments** settings screen added under More.
-- [x] Patient Payments screen is backward-safe when the additive backend migration is absent.
-- [x] Provider onboarding buttons remain deliberately disabled until authenticated provider onboarding and merchant verification are implemented.
-- [x] Consolidated-invoice rule documented: no patient messaging after individual OP/X-ray/medication/treatment fee entries.
-- [x] Additive V28 consolidated billing migration committed to the feature branch only; Production has not been changed.
-- [x] Existing `invoices`, `payments`, `collect_reception_fee()`, and `record_patient_payment()` remain untouched by consolidated finalization.
-- [x] Reception selects explicit source invoice IDs; old patient history is never auto-consumed into a final invoice.
-- [x] Server finalization validates signed-in clinic, role, patient ownership, and every selected source invoice.
-- [x] Same-patient concurrent finalization is serialized and already-finalized source invoices are rejected.
-- [x] Server-authoritative sequential invoice numbering added for new V28 consolidated invoices (`CD-YYYY-000001` per clinic/year).
-- [x] Immutable consolidated bill header and line-item snapshots added with clinic-scoped RLS reads and no direct client writes.
-- [x] Client consolidated-billing helper is backward-safe when the V28 migration is absent.
-- [x] Receptionist **Review Final Invoice** screen added: patient search → explicit charge selection → total/paid/balance review → finalize.
-- [x] Reception More Tools exposes **Review Final Invoice**.
-- [x] Finalization explicitly sends no WhatsApp/email/notification/payment request; patient sharing remains a separate receptionist action.
-- [x] Finalized consolidated bill can be loaded into the existing CapDent invoice-document snapshot model.
-- [x] Reception **Finalized Invoices** list added for previously finalized patient-facing bills.
-- [x] Native finalized-invoice viewer added with frozen line items, total, paid, balance, notes, and patient identity.
-- [x] Receptionist-only manual **Send Invoice on WhatsApp** action added; opening/reviewing an invoice never sends automatically.
-- [x] Finalized-invoice WhatsApp message is currency-aware and uses only the frozen patient-facing invoice snapshot.
-- [x] Additive secure invoice-share token migration committed to the V28 branch only; Production has not been changed.
-- [x] Invoice share tokens are stored only as SHA-256 hashes, expire, can be revoked, and are not directly readable/writable by Android users.
-- [x] Share-token creation/revocation RPCs validate signed-in clinic, role, and finalized invoice ownership.
-- [x] Patient Pay Now remains deliberately absent until the public token resolver and verified provider payment/reconciliation backend are complete.
+- [x] Owner/head-doctor, doctor, and reception role dashboards.
+- [x] Patient registration, directory, visit, treatment, tooth-chart, appointments, check-in, reminders, and follow-up workflows.
+- [x] Existing payment ledger, invoice rows, fee collection RPCs, and owner payment reports remain available.
+- [x] Free-tier server policy remains 100 patients, 150 uploads, warning at 120 uploads, and 1 GiB storage.
+- [x] Google Play paid-plan activation remains server verified.
+- [x] Firebase Analytics allow-list/privacy rules from V27 retained.
+- [x] Android remains AI-free; AI stays portal-only.
 
-## Required before V28 feature-complete release
+## V28 invoice foundation
 
-### Client integration
+- [x] Additive `consolidated_bills` and `consolidated_bill_items` model committed on the feature branch.
+- [x] Server-authoritative per-clinic/year invoice numbering (`CD-YYYY-000001`).
+- [x] Reception explicitly selects source invoice rows; historical charges are not silently consumed.
+- [x] `finalize_v28_consolidated_bill()` validates clinic, role, patient, selected invoices, and duplicate/race conditions.
+- [x] Same-patient finalization serialized with advisory locking.
+- [x] Finalized bill header and line-item values are frozen snapshots.
+- [x] Finalization does not delete or rewrite legacy invoice/payment history.
+- [x] Reception **Review Final Invoice** screen exists.
+- [x] Reception **Finalized Invoices** list and finalized invoice viewer exist.
+- [ ] Define safe correction/version semantics; a finalized snapshot must never be silently edited in place.
+- [ ] Complete native PDF/file generation and print/share QA for the finalized snapshot.
 
-- [ ] Run local TypeScript check for all V28 commits and fix any integration errors.
-- [ ] Run Expo Doctor on the synced V28 branch and align SDK 57 patches if required.
-- [ ] Remove remaining user-visible legacy "V25" labels where they describe current product UX rather than internal compatibility code.
-- [ ] Add V28 release validator only after feature work is complete.
-- [ ] Cut final release identity to Expo/package `1.2.8`, Android `versionCode` 28 only at release cut.
+## WhatsApp invoice / receipt delivery
 
-### Billing and entitlement QA
+- [x] Manual receptionist **Send Invoice on WhatsApp** action exists.
+- [x] Opening or reviewing an invoice never sends a patient message automatically.
+- [x] Finalized-invoice WhatsApp summary uses the frozen patient-facing bill snapshot.
+- [x] Secure invoice-share token foundation exists with SHA-256 token hashes, expiry, revocation, clinic/role checks, and no direct Android access to token rows.
+- [ ] Public patient invoice token resolver/viewer is still required before secure external invoice URLs can be enabled.
+- [ ] PDF attachment sharing through Android/WhatsApp requires physical-device QA.
+- [ ] Automated WhatsApp Business API delivery is not part of the first V28 release gate; manual share remains the safe initial path.
 
-- [ ] Physical-device test: new Cloud purchase.
-- [ ] Physical-device test: new Intelligence purchase.
-- [ ] Physical-device test: restore after reinstall/device change.
-- [ ] Test grace period, cancelled, expired, and account-hold display/recovery behavior.
-- [ ] Confirm Play Console product IDs/offers exactly match release configuration.
+## Clinic payment receiving accounts
 
-### Quota/consent backend gate
+- [x] Additive `clinic_payment_accounts` table exists on the feature branch.
+- [x] Table stores provider metadata only; Android users cannot directly insert/update/delete provider account rows.
+- [x] Server-safe account-status RPC derives clinic context from the authenticated profile.
+- [x] Country routing is explicit: configured `IN` → PhonePe; other configured supported countries → card provider.
+- [x] Missing/invalid country disables online routing rather than inferring country from phone, IP, SIM, device locale, or user identity.
+- [x] Owner **Patient Payments** settings screen exists.
+- [x] India/PhonePe checkout path is implemented server-side.
+- [x] Non-India card connected-account path is implemented server-side.
+- [x] Provider credentials and webhook secrets are referenced only from server-side environment/secret storage, not `EXPO_PUBLIC_*` Android configuration.
+- [ ] Real merchant onboarding contract and production credential lifecycle must be approved before enabling a clinic.
 
-- [ ] Review `20260814093000_capdent_v25_quota_consent_foundation.sql` against current Production schema.
-- [ ] Verify authoritative upload/storage counting against current bucket/path conventions.
-- [ ] Verify existing-clinic grandfathering behavior.
-- [ ] Apply to a non-production/staging environment first if available.
-- [ ] Only after explicit approval, apply to Production with enforcement flags still off.
-- [ ] Validate legal consent persistence end to end.
-- [ ] Enable quota enforcement only after observation and clinic-by-clinic rollout approval.
+## Patient online payment requests
 
-### Multi-clinic owner support — backend gated
+- [x] Additive `patient_payment_requests` foundation exists.
+- [x] Requests are tied to a finalized invoice.
+- [x] Online requests are created for the verified remaining invoice balance rather than an arbitrary client-entered total.
+- [x] Only one live online request per finalized bill is allowed.
+- [x] Checkout URL attachment is service-role controlled.
+- [x] Raw provider webhook payloads and provider credentials are not stored in patient-readable tables.
+- [x] Patient payment provider events store safe/digested metadata.
+- [x] Patient Pay Now remains intentionally absent from the finalized-invoice UI while provider release gates are incomplete.
 
-- [ ] Introduce an additive owner/clinic membership model; current `profiles.clinic_id` is single-clinic.
-- [ ] Define server-authoritative active clinic selection and allowed clinic list.
-- [ ] Add RLS helpers/policies that derive clinic membership server-side.
-- [ ] Backfill existing owner/profile clinic membership without changing current access.
-- [ ] Add Android clinic switcher only after the above backend foundation passes isolation tests.
-- [ ] Enforce plan clinic count (Free/Cloud 1; Intelligence up to configured limit) on the server.
+## Verified payment reconciliation
 
-### Dental Assistant role — backend gated
+- [x] Additive `patient_payment_reconciliation_entries` exists.
+- [x] Reconciliation RPC is service-role controlled.
+- [x] Provider-verified money is written into the existing CapDent `payments` ledger rather than a parallel accounting ledger.
+- [x] Existing invoice financial recalculation is reused after payment insertion.
+- [x] Duplicate provider events/payment application are protected by idempotency/uniqueness checks.
+- [x] If invoice balance changes after checkout, the request goes to reconciliation review instead of over-crediting the invoice.
+- [x] Original payment category/source invoice context is retained where applicable.
+- [ ] Physical-device and database integration tests are still required for full, partial, failed, duplicate, retried, and balance-changed cases.
 
-- [ ] Additive database role/permission migration must be reviewed first.
-- [ ] Update owner staff RPC validation/return schema for `dental_assistant` only after DB constraint/policies support it.
-- [ ] Define exact Dental Assistant permissions instead of silently inheriting all receptionist actions.
-- [ ] Add role to Android staff management only after RLS regression tests pass.
+## PhonePe status — implemented but not release-ready
 
-### Consolidated invoice and patient payment flow
+- [x] PhonePe checkout creation Edge Function exists.
+- [x] PhonePe secrets are server-side (`PHONEPE_PARTNER_CLIENT_ID`, secret, client version, environment).
+- [x] INR is converted to paise server-side.
+- [x] PhonePe webhook endpoint exists.
+- [x] Callback authorization is validated server-side with constant-time comparison.
+- [x] Raw callback body is hashed for safe event identity instead of being persisted as patient-readable payload.
+- [x] Verified provider events feed the reconciliation path.
+- [ ] **Security release blocker:** after authenticating a PhonePe callback, CapDent must independently query PhonePe order status and require the provider-confirmed terminal payment state before applying money to the CapDent ledger.
+- [ ] Add the independent PhonePe order-status verification requirement to the V28 patient-payment validator.
+- [ ] Match the final checkout/status/callback implementation to the exact PhonePe merchant/partner contract issued for CapDent clinics.
+- [ ] Sandbox test: successful full payment.
+- [ ] Sandbox test: partial-balance request where allowed by CapDent invoice state.
+- [ ] Sandbox test: failed/cancelled payment.
+- [ ] Sandbox test: duplicate callback/replay.
+- [ ] Sandbox test: callback says success but status lookup is non-success — must not credit invoice.
+- [ ] Production PhonePe remains disabled until all above gates pass.
 
-- [x] Add an additive consolidated billing-cycle/final-invoice schema above the current legacy category invoices/payments; do not replace working legacy RPCs.
-- [x] Build receptionist **Review Final Invoice** screen that gathers explicit OP, X-ray, medication, treatment, other charge invoices and their existing paid/due state.
-- [x] Add server-side `finalize_v28_consolidated_bill()` with clinic/role checks, source-invoice validation, duplicate/race protection, immutable line-item snapshots, totals, and payment snapshot.
-- [x] Add concurrency-safe, server-authoritative sequential clinic invoice numbering for new consolidated invoices while preserving historical invoices.
-- [ ] Add safe correction/version semantics for a finalized consolidated invoice; finalized snapshots must never be silently edited in place.
-- [ ] Add PDF/print/native-file share output for the finalized consolidated snapshot.
-- [x] Add receptionist-only manual WhatsApp invoice-summary action; no automatic patient message after individual fees.
-- [x] Add secure patient invoice/share token foundation with expiry/revocation and no direct Android access to token rows.
-- [ ] Add public patient invoice token resolver/viewer before any secure invoice URL is sent externally.
-- [ ] Add online payment request only for the verified remaining balance of a finalized invoice.
-- [ ] Review all V28 billing/payment/share migrations against the live Production schema before applying any of them anywhere.
-- [ ] Implement authenticated merchant onboarding: India → PhonePe; other configured countries → card provider.
-- [ ] Keep provider credentials/API secrets/webhook secrets exclusively in server-side secret storage.
-- [ ] Add idempotent provider webhook/callback verification before writing any online payment into the existing CapDent ledger.
-- [ ] Ensure patient money settles to each clinic's connected merchant account, not CapDent's operating account.
-- [ ] If clinic country is missing/invalid or merchant account unsupported/not connected, invoice sending must still work but online Pay Now must be omitted.
-- [ ] Physical-device test finalized paid invoice (no payment link).
-- [ ] Physical-device test finalized partially paid invoice (remaining-balance payment link only).
-- [ ] Verify WhatsApp/share content contains only intended patient-facing information.
+## Card provider status
 
-### Upload reliability
+- [x] Connected-account onboarding/sync functions exist for the card-provider path.
+- [x] Card checkout routes settlement through the clinic-connected account rather than CapDent's operating account.
+- [x] Card webhook path exists and feeds the same verified reconciliation model.
+- [ ] Provider onboarding/commercial/account requirements need real sandbox/connected-account QA before release.
 
-- [ ] Verify compression behavior across prescription/X-ray/before-after/report categories.
-- [ ] Add/verify retry-safe UX for interrupted uploads.
-- [ ] Verify duplicate-submit/file-row protection.
-- [ ] Test quota warning at 120 and hard limit at 150 only after server gate is approved.
-- [ ] Test signed URLs after expiry/refresh and after logout/login.
+## Payment settlement rule
 
-### Push reliability
+- [x] Architecture is clinic-direct settlement: patient money belongs to and settles to the clinic's connected merchant account.
+- [x] CapDent orchestrates checkout, verification, invoice reconciliation, receipt state, and reporting.
+- [x] CapDent does not intentionally collect patient funds into its own operating account for redistribution.
 
-- [ ] Physical-device notification permission denied → recovery flow.
-- [ ] Physical-device registered token → payment received notification.
-- [ ] Logout deactivates only the current installation token.
-- [ ] Owner/head-doctor eligibility regression.
-- [ ] Confirm coin-drop sound/channel behavior on upgrade from prior installed builds.
+## Push / notification reliability retained from V27
 
-### Analytics / crash safety
+- [x] Current install identity helper retained for notification diagnostics.
+- [x] V28 read-only payment-push health snapshot retained.
+- [x] Owner Notification Health screen retained.
+- [x] Registration repair and token-rotation registration path retained.
+- [x] Android canonical `payments_coin_drop_v1` channel retained.
+- [x] Server dispatch keeps legacy `payments` channel compatibility for older registrations and newer channel routing for supported app versions.
+- [ ] Physical-device notification regression still required before V28 release.
 
-- [ ] Review every analytics event for no patient name, phone, email, diagnosis, notes, prescription data, file paths, IDs used as user identifiers, or free text.
-- [ ] Decide and document Firebase Analytics release flag state for V28.
-- [ ] Add Crashlytics only after its native Expo/RNF integration and no-PHI logging policy are verified; it is not currently a dependency.
+## Analytics/privacy retained from V27
 
-### Security and role regression
+- [x] Firebase Analytics is enabled only for release/internal release profiles as defined by current release configuration; development/preview remain off.
+- [x] Analytics event allow-list/sanitizer retained.
+- [x] No patient name, phone, diagnosis, purchase token, order ID, or clinical free text is accepted by the V27 analytics schema.
+- [x] Advertising storage/user-data/personalization consent remains disabled.
+- [ ] Re-audit any new V28 payment/invoice analytics before adding events; provider transaction IDs and patient identifiers must not be sent to Firebase.
 
-- [ ] RLS matrix test for owner/head, doctor, reception, and future assistant role.
-- [ ] Cross-clinic access attempts must fail for patient, visit, treatment, payment, invoice, file, staff, and settings data.
-- [ ] Privileged RPCs must derive authoritative user/clinic membership server-side.
-- [ ] Confirm no service-role/admin secret in Android source, EAS config, bundled assets, or logs.
-- [ ] Confirm minimal Android permissions and AD_ID remains blocked.
+## Backend/deployment gates
 
-### Release QA
+- [ ] Review every V28 migration against the live Production schema before applying it anywhere.
+- [ ] Prefer staging/non-production application first where available.
+- [ ] Verify RLS for owner/head doctor, doctor, reception, and cross-clinic denial.
+- [ ] Verify privileged RPCs derive authoritative clinic membership server-side.
+- [ ] Do not destructive-test a real production clinic.
+- [ ] Do not deploy PhonePe/card patient-payment functions to Production until provider status verification, idempotency, and sandbox tests are green.
+- [ ] Keep patient Pay Now hidden until the backend release gates are explicitly approved.
 
+## Release QA still required
+
+- [ ] V28 feature validator + patient-payment validator + TypeScript green after every reconciliation/hardening batch.
+- [ ] Expo Doctor on the final synced V28 branch.
 - [ ] Patient registration smoke test.
-- [ ] Add Visit + ongoing treatment smoke test.
-- [ ] Tooth-chart/history smoke test.
-- [ ] Appointment/check-in/reminder smoke test.
-- [ ] Consolidated payment/invoice/share smoke test.
-- [ ] Online payment request/reconciliation smoke test.
-- [ ] Gallery upload/view smoke test.
-- [ ] Billing purchase/restore smoke test.
-- [ ] Push notification smoke test.
-- [ ] Owner Clinic Health smoke test.
-- [ ] Owner Patient Payments smoke test.
-- [ ] Play Internal AAB installed and tested before Production promotion.
+- [ ] Visit/treatment/tooth-chart regression.
+- [ ] Appointment/check-in/reminder regression.
+- [ ] Finalized invoice full/partial/due scenarios.
+- [ ] PDF/native share/WhatsApp physical-device test.
+- [ ] PhonePe sandbox checkout → callback → status recheck → reconciliation → receipt test.
+- [ ] Duplicate webhook/replay test.
+- [ ] Failed/pending payment must never mark invoice paid.
+- [ ] Owner Clinic Health and Patient Payments smoke tests.
+- [ ] Google Play purchase/recovery regression.
+- [ ] Payment push regression.
+- [ ] Play Internal AAB installed and tested before any Production promotion.
+- [ ] Cut final Expo/package `1.2.8` and Android release code only at release cut; do not change identity during feature development.
 
 ## Deliberately excluded from Android V28
 
