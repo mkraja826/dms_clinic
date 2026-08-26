@@ -133,11 +133,30 @@ if (!failures.length) {
   );
   expect(
     checkout.includes("amountPaise = Math.round(input.amount * 100)"),
-    "PhonePe payment-link amount must be converted from INR to paise server-side."
+    "PhonePe checkout amount must be converted from INR to paise server-side."
   );
   expect(
-    checkout.includes("notificationChannels") && checkout.includes("SMS: false") && checkout.includes("EMAIL: false"),
-    "PhonePe must not auto-message patients; receptionist remains in control of invoice sharing."
+    checkout.includes('checkout: "https://api.phonepe.com/apis/pg/checkout/v2/pay"') &&
+      checkout.includes('checkout: "https://api-preprod.phonepe.com/apis/pg-sandbox/checkout/v2/pay"') &&
+      checkout.includes('type: "PG_CHECKOUT"'),
+    "PhonePe patient collection must use the current Standard Checkout v2 API in both sandbox and production."
+  );
+  expect(
+    !checkout.includes("/paylinks/v1/pay") && !checkout.includes('type: "PAYLINK"'),
+    "V28 must not mix the PhonePe Paylinks product with Standard Checkout verification."
+  );
+  expect(
+    checkout.includes('requireHttpsEnv("PHONEPE_PATIENT_PAYMENT_REDIRECT_URL")') &&
+      checkout.includes("merchantUrls") && checkout.includes("redirectUrl"),
+    "PhonePe Standard Checkout must use a server-configured HTTPS redirect URL."
+  );
+  expect(
+    checkout.includes("providerRequestId: merchantOrderId"),
+    "CapDent must persist the merchant order ID because PhonePe order status is queried by that identifier."
+  );
+  expect(
+    !checkout.includes("patientPhone") && !checkout.includes("notificationChannels"),
+    "PhonePe hosted checkout must not receive patient contact data or auto-message instructions from CapDent."
   );
   expect(
     checkout.includes('Deno.env.get("PHONEPE_ENVIRONMENT")') &&
@@ -181,14 +200,47 @@ if (!failures.length) {
     "PhonePe SHA webhook authorization must be verified before provider processing."
   );
   expect(
-    phonePeWebhook.includes('new Set(["paylink.order.completed", "paylink.order.failed"])') &&
-      phonePeWebhook.includes("record_v28_verified_provider_event") &&
-      phonePeWebhook.includes("reconcile_v28_verified_patient_payment"),
-    "PhonePe completion must pass through provider-event verification before ledger reconciliation."
+    phonePeWebhook.includes('"CHECKOUT_ORDER_COMPLETED"') &&
+      phonePeWebhook.includes('"CHECKOUT_ORDER_FAILED"') &&
+      !phonePeWebhook.includes("paylink.order.completed"),
+    "PhonePe webhook handling must use Standard Checkout order callback types rather than Paylink events."
   );
   expect(
-    phonePeWebhook.includes("payloadDigest = await sha256(rawBody)"),
-    "PhonePe webhook must store only a digest of the raw provider payload."
+    phonePeWebhook.includes("PHONEPE_PARTNER_CLIENT_ID") &&
+      phonePeWebhook.includes("PHONEPE_PARTNER_CLIENT_SECRET") &&
+      phonePeWebhook.includes("PHONEPE_PARTNER_CLIENT_VERSION") &&
+      phonePeWebhook.includes("getPhonePeOrderStatus"),
+    "PhonePe webhook processing must independently authenticate to PhonePe and fetch authoritative order status."
+  );
+  expect(
+    phonePeWebhook.includes("/checkout/v2/order/${encodeURIComponent(input.merchantOrderId)}/status") &&
+      phonePeWebhook.includes('Authorization: `O-Bearer ${token}`') &&
+      phonePeWebhook.includes('"X-MERCHANT-ID": input.merchantId'),
+    "PhonePe status verification must use the authenticated Standard Checkout order-status endpoint for the clinic merchant."
+  );
+  expect(
+    phonePeWebhook.includes('.eq("provider_request_id", merchantOrderId)') &&
+      phonePeWebhook.includes('verifiedState === "COMPLETED"') &&
+      phonePeWebhook.includes("verifiedAmountPaise !== expectedAmountPaise") &&
+      phonePeWebhook.includes("verifiedMerchantId !== clinicMerchantId"),
+    "PhonePe verification must bind merchant order, terminal state, exact amount, and clinic merchant before recording success."
+  );
+  const statusCheckIndex = phonePeWebhook.indexOf("getPhonePeOrderStatus({");
+  const reconcileIndex = phonePeWebhook.indexOf('adminClient.rpc("reconcile_v28_verified_patient_payment"');
+  expect(
+    statusCheckIndex >= 0 && reconcileIndex > statusCheckIndex,
+    "PhonePe order-status verification must occur before any CapDent ledger reconciliation call."
+  );
+  expect(
+    phonePeWebhook.includes('p_provider_request_id: merchantOrderId') &&
+      phonePeWebhook.includes("record_v28_verified_provider_event") &&
+      phonePeWebhook.includes("verificationDigest"),
+    "Only independently verified PhonePe evidence may enter the provider-event gate."
+  );
+  expect(
+    phonePeWebhook.includes("callbackDigest = await sha256(rawBody)") &&
+      !phonePeWebhook.includes("raw_payload"),
+    "PhonePe webhook must retain only cryptographic evidence, never the raw provider payload."
   );
 
   expect(
