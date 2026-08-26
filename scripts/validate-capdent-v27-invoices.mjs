@@ -21,7 +21,7 @@ expect(
   !invoiceService.includes(".insert(") &&
     !invoiceService.includes(".update(") &&
     !invoiceService.includes(".delete("),
-  "V27 Invoice Center service must remain read-only until payment settlement is intentionally added."
+  "V27 Invoice Center presentation service must remain read-only; electronic settlement belongs only in verified server payment functions."
 );
 expect(
   invoiceService.includes("buildInvoiceShareText") &&
@@ -38,10 +38,11 @@ expect(
   "V27 Invoice Center UI must expose invoice status, sharing, and patient navigation."
 );
 expect(
-  invoiceScreen.includes("Invoice Center is read-only") &&
-    invoiceScreen.includes("does not collect payment") &&
+  invoiceScreen.includes("Invoice display and sharing are read-only") &&
+    invoiceScreen.includes("Sharing an invoice does not collect payment") &&
+    invoiceScreen.includes("server independently verifies the PhonePe order status and amount") &&
     invoiceScreen.includes("not presented as a GST tax invoice"),
-  "V27 Invoice Center must clearly state that sharing cannot alter payment state or claim GST tax-invoice status."
+  "V27 Invoice Center must distinguish read-only invoice sharing from separately verified electronic collection and must not claim GST tax-invoice status."
 );
 expect(
   headMore.includes("Invoice Center") && headMore.includes('/reports/invoices'),
