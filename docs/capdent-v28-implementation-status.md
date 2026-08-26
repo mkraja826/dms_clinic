@@ -81,24 +81,30 @@ This is the working completion ledger for `feature/capdent-v28`. A checked item 
 - [x] Original payment category/source invoice context is retained where applicable.
 - [ ] Physical-device and database integration tests are still required for full, partial, failed, duplicate, retried, and balance-changed cases.
 
-## PhonePe status — implemented but not release-ready
+## PhonePe status — hardened on branch, sandbox still required
 
-- [x] PhonePe checkout creation Edge Function exists.
+- [x] PhonePe patient collection uses current Standard Checkout v2 (`/checkout/v2/pay`) rather than mixing the Paylinks product with checkout verification.
 - [x] PhonePe secrets are server-side (`PHONEPE_PARTNER_CLIENT_ID`, secret, client version, environment).
 - [x] INR is converted to paise server-side.
-- [x] PhonePe webhook endpoint exists.
-- [x] Callback authorization is validated server-side with constant-time comparison.
-- [x] Raw callback body is hashed for safe event identity instead of being persisted as patient-readable payload.
-- [x] Verified provider events feed the reconciliation path.
-- [ ] **Security release blocker:** after authenticating a PhonePe callback, CapDent must independently query PhonePe order status and require the provider-confirmed terminal payment state before applying money to the CapDent ledger.
-- [ ] Add the independent PhonePe order-status verification requirement to the V28 patient-payment validator.
-- [ ] Match the final checkout/status/callback implementation to the exact PhonePe merchant/partner contract issued for CapDent clinics.
+- [x] Standard Checkout uses a server-configured HTTPS redirect URL.
+- [x] CapDent stores the merchant order ID as the generic provider request reference because PhonePe order status is keyed by merchant order ID.
+- [x] Patient phone/contact data is no longer sent by the V28 PhonePe checkout adapter.
+- [x] PhonePe webhook endpoint uses Standard Checkout order callback types.
+- [x] Callback authorization is validated server-side with constant-time comparison using PhonePe's SHA-256 username/password scheme.
+- [x] Raw callback body is hashed instead of being persisted as patient-readable payload.
+- [x] Every terminal callback independently authenticates to PhonePe and calls `/checkout/v2/order/{merchantOrderId}/status` before money can move.
+- [x] Verified merchant order, clinic merchant, exact amount in paise, and terminal provider state are bound before a provider event can be treated as successful.
+- [x] Only independently verified `COMPLETED` status may enter the CapDent reconciliation path; `PENDING`/unknown status cannot credit the ledger.
+- [x] Failed/expired provider states never call the payment reconciliation RPC.
+- [x] V28 patient-payment validator enforces Standard Checkout, bans Paylink mixing, and requires status verification before reconciliation.
+- [x] V28 CI run `32996227660` passed feature invariants, patient-payment security validation, TypeScript, diff formatting, and Expo public configuration for this hardening batch.
+- [ ] Match the final checkout/status/callback headers and end-merchant semantics to the exact PhonePe PG Partner contract issued for CapDent clinics before production enablement.
 - [ ] Sandbox test: successful full payment.
 - [ ] Sandbox test: partial-balance request where allowed by CapDent invoice state.
 - [ ] Sandbox test: failed/cancelled payment.
 - [ ] Sandbox test: duplicate callback/replay.
-- [ ] Sandbox test: callback says success but status lookup is non-success — must not credit invoice.
-- [ ] Production PhonePe remains disabled until all above gates pass.
+- [ ] Sandbox test: authenticated callback says success but PhonePe status lookup is non-success — must not credit invoice.
+- [ ] Production PhonePe remains disabled until all above external/provider gates pass.
 
 ## Card provider status
 
@@ -138,12 +144,12 @@ This is the working completion ledger for `feature/capdent-v28`. A checked item 
 - [ ] Verify RLS for owner/head doctor, doctor, reception, and cross-clinic denial.
 - [ ] Verify privileged RPCs derive authoritative clinic membership server-side.
 - [ ] Do not destructive-test a real production clinic.
-- [ ] Do not deploy PhonePe/card patient-payment functions to Production until provider status verification, idempotency, and sandbox tests are green.
+- [ ] Do not deploy PhonePe/card patient-payment functions to Production until provider-contract confirmation, idempotency, and sandbox tests are green.
 - [ ] Keep patient Pay Now hidden until the backend release gates are explicitly approved.
 
 ## Release QA still required
 
-- [ ] V28 feature validator + patient-payment validator + TypeScript green after every reconciliation/hardening batch.
+- [x] Current V28 feature validator + patient-payment validator + TypeScript are green after baseline reconciliation and PhonePe status hardening.
 - [ ] Expo Doctor on the final synced V28 branch.
 - [ ] Patient registration smoke test.
 - [ ] Visit/treatment/tooth-chart regression.
