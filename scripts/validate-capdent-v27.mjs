@@ -23,6 +23,9 @@ const patientsScreen = readText("src/app/(tabs)/patients.tsx");
 const addPatientScreen = readText("src/app/patient/add.tsx");
 const uploadScreen = readText("src/app/patient/upload.tsx");
 const subscriptionScreen = readText("src/app/settings/subscription.tsx");
+const recoveryScreen = readText("src/app/settings/subscription-recovery.tsx");
+const recoveryService = readText("src/lib/googlePlayRecovery.ts");
+const headMore = readText("src/app/(head)/more.tsx");
 const headDashboard = readText("src/app/(head)/dashboard.tsx");
 const limits = readText("src/lib/v25Limits.ts");
 
@@ -96,6 +99,35 @@ expect(
   headDashboard.includes("void loadOwnerReview();") &&
     headDashboard.includes("Open full owner review and operational exceptions"),
   "V27 owner dashboard must refresh owner review after relevant workflow actions and keep a route to the full review."
+);
+expect(
+  recoveryService.includes("getAvailablePurchases") &&
+    recoveryService.includes("verify-google-play-subscription") &&
+    recoveryService.includes("finishGooglePlaySubscriptionPurchase"),
+  "V27 billing recovery must restore Google Play purchases through the existing server-authoritative verifier and finish only verified entitlements."
+);
+expect(
+  recoveryService.includes("No CapDent subscription was found") &&
+    recoveryService.includes("recheckLinkedGooglePlaySubscription"),
+  "V27 billing recovery must support both no-purchase handling and rechecking an already linked purchase."
+);
+expect(
+  recoveryScreen.includes("Billing Recovery") &&
+    recoveryScreen.includes("Restore Purchase") &&
+    recoveryScreen.includes("Recheck Linked Purchase") &&
+    recoveryScreen.includes("Manage in Google Play"),
+  "V27 owner billing recovery UI must expose restore, recheck, and Google Play management actions."
+);
+expect(
+  recoveryScreen.includes("account hold") &&
+    recoveryScreen.includes("grace period") &&
+    recoveryScreen.includes("Expired") || recoveryScreen.includes("expired"),
+  "V27 billing recovery must explain non-active Google Play lifecycle states without treating them as paid access."
+);
+expect(
+  headMore.includes("Billing Recovery") &&
+    headMore.includes("/settings/subscription-recovery"),
+  "V27 owner tools must provide a visible route to billing recovery."
 );
 expect(
   limits.includes("patientLimit: 100") &&
