@@ -10,6 +10,10 @@ import {
   DEFAULT_CLINIC_FEATURE_SETTINGS,
   getClinicFeatureSettings,
 } from "@/lib/clinicOptions";
+import {
+  analyticsPlan,
+  logCapDentAnalyticsEvent,
+} from "@/lib/firebaseAnalytics";
 import { uploadPatientProfilePhoto } from "@/lib/patientProfilePhoto";
 import {
   getCapDentEntitlementsV25,
@@ -105,6 +109,10 @@ export default function AddPatientScreen() {
       const serverQuotaMessage = patientQuotaMessage(serverEntitlements);
 
       if (serverQuotaMessage) {
+        void logCapDentAnalyticsEvent("capdent_quota_blocked", {
+          resource: "patient",
+          plan: analyticsPlan(serverEntitlements.plan),
+        });
         Alert.alert("Patient capacity reached", serverQuotaMessage, [
           { text: "Cancel", style: "cancel" },
           { text: "View Plans", onPress: () => router.push("/settings/subscription" as never) },
@@ -183,8 +191,13 @@ export default function AddPatientScreen() {
         },
       });
 
+      const profilePhotoRequested = Boolean(features.enable_patient_photos && photoUri);
+      void logCapDentAnalyticsEvent("capdent_patient_registered", {
+        profile_photo_requested: profilePhotoRequested,
+      });
+
       let photoWarning = "";
-      if (features.enable_patient_photos && photoUri) {
+      if (profilePhotoRequested && photoUri) {
         try {
           await uploadPatientProfilePhoto(patient.id, photoUri);
         } catch (photoError) {
@@ -269,155 +282,166 @@ export default function AddPatientScreen() {
 
       <SectionCard
         title="Patient Details"
-        subtitle="Name and phone are required. Add age and contact details if available."
+        subtitle="Only name and phone are required. Clinical details can be added now or during the visit."
       >
-        {features.enable_patient_photos ? (
-          <View style={{ alignItems: "center", gap: 10 }}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={photoUri ? "Change patient profile photo" : "Add patient profile photo"}
-              onPress={pickPatientPhoto}
-              style={{
-                width: 108,
-                height: 108,
-                borderRadius: 36,
-                backgroundColor: colors.primarySoft,
-                borderWidth: 1,
-                borderColor: colors.border,
-                overflow: "hidden",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              {photoUri ? (
-                <Image
-                  source={{ uri: photoUri }}
-                  style={{ width: "100%", height: "100%" }}
-                  resizeMode="cover"
-                />
-              ) : (
-                <Text style={{ color: colors.primary, fontWeight: "900", textAlign: "center" }}>
-                  Add Photo
-                </Text>
-              )}
-            </Pressable>
-
-            <Text style={{ color: colors.muted, textAlign: "center", lineHeight: 19 }}>
-              Optional patient profile photo. Owner can turn this off from Account Settings.
-            </Text>
-          </View>
-        ) : null}
-
         <AppInput
-          label="Full name"
-          placeholder="Patient full name"
+          label="Full name *"
           value={form.name}
           onChangeText={(value) => setField("name", value)}
+          autoCapitalize="words"
+          placeholder="Patient name"
         />
+
         <AppInput
-          label="Gender"
-          placeholder="Male / Female / Other"
-          value={form.gender}
-          onChangeText={(value) => setField("gender", value)}
-        />
-        <AppInput
-          label="Age"
-          value={form.age}
-          onChangeText={(value) => setField("age", value)}
-          keyboardType="numeric"
-          placeholder="Years"
-        />
-        <AppInput
-          label="Phone"
-          placeholder="Patient mobile number"
+          label="Phone *"
           value={form.phone}
           onChangeText={(value) => setField("phone", value)}
           keyboardType="phone-pad"
+          placeholder="Phone number"
         />
+
+        <View style={{ flexDirection: "row", gap: 10 }}>
+          <View style={{ flex: 1 }}>
+            <AppInput
+              label="Age"
+              value={form.age}
+              onChangeText={(value) => setField("age", value.replace(/[^0-9]/g, "").slice(0, 3))}
+              keyboardType="number-pad"
+              placeholder="Age"
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <AppInput
+              label="Gender"
+              value={form.gender}
+              onChangeText={(value) => setField("gender", value)}
+              placeholder="Gender"
+            />
+          </View>
+        </View>
+
         <AppInput
-          label="Email optional"
+          label="Email"
           value={form.email}
           onChangeText={(value) => setField("email", value)}
           keyboardType="email-address"
           autoCapitalize="none"
+          placeholder="Optional email"
         />
+
         <AppInput
           label="Address"
           value={form.address}
           onChangeText={(value) => setField("address", value)}
+          placeholder="Address"
           multiline
         />
+
         <AppInput
           label="Emergency contact"
-          placeholder="Optional emergency number"
           value={form.emergency_contact}
           onChangeText={(value) => setField("emergency_contact", value)}
+          keyboardType="phone-pad"
+          placeholder="Optional contact"
         />
       </SectionCard>
 
       <SectionCard
         title="Medical History"
-        subtitle="Mark important health conditions now. These can be edited later if patient reveals more."
+        subtitle="Quick flags plus optional notes for allergies and current medicines."
       >
-        {[
-          ["heart_issue", "Heart issue"],
-          ["kidney_issue", "Kidney issue"],
-          ["brain_issue", "Brain issue"],
-          ["diabetes", "Diabetes / sugar"],
-          ["blood_pressure", "Blood pressure / BP"],
-        ].map(([key, label]) => (
+        {(
+          [
+            ["heart_issue", "Heart issue"],
+            ["kidney_issue", "Kidney issue"],
+            ["brain_issue", "Brain issue"],
+            ["diabetes", "Diabetes"],
+            ["blood_pressure", "Blood pressure"],
+          ] as const
+        ).map(([key, label]) => (
           <View
             key={key}
             style={{
               flexDirection: "row",
               alignItems: "center",
               justifyContent: "space-between",
+              minHeight: 48,
               gap: 12,
             }}
           >
-            <Text style={{ color: colors.text, fontWeight: "700" }}>{label}</Text>
+            <Text style={{ color: colors.text, fontWeight: "800", flex: 1 }}>{label}</Text>
             <Switch
-              accessibilityRole="switch"
-              accessibilityLabel={label}
-              accessibilityState={{
-                checked: historyFlags[key as keyof typeof historyFlags],
-              }}
-              value={historyFlags[key as keyof typeof historyFlags]}
+              value={historyFlags[key]}
               onValueChange={(value) =>
                 setHistoryFlags((current) => ({ ...current, [key]: value }))
               }
-              trackColor={{ true: colors.primarySoft, false: colors.border }}
-              thumbColor={
-                historyFlags[key as keyof typeof historyFlags] ? colors.primary : "#FFFFFF"
-              }
+              trackColor={{ false: colors.border, true: colors.primarySoft }}
+              thumbColor={historyFlags[key] ? colors.primary : colors.muted}
             />
           </View>
         ))}
+
         <AppInput
           label="Allergies"
-          placeholder="Example: Penicillin, painkiller allergy"
           value={form.allergies}
           onChangeText={(value) => setField("allergies", value)}
+          placeholder="Allergies or none known"
+          multiline
         />
+
         <AppInput
           label="Current medicines"
-          placeholder="Medicines patient is taking"
           value={form.current_medicines}
           onChangeText={(value) => setField("current_medicines", value)}
+          placeholder="Current medicines"
+          multiline
         />
+
         <AppInput
           label="Other notes"
-          placeholder="Any other medical notes"
           value={form.other_notes}
           onChangeText={(value) => setField("other_notes", value)}
+          placeholder="Optional medical notes"
           multiline
         />
       </SectionCard>
 
+      {features.enable_patient_photos ? (
+        <SectionCard
+          title="Profile Photo"
+          subtitle="Optional. The patient record saves even if the photo upload fails."
+        >
+          {photoUri ? (
+            <View style={{ gap: 10 }}>
+              <Image
+                source={{ uri: photoUri }}
+                style={{ width: 132, height: 132, borderRadius: 28, alignSelf: "center" }}
+              />
+              <AppButton
+                title="Change Photo"
+                icon="images-outline"
+                variant="secondary"
+                onPress={pickPatientPhoto}
+              />
+              <Pressable onPress={() => setPhotoUri(null)} style={{ alignItems: "center", padding: 8 }}>
+                <Text style={{ color: colors.danger, fontWeight: "900" }}>Remove Photo</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <AppButton
+              title="Choose Profile Photo"
+              icon="images-outline"
+              variant="secondary"
+              onPress={pickPatientPhoto}
+            />
+          )}
+        </SectionCard>
+      ) : null}
+
       <AppButton
-        title="Register Patient"
-        icon="person-add-outline"
-        onPress={() => save()}
+        title="Save Patient"
+        icon="save-outline"
+        onPress={() => void save()}
         loading={saving}
       />
     </ScrollView>
