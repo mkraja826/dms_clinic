@@ -18,11 +18,17 @@ const restore = readText("src/lib/googlePlayRestore.ts");
 const push = readText("src/lib/paymentNotifications.ts");
 const patientPayments = readText("src/lib/patientPayments.ts");
 const consolidatedBilling = readText("src/lib/consolidatedBilling.ts");
+const finalizedInvoiceShare = readText("src/lib/finalizedInvoiceShare.ts");
+const whatsapp = readText("src/lib/whatsapp.ts");
+const finalizedInvoiceViewer = readText("src/app/reception/finalized-invoice.tsx");
 const patientPaymentMigration = readText(
   "supabase/migrations/20260826173000_capdent_v28_clinic_payment_accounts.sql"
 );
 const consolidatedBillingMigration = readText(
   "supabase/migrations/20260826163000_capdent_v28_consolidated_billing_foundation.sql"
+);
+const invoiceShareMigration = readText(
+  "supabase/migrations/20260826180000_capdent_v28_invoice_share_tokens.sql"
 );
 
 expect(app.expo?.name === "CapDent", "V28 must remain the CapDent application.");
@@ -68,16 +74,29 @@ expect(consolidatedBillingMigration.includes("create table if not exists public.
 expect(consolidatedBillingMigration.includes("create table if not exists public.clinic_invoice_sequences"), "V28 server invoice sequence is required.");
 expect(consolidatedBillingMigration.includes("p_source_invoice_ids uuid[]"), "Finalization must require explicit source invoice selection.");
 expect(consolidatedBillingMigration.includes("pg_advisory_xact_lock"), "Consolidated finalization must serialize same-patient races.");
-expect(consolidatedBillingMigration.includes("Source invoices" ) || consolidatedBillingMigration.includes("source invoices"), "Consolidated billing migration must document source invoice preservation.");
+expect(consolidatedBillingMigration.includes("Source invoices") || consolidatedBillingMigration.includes("source invoices"), "Consolidated billing migration must document source invoice preservation.");
 expect(!consolidatedBillingMigration.includes("update public.invoices"), "V28 consolidated finalization must not mutate legacy invoices.");
 expect(!consolidatedBillingMigration.includes("delete from public.invoices"), "V28 consolidated finalization must not delete legacy invoices.");
 expect(!consolidatedBillingMigration.includes("insert into public.payments"), "V28 consolidated finalization must not create legacy payment entries.");
+
+expect(invoiceShareMigration.includes("create table if not exists public.consolidated_bill_share_tokens"), "V28 secure invoice share-token table is required.");
+expect(invoiceShareMigration.includes("encode(digest(v_token, 'sha256'), 'hex')"), "Invoice share tokens must be stored as SHA-256 hashes, not plaintext.");
+expect(invoiceShareMigration.includes("revoke all on table public.consolidated_bill_share_tokens from anon, authenticated"), "Android clients must not directly read or write share-token rows.");
+expect(invoiceShareMigration.includes("status = 'finalized'"), "Share tokens may only be created for finalized invoices.");
+expect(finalizedInvoiceShare.includes('supabase.rpc("create_v28_invoice_share_token"'), "Share-token creation must use the server-authoritative RPC.");
+expect(finalizedInvoiceShare.includes('supabase.rpc("revoke_v28_invoice_share_tokens"'), "Share-token revocation must use the server-authoritative RPC.");
+expect(whatsapp.includes("finalizedInvoiceMessage"), "V28 must provide a dedicated finalized-invoice WhatsApp message.");
+expect(finalizedInvoiceViewer.includes("Send Invoice on WhatsApp"), "Finalized invoice viewer must expose a manual WhatsApp action.");
+expect(finalizedInvoiceViewer.includes("Nothing is sent automatically"), "Finalized invoice viewer must clearly preserve manual patient sending.");
+expect(!finalizedInvoiceViewer.includes("paymentUrl:"), "V28 must not expose a patient Pay Now URL before provider reconciliation is implemented.");
 
 for (const requiredPath of [
   "src/app/settings/clinic-health.tsx",
   "src/app/settings/restore-subscription.tsx",
   "src/app/settings/patient-payments.tsx",
   "src/app/reception/final-invoice.tsx",
+  "src/app/reception/finalized-invoices.tsx",
+  "src/app/reception/finalized-invoice.tsx",
   "src/app/settings/guide.tsx",
   "src/app/settings/report-issue.tsx",
   "src/app/legal-consent.tsx",
@@ -85,11 +104,13 @@ for (const requiredPath of [
   "src/lib/invoiceDocument.ts",
   "src/lib/invoiceSnapshot.ts",
   "src/lib/consolidatedBilling.ts",
+  "src/lib/finalizedInvoiceShare.ts",
   "src/lib/patientPayments.ts",
   "src/lib/storageUrls.ts",
   "src/lib/useImmediateMutationLock.ts",
   "supabase/migrations/20260826163000_capdent_v28_consolidated_billing_foundation.sql",
   "supabase/migrations/20260826173000_capdent_v28_clinic_payment_accounts.sql",
+  "supabase/migrations/20260826180000_capdent_v28_invoice_share_tokens.sql",
   "docs/capdent-v28-feature-complete-scope.md",
   "docs/capdent-v28-implementation-status.md",
 ]) {
