@@ -8,6 +8,7 @@ import { SectionCard } from "@/components/SectionCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { colors } from "@/constants/colors";
 import { useAuth } from "@/lib/auth";
+import { logCapDentAnalyticsEvent } from "@/lib/firebaseAnalytics";
 import {
   getPaymentNotificationHealth,
   repairPaymentPushRegistration,
@@ -111,11 +112,20 @@ export default function NotificationHealthScreen() {
   const [loading, setLoading] = useState(true);
   const [repairing, setRepairing] = useState(false);
 
-  async function loadHealth() {
+  async function loadHealth(action: "view" | "refresh" = "refresh") {
     try {
       setLoading(true);
-      setHealth(await getPaymentNotificationHealth());
+      const nextHealth = await getPaymentNotificationHealth();
+      setHealth(nextHealth);
+      void logCapDentAnalyticsEvent("capdent_notification_health", {
+        action,
+        outcome: nextHealth.status,
+      });
     } catch (error) {
+      void logCapDentAnalyticsEvent("capdent_notification_health", {
+        action,
+        outcome: "unavailable",
+      });
       Alert.alert(
         "Notification health unavailable",
         error instanceof Error ? error.message : "Please try again."
@@ -126,16 +136,20 @@ export default function NotificationHealthScreen() {
   }
 
   useEffect(() => {
-    void loadHealth();
+    void loadHealth("view");
   }, [profile?.clinic_id, profile?.id]);
 
   async function repairRegistration() {
     try {
       setRepairing(true);
       const result = await repairPaymentPushRegistration(profile);
-      await loadHealth();
+      await loadHealth("refresh");
 
       if (result.status === "registered") {
+        void logCapDentAnalyticsEvent("capdent_notification_health", {
+          action: "repair",
+          outcome: "registered",
+        });
         Alert.alert(
           "Registration repaired",
           "This device is registered again for verified CapDent payment notifications."
@@ -144,6 +158,10 @@ export default function NotificationHealthScreen() {
       }
 
       if (result.status === "permission-denied") {
+        void logCapDentAnalyticsEvent("capdent_notification_health", {
+          action: "repair",
+          outcome: "permission_denied",
+        });
         Alert.alert(
           "Notification permission blocked",
           "Allow notifications for CapDent in Android settings, then return here and run Repair Registration again.",
@@ -155,11 +173,19 @@ export default function NotificationHealthScreen() {
         return;
       }
 
+      void logCapDentAnalyticsEvent("capdent_notification_health", {
+        action: "repair",
+        outcome: "not_completed",
+      });
       Alert.alert(
         "Registration not completed",
         result.reason || `Registration status: ${statusTitle(result.status)}.`
       );
     } catch (error) {
+      void logCapDentAnalyticsEvent("capdent_notification_health", {
+        action: "repair",
+        outcome: "failure",
+      });
       Alert.alert(
         "Registration repair failed",
         error instanceof Error ? error.message : "Please try again."
@@ -182,7 +208,7 @@ export default function NotificationHealthScreen() {
     ["queued", "processing", "sent", "skipped"].includes(health.latestJob.status);
 
   return (
-    <Screen refreshing={loading} onRefresh={loadHealth}>
+    <Screen refreshing={loading} onRefresh={() => loadHealth("refresh")}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
         <Pressable
           accessibilityRole="button"
@@ -361,7 +387,7 @@ export default function NotificationHealthScreen() {
           title="Refresh Health"
           icon="reload-outline"
           variant="ghost"
-          onPress={loadHealth}
+          onPress={() => void loadHealth("refresh")}
           loading={loading}
         />
       </SectionCard>
