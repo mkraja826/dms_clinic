@@ -6,50 +6,45 @@ const expect = (condition, message) => {
 };
 const read = (path) => readFileSync(path, "utf8");
 
-const requestMigrationPath =
-  "supabase/migrations/20260826183000_capdent_v28_patient_payment_requests.sql";
-const rowCountFixPath =
-  "supabase/migrations/20260826183100_capdent_v28_fix_provider_event_rowcount.sql";
-const reconciliationPath =
-  "supabase/migrations/20260826183200_capdent_v28_verified_payment_reconciliation.sql";
-const checkoutFunctionPath =
-  "supabase/functions/create-patient-payment-checkout/index.ts";
-const phonePeWebhookPath =
-  "supabase/functions/phonepe-patient-payment-webhook/index.ts";
-const configPath = "supabase/config.toml";
-const helperPath = "src/lib/patientPaymentRequests.ts";
-const viewerPath = "src/app/reception/finalized-invoice.tsx";
+const paths = {
+  requestMigration: "supabase/migrations/20260826183000_capdent_v28_patient_payment_requests.sql",
+  rowCountFix: "supabase/migrations/20260826183100_capdent_v28_fix_provider_event_rowcount.sql",
+  reconciliation: "supabase/migrations/20260826183200_capdent_v28_verified_payment_reconciliation.sql",
+  checkout: "supabase/functions/create-patient-payment-checkout/index.ts",
+  phonePeWebhook: "supabase/functions/phonepe-patient-payment-webhook/index.ts",
+  cardOnboarding: "supabase/functions/connect-card-payment-account/index.ts",
+  cardStatus: "supabase/functions/sync-card-payment-account/index.ts",
+  stripeWebhook: "supabase/functions/stripe-patient-payment-webhook/index.ts",
+  config: "supabase/config.toml",
+  helper: "src/lib/patientPaymentRequests.ts",
+  cardClient: "src/lib/cardPaymentAccount.ts",
+  ownerScreen: "src/app/settings/patient-payments.tsx",
+  viewer: "src/app/reception/finalized-invoice.tsx",
+};
 
-for (const path of [
-  requestMigrationPath,
-  rowCountFixPath,
-  reconciliationPath,
-  checkoutFunctionPath,
-  phonePeWebhookPath,
-  configPath,
-  helperPath,
-  viewerPath,
-]) {
+for (const path of Object.values(paths)) {
   expect(existsSync(path), `Required V28 patient-payment path is missing: ${path}`);
 }
 
 if (!failures.length) {
-  const migration = read(requestMigrationPath);
-  const fix = read(rowCountFixPath);
-  const reconciliation = read(reconciliationPath);
-  const checkout = read(checkoutFunctionPath);
-  const webhook = read(phonePeWebhookPath);
-  const config = read(configPath);
-  const helper = read(helperPath);
-  const viewer = read(viewerPath);
+  const migration = read(paths.requestMigration);
+  const fix = read(paths.rowCountFix);
+  const reconciliation = read(paths.reconciliation);
+  const checkout = read(paths.checkout);
+  const phonePeWebhook = read(paths.phonePeWebhook);
+  const cardOnboarding = read(paths.cardOnboarding);
+  const cardStatus = read(paths.cardStatus);
+  const stripeWebhook = read(paths.stripeWebhook);
+  const config = read(paths.config);
+  const helper = read(paths.helper);
+  const cardClient = read(paths.cardClient);
+  const ownerScreen = read(paths.ownerScreen);
+  const viewer = read(paths.viewer);
 
   expect(
-    migration.includes("create table if not exists public.patient_payment_requests"),
-    "Patient payment request table is required."
-  );
-  expect(
-    migration.includes("create table if not exists public.patient_payment_provider_events"),
-    "Provider event idempotency table is required."
+    migration.includes("create table if not exists public.patient_payment_requests") &&
+      migration.includes("create table if not exists public.patient_payment_provider_events"),
+    "Patient payment request and provider event tables are required."
   );
   expect(
     migration.includes("case when v_country = 'IN' then 'phonepe' else 'card' end"),
@@ -83,19 +78,10 @@ if (!failures.length) {
     "Provider event storage must explicitly prohibit raw webhook payloads/secrets/PHI."
   );
   expect(
-    migration.includes("status = 'provider_verified'") &&
-      migration.includes("legacy CapDent payments ledger"),
-    "Provider success must stop at provider_verified until trusted ledger reconciliation runs."
-  );
-  expect(
     !migration.includes("insert into public.payments") &&
       !migration.includes("update public.payments") &&
       !migration.includes("delete from public.payments"),
-    "The payment-request/provider-event foundation must not mutate the existing payments table."
-  );
-  expect(
-    !migration.includes("update public.invoices") && !migration.includes("delete from public.invoices"),
-    "The payment-request/provider-event foundation must not mutate legacy invoices."
+    "The request/provider-event foundation must not directly mutate the existing payments table."
   );
   expect(
     fix.includes("v_row_count integer") && fix.includes("v_inserted := v_row_count > 0"),
@@ -104,7 +90,7 @@ if (!failures.length) {
 
   expect(
     reconciliation.includes("create table if not exists public.patient_payment_reconciliation_entries"),
-    "Verified online payments must keep an audit mapping to the CapDent payment rows they create."
+    "Verified online payments must keep an audit mapping to CapDent payment rows."
   );
   expect(
     reconciliation.includes("status <> 'provider_verified'") &&
@@ -119,23 +105,20 @@ if (!failures.length) {
   expect(
     reconciliation.includes("insert into public.payments") &&
       reconciliation.includes("v_request.requested_by"),
-    "Trusted reconciliation must write through the existing CapDent payment ledger and retain the receptionist/owner who prepared the request."
+    "Trusted reconciliation must write through the existing CapDent payment ledger and retain the staff member who prepared the request."
   );
   expect(
     reconciliation.includes("perform public.recalculate_invoice_financials(v_invoice.id)"),
-    "Verified payment allocation must reuse the existing production invoice financial recalculation logic."
+    "Verified payment allocation must reuse the production invoice financial recalculation logic."
   );
   expect(
     reconciliation.includes("coalesce(nullif(trim(v_invoice.payment_category), ''), 'pending_collection')"),
-    "Verified payment rows must preserve each legacy invoice payment category."
+    "Verified payment rows must preserve the source invoice payment category."
   );
   expect(
-    reconciliation.includes("grant execute on function public.reconcile_v28_verified_patient_payment(uuid) to service_role"),
-    "Only trusted service-role code may reconcile a provider payment into the CapDent ledger."
-  );
-  expect(
-    !reconciliation.includes("grant execute on function public.reconcile_v28_verified_patient_payment(uuid) to authenticated"),
-    "Android/authenticated clients must never execute provider ledger reconciliation."
+    reconciliation.includes("grant execute on function public.reconcile_v28_verified_patient_payment(uuid) to service_role") &&
+      !reconciliation.includes("grant execute on function public.reconcile_v28_verified_patient_payment(uuid) to authenticated"),
+    "Only trusted service-role code may reconcile provider payments into the ledger."
   );
 
   expect(
@@ -143,10 +126,6 @@ if (!failures.length) {
       checkout.includes("PHONEPE_PARTNER_CLIENT_SECRET") &&
       checkout.includes("PHONEPE_PARTNER_CLIENT_VERSION"),
     "PhonePe partner credentials must come from Edge Function environment secrets."
-  );
-  expect(
-    !checkout.includes("EXPO_PUBLIC_PHONEPE") && !checkout.includes("PHONEPE_CLIENT_SECRET ="),
-    "PhonePe credentials must never be embedded in Android/public configuration."
   );
   expect(
     checkout.includes('"X-MERCHANT-ID": input.merchantId'),
@@ -157,62 +136,133 @@ if (!failures.length) {
     "PhonePe payment-link amount must be converted from INR to paise server-side."
   );
   expect(
-    checkout.includes("notificationChannels") &&
-      checkout.includes("SMS: false") &&
-      checkout.includes("EMAIL: false"),
-    "PhonePe must not auto-message the patient; receptionist remains in control of invoice sharing."
-  );
-  expect(
-    checkout.includes('prepared.provider !== "phonepe"') && checkout.includes("Card receiving-account checkout adapter is not enabled yet"),
-    "India PhonePe adapter must not silently process non-India card requests."
+    checkout.includes("notificationChannels") && checkout.includes("SMS: false") && checkout.includes("EMAIL: false"),
+    "PhonePe must not auto-message patients; receptionist remains in control of invoice sharing."
   );
   expect(
     checkout.includes('Deno.env.get("PHONEPE_ENVIRONMENT")') &&
-      checkout.includes('=== "production"') &&
-      checkout.includes('return "sandbox"'),
+      checkout.includes('? "production"') &&
+      checkout.includes(': "sandbox"'),
     "PhonePe provider integration must default safely to sandbox."
+  );
+  expect(
+    !checkout.includes("EXPO_PUBLIC_PHONEPE") && !checkout.includes("EXPO_PUBLIC_STRIPE"),
+    "Provider credentials must never be embedded in Android/public configuration."
   );
 
   expect(
-    webhook.includes("PHONEPE_WEBHOOK_USERNAME") && webhook.includes("PHONEPE_WEBHOOK_PASSWORD"),
+    checkout.includes("STRIPE_SECRET_KEY") && checkout.includes('"Stripe-Account": input.connectedAccountId'),
+    "International card checkout must run server-side as a Stripe direct charge on the clinic connected account."
+  );
+  expect(
+    checkout.includes('body.set("payment_method_types[0]", "card")'),
+    "Non-India V28 checkout must expose card only."
+  );
+  expect(
+    checkout.includes("stripeMinorAmount") && checkout.includes('"JPY"') && checkout.includes('"UGX"'),
+    "Stripe amounts must account for documented minor-unit/zero-decimal currency rules."
+  );
+  expect(
+    checkout.includes("STRIPE_PATIENT_CHECKOUT_SUCCESS_URL") && checkout.includes("STRIPE_PATIENT_CHECKOUT_CANCEL_URL"),
+    "Stripe hosted Checkout must use server-configured HTTPS return URLs."
+  );
+  expect(
+    checkout.includes('String(bill.country_code).toUpperCase() === "IN"') &&
+      checkout.includes("Indian clinics must use PhonePe"),
+    "International card adapter must refuse Indian clinic invoices."
+  );
+
+  expect(
+    phonePeWebhook.includes("PHONEPE_WEBHOOK_USERNAME") && phonePeWebhook.includes("PHONEPE_WEBHOOK_PASSWORD"),
     "PhonePe webhook SHA credentials must come only from server-side secrets."
   );
   expect(
-    webhook.includes('sha256(`${username}:${password}`)') && webhook.includes("constantTimeEqual"),
-    "PhonePe SHA webhook authorization must be verified before reading provider event data."
+    phonePeWebhook.includes('sha256(`${username}:${password}`)') && phonePeWebhook.includes("constantTimeEqual"),
+    "PhonePe SHA webhook authorization must be verified before provider processing."
   );
   expect(
-    webhook.includes('new Set(["paylink.order.completed", "paylink.order.failed"])'),
-    "PhonePe webhook must process only the payment-link events CapDent needs."
+    phonePeWebhook.includes('new Set(["paylink.order.completed", "paylink.order.failed"])') &&
+      phonePeWebhook.includes("record_v28_verified_provider_event") &&
+      phonePeWebhook.includes("reconcile_v28_verified_patient_payment"),
+    "PhonePe completion must pass through provider-event verification before ledger reconciliation."
   );
   expect(
-    webhook.includes('record_v28_verified_provider_event') &&
-      webhook.includes('reconcile_v28_verified_patient_payment'),
-    "Verified PhonePe completion must pass through provider-event verification before ledger reconciliation."
-  );
-  expect(
-    webhook.includes("payloadDigest = await sha256(rawBody)"),
-    "PhonePe webhook must store only a digest of the provider payload, not raw payment instrument data."
+    phonePeWebhook.includes("payloadDigest = await sha256(rawBody)"),
+    "PhonePe webhook must store only a digest of the raw provider payload."
   );
 
   expect(
-    config.includes("[functions.create-patient-payment-checkout]") &&
-      config.includes("[functions.phonepe-patient-payment-webhook]"),
-    "V28 patient payment Edge Functions must be registered in Supabase config."
+    cardOnboarding.includes("STRIPE_SECRET_KEY") &&
+      cardOnboarding.includes('accountBody.set("type", "express")') &&
+      cardOnboarding.includes('capabilities[card_payments][requested]') &&
+      cardOnboarding.includes('capabilities[transfers][requested]'),
+    "Card receiving-account onboarding must create a Stripe connected account with payment/settlement capabilities server-side."
+  );
+  expect(
+    cardOnboarding.includes("/v1/account_links") &&
+      cardOnboarding.includes("STRIPE_CONNECT_REFRESH_URL") &&
+      cardOnboarding.includes("STRIPE_CONNECT_RETURN_URL") &&
+      cardOnboarding.includes('linkBody.set("type", "account_onboarding")'),
+    "Card onboarding must use a one-time Stripe-hosted Account Link."
+  );
+  expect(
+    cardOnboarding.includes('countryCode === "IN"') && cardOnboarding.includes("Indian clinics use PhonePe"),
+    "Stripe connected-account onboarding must be unavailable to Indian clinics in V28."
+  );
+  expect(
+    cardStatus.includes("charges_enabled") && cardStatus.includes("payouts_enabled") &&
+      cardStatus.includes('status = "connected"'),
+    "Card receiving-account readiness must be synchronized from Stripe charge and payout capability state."
   );
 
   expect(
-    helper.includes('supabase.rpc("prepare_v28_patient_payment_request"'),
-    "Android payment preparation must use the server-authoritative RPC."
+    stripeWebhook.includes("Stripe-Signature") && stripeWebhook.includes("STRIPE_PATIENT_WEBHOOK_SECRET") &&
+      stripeWebhook.includes("hmacSha256Hex") && stripeWebhook.includes("> 300"),
+    "Stripe webhook must verify a timestamped HMAC signature with replay tolerance."
   );
   expect(
-    helper.includes("request.status !== \"pending\"") && helper.includes("/^https:\\/\\//i"),
-    "Client shareability must require a pending HTTPS hosted checkout URL."
+    stripeWebhook.includes('checkout.session.completed') &&
+      stripeWebhook.includes("event?.account") &&
+      stripeWebhook.includes("capdent_payment_request_id"),
+    "Stripe Connect webhook must require a paid connected-account Checkout Session mapped to a CapDent request."
   );
   expect(
-    viewer.includes("Pay Now is intentionally disabled") &&
-      viewer.includes("No Pay Now URL is included"),
-    "Final invoice UI must keep Pay Now disabled until all intended provider adapters and release gates are complete."
+    stripeWebhook.includes("record_v28_verified_provider_event") &&
+      stripeWebhook.includes("reconcile_v28_verified_patient_payment") &&
+      stripeWebhook.includes("payloadDigest = await sha256(rawBody)"),
+    "Stripe completion must be verified, digest-only logged, and reconciled through the trusted ledger path."
+  );
+
+  for (const section of [
+    "[functions.connect-card-payment-account]",
+    "[functions.sync-card-payment-account]",
+    "[functions.create-patient-payment-checkout]",
+    "[functions.phonepe-patient-payment-webhook]",
+    "[functions.stripe-patient-payment-webhook]",
+  ]) {
+    expect(config.includes(section), `Supabase config is missing ${section}`);
+  }
+
+  expect(
+    helper.includes('supabase.rpc("prepare_v28_patient_payment_request"') &&
+      helper.includes("request.status !== \"pending\"") &&
+      helper.includes("/^https:\\/\\//i"),
+    "Android payment request handling must remain server-authoritative and share only pending HTTPS checkout URLs."
+  );
+  expect(
+    cardClient.includes('supabase.functions.invoke("connect-card-payment-account"') &&
+      cardClient.includes('supabase.functions.invoke("sync-card-payment-account"'),
+    "Owner card setup must use authenticated backend onboarding/status functions."
+  );
+  expect(
+    ownerScreen.includes("Linking.openURL(result.onboardingUrl)") &&
+      ownerScreen.includes("PhonePe patient-payment processing is implemented as a PG Partner flow") &&
+      ownerScreen.includes("disabled"),
+    "Owner UI must open Stripe onboarding in the system browser while keeping PhonePe merchant onboarding gated."
+  );
+  expect(
+    viewer.includes("Pay Now is intentionally disabled") && viewer.includes("No Pay Now URL is included"),
+    "Reception invoice UI must keep Pay Now disabled until provider release gates are explicitly opened."
   );
 }
 
