@@ -74,7 +74,6 @@ export default function PatientPaymentsSettingsScreen() {
 
   const providerIcon = status?.provider === "phonepe" ? "phone-portrait-outline" : "card-outline";
   const connected = status?.status === "connected";
-  const providerReady = status?.backendReady && status?.provider !== "unconfigured";
 
   return (
     <Screen refreshing={loading} onRefresh={() => void load()}>
@@ -206,7 +205,7 @@ export default function PatientPaymentsSettingsScreen() {
           <AppButton
             title={status?.provider === "phonepe" ? "Connect PhonePe" : status?.provider === "card" ? "Connect Card Receiving Account" : "Set Clinic Country First"}
             icon={status?.provider === "phonepe" ? "phone-portrait-outline" : "card-outline"}
-            disabled={!canManage || !providerReady || true}
+            disabled
           />
         )}
 
