@@ -20,6 +20,29 @@ type PreparedRequest = {
   expires_at?: string | null;
 };
 
+const STRIPE_ZERO_DECIMAL = new Set([
+  "BIF",
+  "CLP",
+  "DJF",
+  "GNF",
+  "JPY",
+  "KMF",
+  "KRW",
+  "MGA",
+  "PYG",
+  "RWF",
+  "VND",
+  "VUV",
+  "XAF",
+  "XOF",
+  "XPF",
+]);
+
+// Stripe documents UGX as a backwards-compatibility special case for charges:
+// represent it using two-decimal API amounts even though it transitioned to a
+// zero-decimal currency. ISK is also represented with two decimal zeroes.
+const STRIPE_FORCE_TWO_DECIMAL = new Set(["ISK", "UGX"]);
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -30,6 +53,12 @@ function json(body: unknown, status = 200) {
 function requiredEnv(name: string) {
   const value = Deno.env.get(name)?.trim();
   if (!value) throw new Error(`${name} is not configured`);
+  return value;
+}
+
+function requireHttpsEnv(name: string) {
+  const value = requiredEnv(name);
+  if (!/^https:\/\//i.test(value)) throw new Error(`${name} must be an HTTPS URL`);
   return value;
 }
 
@@ -78,6 +107,23 @@ function asPreparedRequest(data: unknown): PreparedRequest | null {
     checkout_url: candidate.checkout_url ? String(candidate.checkout_url) : null,
     expires_at: candidate.expires_at ? String(candidate.expires_at) : null,
   };
+}
+
+function stripeMinorAmount(amount: number, currencyCode: string) {
+  const currency = currencyCode.trim().toUpperCase();
+  if (!/^[A-Z]{3}$/.test(currency)) throw new Error("Invalid card payment currency");
+  if (!Number.isFinite(amount) || amount <= 0) throw new Error("Invalid card payment amount");
+
+  if (STRIPE_ZERO_DECIMAL.has(currency) && !STRIPE_FORCE_TWO_DECIMAL.has(currency)) {
+    if (Math.abs(amount - Math.round(amount)) > 0.000001) {
+      throw new Error(`${currency} card payments cannot contain fractional minor units`);
+    }
+    return Math.round(amount);
+  }
+
+  const minor = Math.round(amount * 100);
+  if (!Number.isSafeInteger(minor) || minor <= 0) throw new Error("Card payment amount is outside the supported range");
+  return minor;
 }
 
 async function phonePeAccessToken() {
@@ -174,10 +220,65 @@ async function createPhonePePaymentLink(input: {
   }
 
   return {
-    merchantOrderId,
-    orderId,
-    paylinkUrl,
+    providerRequestId: orderId,
+    checkoutUrl: paylinkUrl,
     expiresAt: new Date(Number.isFinite(responseExpiry) ? responseExpiry : expireAt).toISOString(),
+    environment: phonePeEnvironment(),
+  };
+}
+
+async function createStripeCardCheckout(input: {
+  requestId: string;
+  amount: number;
+  currencyCode: string;
+  connectedAccountId: string;
+  invoiceNumber: string;
+}) {
+  if (!/^acct_[A-Za-z0-9]+$/.test(input.connectedAccountId)) {
+    throw new Error("Clinic card receiving account is invalid");
+  }
+
+  const currency = input.currencyCode.trim().toLowerCase();
+  const unitAmount = stripeMinorAmount(input.amount, input.currencyCode);
+  const body = new URLSearchParams();
+  body.set("mode", "payment");
+  body.set("payment_method_types[0]", "card");
+  body.set("line_items[0][price_data][currency]", currency);
+  body.set("line_items[0][price_data][unit_amount]", String(unitAmount));
+  body.set("line_items[0][price_data][product_data][name]", `CapDent invoice ${input.invoiceNumber}`.slice(0, 120));
+  body.set("line_items[0][quantity]", "1");
+  body.set("client_reference_id", input.requestId);
+  body.set("metadata[capdent_payment_request_id]", input.requestId);
+  body.set("payment_intent_data[metadata][capdent_payment_request_id]", input.requestId);
+  body.set("success_url", requireHttpsEnv("STRIPE_PATIENT_CHECKOUT_SUCCESS_URL"));
+  body.set("cancel_url", requireHttpsEnv("STRIPE_PATIENT_CHECKOUT_CANCEL_URL"));
+
+  const response = await fetch("https://api.stripe.com/v1/checkout/sessions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${requiredEnv("STRIPE_SECRET_KEY")}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Stripe-Account": input.connectedAccountId,
+    },
+    body,
+  });
+  const payload = await response.json().catch(() => ({}));
+  const sessionId = typeof payload?.id === "string" ? payload.id.trim() : "";
+  const checkoutUrl = typeof payload?.url === "string" ? payload.url.trim() : "";
+  const expiresAtSeconds = Number(payload?.expires_at || 0);
+
+  if (!response.ok || !/^cs_[A-Za-z0-9_]+$/.test(sessionId) || !/^https:\/\//i.test(checkoutUrl)) {
+    console.error("Stripe Checkout creation failed", response.status, payload?.error?.type || "unknown");
+    throw new Error(payload?.error?.message || "Card checkout could not be created");
+  }
+
+  return {
+    providerRequestId: sessionId,
+    checkoutUrl,
+    expiresAt: Number.isFinite(expiresAtSeconds) && expiresAtSeconds > 0
+      ? new Date(expiresAtSeconds * 1000).toISOString()
+      : null,
+    environment: requiredEnv("STRIPE_SECRET_KEY").startsWith("sk_live_") ? "production" : "test",
   };
 }
 
@@ -203,8 +304,6 @@ Deno.serve(async (req) => {
     const billId = String(body.bill_id || "").trim();
     if (!billId) return json({ error: "Final invoice ID is required" }, 400);
 
-    // The RPC derives active clinic/role from the caller JWT, recomputes the
-    // exact current due, and requires a connected clinic receiving account.
     const { data: preparedData, error: preparedError } = await userClient.rpc(
       "prepare_v28_patient_payment_request",
       { p_bill_id: billId }
@@ -222,18 +321,7 @@ Deno.serve(async (req) => {
         currencyCode: prepared.currency_code,
         checkoutUrl: prepared.checkout_url,
         expiresAt: prepared.expires_at || null,
-        environment: prepared.provider === "phonepe" ? phonePeEnvironment() : null,
       });
-    }
-
-    if (prepared.provider !== "phonepe") {
-      return json(
-        {
-          error: "Card receiving-account checkout adapter is not enabled yet for this V28 environment",
-          provider: "card",
-        },
-        501
-      );
     }
 
     const adminClient = createClient(supabaseUrl, serviceRoleKey, {
@@ -251,7 +339,7 @@ Deno.serve(async (req) => {
       await Promise.all([
         adminClient
           .from("clinic_payment_accounts")
-          .select("id,provider,provider_merchant_id,status,payments_enabled,settlements_enabled")
+          .select("id,provider,provider_account_id,provider_merchant_id,status,payments_enabled,settlements_enabled")
           .eq("id", requestRow.payment_account_id)
           .eq("clinic_id", requestRow.clinic_id)
           .single(),
@@ -274,16 +362,12 @@ Deno.serve(async (req) => {
     if (billError || !bill) throw billError || new Error("Final invoice not found");
 
     if (
-      account.provider !== "phonepe" ||
+      account.provider !== requestRow.provider ||
       account.status !== "connected" ||
       account.payments_enabled !== true ||
-      account.settlements_enabled !== true ||
-      !String(account.provider_merchant_id || "").trim()
+      account.settlements_enabled !== true
     ) {
-      return json({ error: "Clinic PhonePe receiving account is not fully connected" }, 409);
-    }
-    if (String(bill.country_code).toUpperCase() !== "IN" || String(bill.currency_code).toUpperCase() !== "INR") {
-      return json({ error: "PhonePe is enabled only for Indian INR clinics" }, 409);
+      return json({ error: "Clinic receiving account is not fully connected" }, 409);
     }
 
     await adminClient
@@ -292,24 +376,53 @@ Deno.serve(async (req) => {
       .eq("id", requestRow.id)
       .eq("status", "prepared");
 
-    let created;
+    let created: {
+      providerRequestId: string;
+      checkoutUrl: string;
+      expiresAt: string | null;
+      environment: string;
+    };
+
     try {
-      created = await createPhonePePaymentLink({
-        requestId: requestRow.id,
-        amount: Number(requestRow.amount || 0),
-        currencyCode: String(requestRow.currency_code || "").toUpperCase(),
-        merchantId: String(account.provider_merchant_id).trim(),
-        patientPhone: normalizeIndianPhone(patient.phone),
-        invoiceNumber: String(bill.invoice_number || requestRow.id),
-      });
+      if (requestRow.provider === "phonepe") {
+        if (String(bill.country_code).toUpperCase() !== "IN" || String(bill.currency_code).toUpperCase() !== "INR") {
+          return json({ error: "PhonePe is enabled only for Indian INR clinics" }, 409);
+        }
+        if (!String(account.provider_merchant_id || "").trim()) {
+          return json({ error: "Clinic PhonePe merchant ID is not configured" }, 409);
+        }
+
+        created = await createPhonePePaymentLink({
+          requestId: requestRow.id,
+          amount: Number(requestRow.amount || 0),
+          currencyCode: String(requestRow.currency_code || "").toUpperCase(),
+          merchantId: String(account.provider_merchant_id).trim(),
+          patientPhone: normalizeIndianPhone(patient.phone),
+          invoiceNumber: String(bill.invoice_number || requestRow.id),
+        });
+      } else {
+        if (String(bill.country_code).toUpperCase() === "IN") {
+          return json({ error: "Indian clinics must use PhonePe for V28 patient invoice payments" }, 409);
+        }
+        const connectedAccountId = String(account.provider_account_id || "").trim();
+        if (!connectedAccountId) return json({ error: "Clinic card receiving account is not configured" }, 409);
+
+        created = await createStripeCardCheckout({
+          requestId: requestRow.id,
+          amount: Number(requestRow.amount || 0),
+          currencyCode: String(requestRow.currency_code || "").toUpperCase(),
+          connectedAccountId,
+          invoiceNumber: String(bill.invoice_number || requestRow.id),
+        });
+      }
     } catch (error) {
       await adminClient
         .from("patient_payment_requests")
         .update({
           status: "failed",
           provider_status: "checkout_failed",
-          failure_code: "phonepe_checkout_failed",
-          failure_message: "PhonePe payment link creation failed. No CapDent payment was recorded.",
+          failure_code: requestRow.provider === "phonepe" ? "phonepe_checkout_failed" : "card_checkout_failed",
+          failure_message: "Provider checkout creation failed. No CapDent payment was recorded.",
           last_checked_at: new Date().toISOString(),
         })
         .eq("id", requestRow.id)
@@ -319,20 +432,20 @@ Deno.serve(async (req) => {
 
     const { error: attachError } = await adminClient.rpc("attach_v28_provider_checkout", {
       p_payment_request_id: requestRow.id,
-      p_provider_request_id: created.orderId,
-      p_checkout_url: created.paylinkUrl,
+      p_provider_request_id: created.providerRequestId,
+      p_checkout_url: created.checkoutUrl,
       p_expires_at: created.expiresAt,
     });
     if (attachError) throw attachError;
 
     return json({
       paymentRequestId: requestRow.id,
-      provider: "phonepe",
+      provider: requestRow.provider,
       amount: Number(requestRow.amount || 0),
-      currencyCode: "INR",
-      checkoutUrl: created.paylinkUrl,
+      currencyCode: String(requestRow.currency_code || "").toUpperCase(),
+      checkoutUrl: created.checkoutUrl,
       expiresAt: created.expiresAt,
-      environment: phonePeEnvironment(),
+      environment: created.environment,
     });
   } catch (error) {
     console.error("Patient payment checkout error", error instanceof Error ? error.message : error);
