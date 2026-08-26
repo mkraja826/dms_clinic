@@ -15,6 +15,10 @@ import { AppButton } from "@/components/AppButton";
 import { AppInput } from "@/components/AppInput";
 import { colors } from "@/constants/colors";
 import { useAuth } from "@/lib/auth";
+import {
+  analyticsAuthFailureCategory,
+  logCapDentAnalyticsEvent,
+} from "@/lib/firebaseAnalytics";
 import { useImmediateMutationLock } from "@/lib/useImmediateMutationLock";
 
 type SignupType = "clinic" | "employee";
@@ -49,6 +53,11 @@ export default function LoginScreen() {
     try {
       if (mode === "login") {
         await signIn(email, password);
+        void logCapDentAnalyticsEvent("capdent_auth_result", {
+          method: "email",
+          outcome: "success",
+          failure_category: "none",
+        });
       } else {
         if (signupType === "clinic") {
           await signUpOwner(email, password);
@@ -60,12 +69,19 @@ export default function LoginScreen() {
           "Verify your email",
           signupType === "clinic"
             ? "We sent a verification link. Verify your email, then login and create the clinic workspace."
-            : "We sent a verification link. Verify your email, then login and join your clinic using the invite code."
+            : "We sent a verification link. Verify your email, then login and join your clinic using the invite code from the owner."
         );
         setMode("login");
         setPassword("");
       }
     } catch (error) {
+      if (mode === "login") {
+        void logCapDentAnalyticsEvent("capdent_auth_result", {
+          method: "email",
+          outcome: "failure",
+          failure_category: analyticsAuthFailureCategory(error),
+        });
+      }
       Alert.alert(
         mode === "login" ? "Login failed" : "Signup failed",
         error instanceof Error ? error.message : "Please try again."
@@ -82,7 +98,17 @@ export default function LoginScreen() {
     try {
       setGoogleLoading(true);
       await signInWithGoogle();
+      void logCapDentAnalyticsEvent("capdent_auth_result", {
+        method: "google",
+        outcome: "success",
+        failure_category: "none",
+      });
     } catch (error) {
+      void logCapDentAnalyticsEvent("capdent_auth_result", {
+        method: "google",
+        outcome: "failure",
+        failure_category: analyticsAuthFailureCategory(error),
+      });
       Alert.alert(
         "Google login failed",
         error instanceof Error ? error.message : "Please try again."
