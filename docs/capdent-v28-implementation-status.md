@@ -44,6 +44,18 @@ This file is the working completion ledger for `feature/capdent-v28`. A checked 
 - [x] Patient Payments screen is backward-safe when the additive backend migration is absent.
 - [x] Provider onboarding buttons remain deliberately disabled until authenticated provider onboarding and merchant verification are implemented.
 - [x] Consolidated-invoice rule documented: no patient messaging after individual OP/X-ray/medication/treatment fee entries.
+- [x] Additive V28 consolidated billing migration committed to the feature branch only; Production has not been changed.
+- [x] Existing `invoices`, `payments`, `collect_reception_fee()`, and `record_patient_payment()` remain untouched by consolidated finalization.
+- [x] Reception selects explicit source invoice IDs; old patient history is never auto-consumed into a final invoice.
+- [x] Server finalization validates signed-in clinic, role, patient ownership, and every selected source invoice.
+- [x] Same-patient concurrent finalization is serialized and already-finalized source invoices are rejected.
+- [x] Server-authoritative sequential invoice numbering added for new V28 consolidated invoices (`CD-YYYY-000001` per clinic/year).
+- [x] Immutable consolidated bill header and line-item snapshots added with clinic-scoped RLS reads and no direct client writes.
+- [x] Client consolidated-billing helper is backward-safe when the V28 migration is absent.
+- [x] Receptionist **Review Final Invoice** screen added: patient search → explicit charge selection → total/paid/balance review → finalize.
+- [x] Reception More Tools exposes **Review Final Invoice**.
+- [x] Finalization explicitly sends no WhatsApp/email/notification/payment request; patient sharing remains a separate receptionist action.
+- [x] Finalized consolidated bill can be loaded into the existing CapDent invoice-document snapshot model for the next PDF/share layer.
 
 ## Required before V28 feature-complete release
 
@@ -91,15 +103,16 @@ This file is the working completion ledger for `feature/capdent-v28`. A checked 
 
 ### Consolidated invoice and patient payment flow
 
-- [ ] Add an additive consolidated billing-cycle/final-invoice schema above the current legacy category invoices/payments; do not replace working legacy RPCs.
-- [ ] Build receptionist **Review Final Invoice** screen that gathers OP, X-ray, medication, treatment, other charges, and existing payments.
-- [ ] Add server-side `finalize_consolidated_bill()` with clinic/RLS checks, idempotency, immutable line-item snapshot, totals, payment snapshot, and safe correction/version semantics.
-- [ ] Add concurrency-safe, server-authoritative sequential clinic invoice numbering for new consolidated invoices while preserving historical invoices.
+- [x] Add an additive consolidated billing-cycle/final-invoice schema above the current legacy category invoices/payments; do not replace working legacy RPCs.
+- [x] Build receptionist **Review Final Invoice** screen that gathers explicit OP, X-ray, medication, treatment, other charge invoices and their existing paid/due state.
+- [x] Add server-side `finalize_v28_consolidated_bill()` with clinic/role checks, source-invoice validation, duplicate/race protection, immutable line-item snapshots, totals, and payment snapshot.
+- [x] Add concurrency-safe, server-authoritative sequential clinic invoice numbering for new consolidated invoices while preserving historical invoices.
+- [ ] Add safe correction/version semantics for a finalized consolidated invoice; finalized snapshots must never be silently edited in place.
 - [ ] Add PDF/print/share output for the finalized consolidated snapshot.
 - [ ] Add receptionist-only manual WhatsApp/share action; no automatic patient message after individual fees.
 - [ ] Add secure patient invoice/share token with expiry/revocation and no internal clinic secrets.
 - [ ] Add online payment request only for the verified remaining balance of a finalized invoice.
-- [ ] Review `20260826173000_capdent_v28_clinic_payment_accounts.sql` against the live Production schema before applying it anywhere.
+- [ ] Review both V28 billing/payment-account migrations against the live Production schema before applying either one anywhere.
 - [ ] Implement authenticated merchant onboarding: India → PhonePe; other configured countries → card provider.
 - [ ] Keep provider credentials/API secrets/webhook secrets exclusively in server-side secret storage.
 - [ ] Add idempotent provider webhook/callback verification before writing any online payment into the existing CapDent ledger.
