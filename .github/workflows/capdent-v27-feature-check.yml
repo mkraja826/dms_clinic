@@ -1,0 +1,50 @@
+name: CapDent V27 feature check
+
+on:
+  push:
+    branches:
+      - feature/capdent-v27
+      - release/capdent-v27
+  pull_request:
+    branches:
+      - release/capdent-v27
+    paths:
+      - "src/**"
+      - "scripts/validate-capdent-v27.mjs"
+      - "scripts/validate-capdent-v26.mjs"
+      - "app.config.js"
+      - "app.json"
+      - "eas.json"
+      - "firebase.json"
+      - "package.json"
+      - "package-lock.json"
+      - ".env.example"
+      - ".github/workflows/capdent-v27-feature-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out V27 feature branch
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.1
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Validate V27 features and typecheck
+        run: npm run check:v27
+
+      - name: Check repository diff formatting
+        run: git diff --check
+
+      - name: Validate Expo public configuration
+        run: npx expo config --type public > /tmp/capdent-v27-expo-config.txt
