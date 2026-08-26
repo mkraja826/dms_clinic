@@ -17,8 +17,12 @@ const billing = readText("src/lib/googlePlayBilling.ts");
 const restore = readText("src/lib/googlePlayRestore.ts");
 const push = readText("src/lib/paymentNotifications.ts");
 const patientPayments = readText("src/lib/patientPayments.ts");
+const consolidatedBilling = readText("src/lib/consolidatedBilling.ts");
 const patientPaymentMigration = readText(
   "supabase/migrations/20260826173000_capdent_v28_clinic_payment_accounts.sql"
+);
+const consolidatedBillingMigration = readText(
+  "supabase/migrations/20260826163000_capdent_v28_consolidated_billing_foundation.sql"
 );
 
 expect(app.expo?.name === "CapDent", "V28 must remain the CapDent application.");
@@ -57,19 +61,34 @@ expect(patientPaymentMigration.includes("revoke all on table public.clinic_payme
 expect(patientPaymentMigration.includes("case when v_country_code = 'IN' then 'phonepe' else 'card' end"), "Server payment routing must keep India on PhonePe and other configured countries on card.");
 expect(patientPaymentMigration.includes("Never infer India from phone, IP, SIM, device locale, or a missing country"), "Server payment routing must not infer clinic country from device/user signals.");
 
+expect(consolidatedBilling.includes('supabase.rpc("get_v28_invoice_candidates"'), "Reception final invoice candidates must come from the server-scoped RPC.");
+expect(consolidatedBilling.includes('supabase.rpc("finalize_v28_consolidated_bill"'), "Reception finalization must use the server-authoritative RPC.");
+expect(consolidatedBillingMigration.includes("create table if not exists public.consolidated_bills"), "V28 consolidated bill header table is required.");
+expect(consolidatedBillingMigration.includes("create table if not exists public.consolidated_bill_items"), "V28 consolidated bill item snapshots are required.");
+expect(consolidatedBillingMigration.includes("create table if not exists public.clinic_invoice_sequences"), "V28 server invoice sequence is required.");
+expect(consolidatedBillingMigration.includes("p_source_invoice_ids uuid[]"), "Finalization must require explicit source invoice selection.");
+expect(consolidatedBillingMigration.includes("pg_advisory_xact_lock"), "Consolidated finalization must serialize same-patient races.");
+expect(consolidatedBillingMigration.includes("Source invoices" ) || consolidatedBillingMigration.includes("source invoices"), "Consolidated billing migration must document source invoice preservation.");
+expect(!consolidatedBillingMigration.includes("update public.invoices"), "V28 consolidated finalization must not mutate legacy invoices.");
+expect(!consolidatedBillingMigration.includes("delete from public.invoices"), "V28 consolidated finalization must not delete legacy invoices.");
+expect(!consolidatedBillingMigration.includes("insert into public.payments"), "V28 consolidated finalization must not create legacy payment entries.");
+
 for (const requiredPath of [
   "src/app/settings/clinic-health.tsx",
   "src/app/settings/restore-subscription.tsx",
   "src/app/settings/patient-payments.tsx",
+  "src/app/reception/final-invoice.tsx",
   "src/app/settings/guide.tsx",
   "src/app/settings/report-issue.tsx",
   "src/app/legal-consent.tsx",
   "src/lib/imageCompression.ts",
   "src/lib/invoiceDocument.ts",
   "src/lib/invoiceSnapshot.ts",
+  "src/lib/consolidatedBilling.ts",
   "src/lib/patientPayments.ts",
   "src/lib/storageUrls.ts",
   "src/lib/useImmediateMutationLock.ts",
+  "supabase/migrations/20260826163000_capdent_v28_consolidated_billing_foundation.sql",
   "supabase/migrations/20260826173000_capdent_v28_clinic_payment_accounts.sql",
   "docs/capdent-v28-feature-complete-scope.md",
   "docs/capdent-v28-implementation-status.md",
