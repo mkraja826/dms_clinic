@@ -54,7 +54,7 @@ expect(patientPayments.includes('code === "IN" ? "phonepe" : "card"'), "Patient 
 expect(patientPayments.includes('supabase.rpc("get_clinic_patient_payment_status")'), "Patient payment status must come from the server-safe RPC.");
 expect(patientPaymentMigration.includes("create table if not exists public.clinic_payment_accounts"), "V28 clinic payment account migration is required.");
 expect(patientPaymentMigration.includes("revoke all on table public.clinic_payment_accounts from anon, authenticated"), "Android users must not directly mutate clinic payment account metadata.");
-expect(patientPaymentMigration.includes("if v_country_code = 'IN' then 'phonepe' else 'card'"), "Server payment routing must keep India on PhonePe and other configured countries on card.");
+expect(patientPaymentMigration.includes("case when v_country_code = 'IN' then 'phonepe' else 'card' end"), "Server payment routing must keep India on PhonePe and other configured countries on card.");
 expect(patientPaymentMigration.includes("Never infer India from phone, IP, SIM, device locale, or a missing country"), "Server payment routing must not infer clinic country from device/user signals.");
 
 for (const requiredPath of [
