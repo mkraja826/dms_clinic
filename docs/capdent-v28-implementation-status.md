@@ -55,7 +55,15 @@ This file is the working completion ledger for `feature/capdent-v28`. A checked 
 - [x] Receptionist **Review Final Invoice** screen added: patient search → explicit charge selection → total/paid/balance review → finalize.
 - [x] Reception More Tools exposes **Review Final Invoice**.
 - [x] Finalization explicitly sends no WhatsApp/email/notification/payment request; patient sharing remains a separate receptionist action.
-- [x] Finalized consolidated bill can be loaded into the existing CapDent invoice-document snapshot model for the next PDF/share layer.
+- [x] Finalized consolidated bill can be loaded into the existing CapDent invoice-document snapshot model.
+- [x] Reception **Finalized Invoices** list added for previously finalized patient-facing bills.
+- [x] Native finalized-invoice viewer added with frozen line items, total, paid, balance, notes, and patient identity.
+- [x] Receptionist-only manual **Send Invoice on WhatsApp** action added; opening/reviewing an invoice never sends automatically.
+- [x] Finalized-invoice WhatsApp message is currency-aware and uses only the frozen patient-facing invoice snapshot.
+- [x] Additive secure invoice-share token migration committed to the V28 branch only; Production has not been changed.
+- [x] Invoice share tokens are stored only as SHA-256 hashes, expire, can be revoked, and are not directly readable/writable by Android users.
+- [x] Share-token creation/revocation RPCs validate signed-in clinic, role, and finalized invoice ownership.
+- [x] Patient Pay Now remains deliberately absent until the public token resolver and verified provider payment/reconciliation backend are complete.
 
 ## Required before V28 feature-complete release
 
@@ -108,11 +116,12 @@ This file is the working completion ledger for `feature/capdent-v28`. A checked 
 - [x] Add server-side `finalize_v28_consolidated_bill()` with clinic/role checks, source-invoice validation, duplicate/race protection, immutable line-item snapshots, totals, and payment snapshot.
 - [x] Add concurrency-safe, server-authoritative sequential clinic invoice numbering for new consolidated invoices while preserving historical invoices.
 - [ ] Add safe correction/version semantics for a finalized consolidated invoice; finalized snapshots must never be silently edited in place.
-- [ ] Add PDF/print/share output for the finalized consolidated snapshot.
-- [ ] Add receptionist-only manual WhatsApp/share action; no automatic patient message after individual fees.
-- [ ] Add secure patient invoice/share token with expiry/revocation and no internal clinic secrets.
+- [ ] Add PDF/print/native-file share output for the finalized consolidated snapshot.
+- [x] Add receptionist-only manual WhatsApp invoice-summary action; no automatic patient message after individual fees.
+- [x] Add secure patient invoice/share token foundation with expiry/revocation and no direct Android access to token rows.
+- [ ] Add public patient invoice token resolver/viewer before any secure invoice URL is sent externally.
 - [ ] Add online payment request only for the verified remaining balance of a finalized invoice.
-- [ ] Review both V28 billing/payment-account migrations against the live Production schema before applying either one anywhere.
+- [ ] Review all V28 billing/payment/share migrations against the live Production schema before applying any of them anywhere.
 - [ ] Implement authenticated merchant onboarding: India → PhonePe; other configured countries → card provider.
 - [ ] Keep provider credentials/API secrets/webhook secrets exclusively in server-side secret storage.
 - [ ] Add idempotent provider webhook/callback verification before writing any online payment into the existing CapDent ledger.
