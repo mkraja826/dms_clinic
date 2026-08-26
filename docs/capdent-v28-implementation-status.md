@@ -34,6 +34,16 @@ This file is the working completion ledger for `feature/capdent-v28`. A checked 
 - [x] Google Play restore/recovery helper for reinstall/device-change scenarios.
 - [x] Restore path reuses CapDent server verification; local purchase data never unlocks paid access by itself.
 - [x] Owner-visible Restore Subscription screen.
+- [x] Additive `clinic_payment_accounts` migration committed to the V28 branch only; Production has not been changed.
+- [x] Patient payment receiving-account table explicitly stores only non-secret provider metadata.
+- [x] Authenticated Android users have no direct insert/update/delete access to provider account metadata.
+- [x] Server-safe payment-account status RPC derives clinic context from the signed-in profile.
+- [x] Country routing rule locked: explicit India (`IN`) → PhonePe; other explicitly configured countries → card only.
+- [x] Missing/invalid country disables online payment routing rather than inferring India from phone/IP/SIM/device locale.
+- [x] Owner-visible **Patient Payments** settings screen added under More.
+- [x] Patient Payments screen is backward-safe when the additive backend migration is absent.
+- [x] Provider onboarding buttons remain deliberately disabled until authenticated provider onboarding and merchant verification are implemented.
+- [x] Consolidated-invoice rule documented: no patient messaging after individual OP/X-ray/medication/treatment fee entries.
 
 ## Required before V28 feature-complete release
 
@@ -79,12 +89,25 @@ This file is the working completion ledger for `feature/capdent-v28`. A checked 
 - [ ] Define exact Dental Assistant permissions instead of silently inheriting all receptionist actions.
 - [ ] Add role to Android staff management only after RLS regression tests pass.
 
-### Invoice and patient handover
+### Consolidated invoice and patient payment flow
 
-- [ ] Verify current invoice schema supports required immutable/versioned correction semantics.
-- [ ] Verify sequential invoice number generation is server-authoritative and concurrency-safe.
-- [ ] Exercise PDF/print/share output on a physical Android device.
-- [ ] Verify WhatsApp and email handover contain only intended patient-facing information.
+- [ ] Add an additive consolidated billing-cycle/final-invoice schema above the current legacy category invoices/payments; do not replace working legacy RPCs.
+- [ ] Build receptionist **Review Final Invoice** screen that gathers OP, X-ray, medication, treatment, other charges, and existing payments.
+- [ ] Add server-side `finalize_consolidated_bill()` with clinic/RLS checks, idempotency, immutable line-item snapshot, totals, payment snapshot, and safe correction/version semantics.
+- [ ] Add concurrency-safe, server-authoritative sequential clinic invoice numbering for new consolidated invoices while preserving historical invoices.
+- [ ] Add PDF/print/share output for the finalized consolidated snapshot.
+- [ ] Add receptionist-only manual WhatsApp/share action; no automatic patient message after individual fees.
+- [ ] Add secure patient invoice/share token with expiry/revocation and no internal clinic secrets.
+- [ ] Add online payment request only for the verified remaining balance of a finalized invoice.
+- [ ] Review `20260826173000_capdent_v28_clinic_payment_accounts.sql` against the live Production schema before applying it anywhere.
+- [ ] Implement authenticated merchant onboarding: India → PhonePe; other configured countries → card provider.
+- [ ] Keep provider credentials/API secrets/webhook secrets exclusively in server-side secret storage.
+- [ ] Add idempotent provider webhook/callback verification before writing any online payment into the existing CapDent ledger.
+- [ ] Ensure patient money settles to each clinic's connected merchant account, not CapDent's operating account.
+- [ ] If clinic country is missing/invalid or merchant account unsupported/not connected, invoice sending must still work but online Pay Now must be omitted.
+- [ ] Physical-device test finalized paid invoice (no payment link).
+- [ ] Physical-device test finalized partially paid invoice (remaining-balance payment link only).
+- [ ] Verify WhatsApp/share content contains only intended patient-facing information.
 
 ### Upload reliability
 
@@ -122,11 +145,13 @@ This file is the working completion ledger for `feature/capdent-v28`. A checked 
 - [ ] Add Visit + ongoing treatment smoke test.
 - [ ] Tooth-chart/history smoke test.
 - [ ] Appointment/check-in/reminder smoke test.
-- [ ] Payment/invoice/share smoke test.
+- [ ] Consolidated payment/invoice/share smoke test.
+- [ ] Online payment request/reconciliation smoke test.
 - [ ] Gallery upload/view smoke test.
 - [ ] Billing purchase/restore smoke test.
 - [ ] Push notification smoke test.
 - [ ] Owner Clinic Health smoke test.
+- [ ] Owner Patient Payments smoke test.
 - [ ] Play Internal AAB installed and tested before Production promotion.
 
 ## Deliberately excluded from Android V28
