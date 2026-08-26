@@ -165,9 +165,13 @@ expect(
 );
 expect(
   paymentNotifications.includes('PAYMENT_NOTIFICATION_CHANNEL_ID = "payments_coin_drop_v1"') &&
-    paymentNotificationDispatcher.includes('channelId: "payments_coin_drop_v1"') &&
-    !paymentNotificationDispatcher.includes('channelId: "payments"'),
-  "V27 payment push dispatch must use the same payments_coin_drop_v1 Android channel enforced by the app release configuration."
+    paymentNotificationDispatcher.includes("function supportsCoinDropChannel") &&
+    paymentNotificationDispatcher.includes("function paymentChannelId") &&
+    paymentNotificationDispatcher.includes('"payments_coin_drop_v1"') &&
+    paymentNotificationDispatcher.includes('"payments"') &&
+    paymentNotificationDispatcher.includes("channelId: paymentChannelId(token)") &&
+    paymentNotificationDispatcher.includes("id,user_id,expo_push_token,app_version"),
+  "V27 payment push dispatch must route 1.2.6+ devices to payments_coin_drop_v1 while preserving the legacy payments channel for frozen V24 registrations."
 );
 expect(
   headMore.includes("Notification Health") &&
