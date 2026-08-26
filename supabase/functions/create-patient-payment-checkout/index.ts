@@ -72,23 +72,14 @@ function phonePeUrls() {
   if (phonePeEnvironment() === "production") {
     return {
       oauth: "https://api.phonepe.com/apis/identity-manager/v1/oauth/token",
-      paymentLink: "https://api.phonepe.com/apis/pg/paylinks/v1/pay",
+      checkout: "https://api.phonepe.com/apis/pg/checkout/v2/pay",
     };
   }
 
   return {
     oauth: "https://api-preprod.phonepe.com/apis/pg-sandbox/v1/oauth/token",
-    paymentLink: "https://api-preprod.phonepe.com/apis/pg-sandbox/paylinks/v1/pay",
+    checkout: "https://api-preprod.phonepe.com/apis/pg-sandbox/checkout/v2/pay",
   };
-}
-
-function normalizeIndianPhone(value: unknown) {
-  const digits = String(value || "").replace(/\D/g, "");
-  const national = digits.length > 10 ? digits.slice(-10) : digits;
-  if (!/^[6-9]\d{9}$/.test(national)) {
-    throw new Error("Patient must have a valid Indian mobile number before a PhonePe payment link can be created");
-  }
-  return `+91${national}`;
 }
 
 function asPreparedRequest(data: unknown): PreparedRequest | null {
@@ -153,16 +144,15 @@ async function phonePeAccessToken() {
   return accessToken;
 }
 
-async function createPhonePePaymentLink(input: {
+async function createPhonePeStandardCheckout(input: {
   requestId: string;
   amount: number;
   currencyCode: string;
   merchantId: string;
-  patientPhone: string;
   invoiceNumber: string;
 }) {
   if (input.currencyCode !== "INR") {
-    throw new Error("PhonePe patient payment links require an INR clinic invoice");
+    throw new Error("PhonePe Standard Checkout requires an INR clinic invoice");
   }
 
   const amountPaise = Math.round(input.amount * 100);
@@ -173,11 +163,16 @@ async function createPhonePePaymentLink(input: {
   const merchantOrderId = `CDP_${input.requestId.replace(/-/g, "")}`;
   if (merchantOrderId.length > 63) throw new Error("PhonePe merchant order ID is too long");
 
-  const expireAt = Date.now() + 7 * 24 * 60 * 60 * 1000;
+  // PhonePe Standard Checkout uses seconds for expireAfter and returns expireAt
+  // as an epoch timestamp. A short checkout lifetime limits stale payment links;
+  // CapDent can safely prepare a new request after expiration.
+  const expireAfterSeconds = 20 * 60;
+  const fallbackExpireAt = Date.now() + expireAfterSeconds * 1000;
+  const redirectUrl = requireHttpsEnv("PHONEPE_PATIENT_PAYMENT_REDIRECT_URL");
   const token = await phonePeAccessToken();
-  const { paymentLink } = phonePeUrls();
+  const { checkout } = phonePeUrls();
 
-  const response = await fetch(paymentLink, {
+  const response = await fetch(checkout, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -186,43 +181,41 @@ async function createPhonePePaymentLink(input: {
     },
     body: JSON.stringify({
       merchantOrderId,
-      description: `CapDent invoice ${input.invoiceNumber}`.slice(0, 150),
       amount: amountPaise,
-      paymentFlow: {
-        type: "PAYLINK",
-        customerDetails: {
-          phoneNumber: input.patientPhone,
-        },
-        notificationChannels: {
-          SMS: false,
-          EMAIL: false,
-        },
-        expireAt,
-      },
+      expireAfter: expireAfterSeconds,
       metaInfo: {
         udf1: input.requestId,
+      },
+      paymentFlow: {
+        type: "PG_CHECKOUT",
+        message: `CapDent invoice ${input.invoiceNumber}`.slice(0, 150),
+        merchantUrls: {
+          redirectUrl,
+        },
       },
     }),
   });
 
   const payload = await response.json().catch(() => ({}));
   const orderId = typeof payload?.orderId === "string" ? payload.orderId.trim() : "";
-  const paylinkUrl = typeof payload?.paylinkUrl === "string" ? payload.paylinkUrl.trim() : "";
-  const responseExpiry = Number(payload?.expireAt || expireAt);
+  const checkoutUrl = typeof payload?.redirectUrl === "string" ? payload.redirectUrl.trim() : "";
+  const responseExpiry = Number(payload?.expireAt || fallbackExpireAt);
 
-  if (!response.ok || !orderId || !/^https:\/\//i.test(paylinkUrl)) {
+  if (!response.ok || !orderId || !/^https:\/\//i.test(checkoutUrl)) {
     console.error(
-      "PhonePe payment link creation failed",
+      "PhonePe Standard Checkout creation failed",
       response.status,
       payload?.code || payload?.message || "unknown"
     );
-    throw new Error("PhonePe could not create the patient payment link");
+    throw new Error("PhonePe could not create the patient checkout");
   }
 
   return {
-    providerRequestId: orderId,
-    checkoutUrl: paylinkUrl,
-    expiresAt: new Date(Number.isFinite(responseExpiry) ? responseExpiry : expireAt).toISOString(),
+    // PhonePe's status API is keyed by the merchant-assigned order ID. Store
+    // that stable identifier as CapDent's generic provider request reference.
+    providerRequestId: merchantOrderId,
+    checkoutUrl,
+    expiresAt: new Date(Number.isFinite(responseExpiry) ? responseExpiry : fallbackExpireAt).toISOString(),
     environment: phonePeEnvironment(),
   };
 }
@@ -335,18 +328,12 @@ Deno.serve(async (req) => {
       .single();
     if (requestError || !requestRow) throw requestError || new Error("Prepared request not found");
 
-    const [{ data: account, error: accountError }, { data: patient, error: patientError }, { data: bill, error: billError }] =
+    const [{ data: account, error: accountError }, { data: bill, error: billError }] =
       await Promise.all([
         adminClient
           .from("clinic_payment_accounts")
           .select("id,provider,provider_account_id,provider_merchant_id,status,payments_enabled,settlements_enabled")
           .eq("id", requestRow.payment_account_id)
-          .eq("clinic_id", requestRow.clinic_id)
-          .single(),
-        adminClient
-          .from("patients")
-          .select("id,phone")
-          .eq("id", requestRow.patient_id)
           .eq("clinic_id", requestRow.clinic_id)
           .single(),
         adminClient
@@ -358,7 +345,6 @@ Deno.serve(async (req) => {
       ]);
 
     if (accountError || !account) throw accountError || new Error("Clinic payment account not found");
-    if (patientError || !patient) throw patientError || new Error("Patient not found");
     if (billError || !bill) throw billError || new Error("Final invoice not found");
 
     if (
@@ -392,12 +378,11 @@ Deno.serve(async (req) => {
           return json({ error: "Clinic PhonePe merchant ID is not configured" }, 409);
         }
 
-        created = await createPhonePePaymentLink({
+        created = await createPhonePeStandardCheckout({
           requestId: requestRow.id,
           amount: Number(requestRow.amount || 0),
           currencyCode: String(requestRow.currency_code || "").toUpperCase(),
           merchantId: String(account.provider_merchant_id).trim(),
-          patientPhone: normalizeIndianPhone(patient.phone),
           invoiceNumber: String(bill.invoice_number || requestRow.id),
         });
       } else {
