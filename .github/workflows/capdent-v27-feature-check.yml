@@ -10,8 +10,10 @@ on:
       - release/capdent-v27
     paths:
       - "src/**"
-      - "scripts/validate-capdent-v27.mjs"
+      - "scripts/validate-capdent-v27*.mjs"
       - "scripts/validate-capdent-v26.mjs"
+      - "supabase/functions/**"
+      - "supabase/migrations/**"
       - "app.config.js"
       - "app.json"
       - "eas.json"
