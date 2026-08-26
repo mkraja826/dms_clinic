@@ -55,6 +55,7 @@ export default function HeadMoreToolsScreen() {
 
       <ToolSection title="Admin">
         <ToolRow title="Clinic Health" subtitle="V28 plan usage, quota, billing, and notification readiness" icon="pulse-outline" target="/settings/clinic-health" />
+        <ToolRow title="Patient Payments" subtitle="Connect the clinic receiving account for finalized patient invoices" icon="wallet-outline" target="/settings/patient-payments" />
         <ToolRow title="Staff" subtitle="Invite and manage clinic access" icon="people-circle-outline" target="/staff" />
         <ToolRow title="Clinic Branding" subtitle="Logo and clinic identity" icon="brush-outline" target="/clinic/branding" />
         <ToolRow title="Clinic Feature Settings" subtitle="Dental chart, payment push, photos, and prescription features" icon="options-outline" target="/settings/clinic-features" />
