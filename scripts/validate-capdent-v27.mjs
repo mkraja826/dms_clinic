@@ -23,6 +23,7 @@ const patientsScreen = readText("src/app/(tabs)/patients.tsx");
 const addPatientScreen = readText("src/app/patient/add.tsx");
 const uploadScreen = readText("src/app/patient/upload.tsx");
 const subscriptionScreen = readText("src/app/settings/subscription.tsx");
+const headDashboard = readText("src/app/(head)/dashboard.tsx");
 const limits = readText("src/lib/v25Limits.ts");
 
 expect(
@@ -74,6 +75,27 @@ expect(
     subscriptionScreen.includes("Upload capacity reached") &&
     subscriptionScreen.includes("Capacity action needed"),
   "V27 plan screen must clearly expose available and blocked clinic-capacity states."
+);
+expect(
+  headDashboard.includes("Needs Owner Attention") &&
+    headDashboard.includes("getOwnerReviewReport") &&
+    headDashboard.includes("ownerReview.cards.map"),
+  "V27 owner dashboard must surface live owner-review exceptions with actionable rows."
+);
+expect(
+  headDashboard.includes("Missed") || headDashboard.includes("ownerReviewIcon"),
+  "V27 owner attention UI must provide review-specific visual routing."
+);
+expect(
+  headDashboard.includes("Owner review load failed") &&
+    headDashboard.includes("Core dashboard data is still available") &&
+    headDashboard.includes("Pull down to retry"),
+  "V27 owner-review loading must fail soft without blocking the core dashboard."
+);
+expect(
+  headDashboard.includes("void loadOwnerReview();") &&
+    headDashboard.includes("Open full owner review and operational exceptions"),
+  "V27 owner dashboard must refresh owner review after relevant workflow actions and keep a route to the full review."
 );
 expect(
   limits.includes("patientLimit: 100") &&
