@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import Constants from "expo-constants";
 import { router } from "expo-router";
 import { useRef, useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, Text, View } from "react-native";
@@ -22,7 +23,10 @@ type AccountType = "clinic" | "employee" | null;
 
 const CAPDENT_TERMS_VERSION = "2026-08-14";
 const CAPDENT_PRIVACY_VERSION = "2026-08-14";
-const CAPDENT_APP_VERSION = "1.2.3";
+
+function currentAppVersion() {
+  return Constants.expoConfig?.version || "unknown";
+}
 
 function getErrorMessage(error: unknown) {
   if (!error) return "Unknown error";
@@ -89,7 +93,7 @@ export default function OnboardingScreen() {
     return recordCapDentLegalConsent({
       termsVersion: CAPDENT_TERMS_VERSION,
       privacyVersion: CAPDENT_PRIVACY_VERSION,
-      appVersion: CAPDENT_APP_VERSION,
+      appVersion: currentAppVersion(),
       platform: "android",
     });
   }
@@ -410,7 +414,7 @@ export default function OnboardingScreen() {
       {accountType === "employee" ? (
         <SectionCard title="Join Existing Clinic" subtitle="Employees cannot create a clinic. Use an invite code from the owner.">
           <Text style={{ color: colors.muted, lineHeight: 21 }}>
-            Working doctors, receptionists, and assistants should join the clinic workspace with a staff invite code.
+            Working doctors and receptionists should join the clinic workspace with a staff invite code. Dental Assistant access will appear only after the clinic role is enabled by CapDent.
           </Text>
 
           <AppInput
