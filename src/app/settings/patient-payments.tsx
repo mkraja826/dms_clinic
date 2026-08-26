@@ -1,13 +1,17 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Alert, Linking, Pressable, Text, View } from "react-native";
 import { AppButton } from "@/components/AppButton";
 import { Screen } from "@/components/Screen";
 import { SectionCard } from "@/components/SectionCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { colors } from "@/constants/colors";
 import { useAuth } from "@/lib/auth";
+import {
+  startCardPaymentAccountOnboarding,
+  syncCardPaymentAccount,
+} from "@/lib/cardPaymentAccount";
 import {
   getPatientPaymentAccountStatus,
   type PatientPaymentAccountStatus,
@@ -56,6 +60,7 @@ export default function PatientPaymentsSettingsScreen() {
   const { profile } = useAuth();
   const [status, setStatus] = useState<PatientPaymentAccountStatus | null>(null);
   const [loading, setLoading] = useState(true);
+  const [providerBusy, setProviderBusy] = useState(false);
 
   const canManage = profile?.role === "owner" || profile?.role === "head_doctor";
 
@@ -72,8 +77,59 @@ export default function PatientPaymentsSettingsScreen() {
     void load();
   }, [profile?.clinic_id]);
 
+  async function connectCardAccount() {
+    if (!canManage || status?.provider !== "card" || !status.backendReady || providerBusy) return;
+
+    try {
+      setProviderBusy(true);
+      const result = await startCardPaymentAccountOnboarding();
+      const supported = await Linking.canOpenURL(result.onboardingUrl);
+      if (!supported) throw new Error("The Stripe onboarding page could not be opened on this device");
+
+      await Linking.openURL(result.onboardingUrl);
+      Alert.alert(
+        "Card account onboarding opened",
+        "Complete Stripe's secure business, identity, and settlement-bank setup in your browser. Return to CapDent and tap Refresh Card Status afterward."
+      );
+    } catch (error) {
+      Alert.alert(
+        "Card account setup failed",
+        error instanceof Error ? error.message : "Please try again."
+      );
+    } finally {
+      setProviderBusy(false);
+    }
+  }
+
+  async function refreshCardAccount() {
+    if (!canManage || status?.provider !== "card" || providerBusy) return;
+
+    try {
+      setProviderBusy(true);
+      const result = await syncCardPaymentAccount();
+      await load();
+      Alert.alert(
+        result.status === "connected" ? "Card payments ready" : "Card account updated",
+        result.status === "connected"
+          ? "The clinic card receiving account can accept patient payments and receive settlements."
+          : result.requirementsDue > 0
+          ? `Stripe still requires ${result.requirementsDue} onboarding item${result.requirementsDue === 1 ? "" : "s"}. Continue onboarding to enable patient card payments.`
+          : "The receiving account is not fully enabled yet."
+      );
+    } catch (error) {
+      Alert.alert(
+        "Card status refresh failed",
+        error instanceof Error ? error.message : "Please try again."
+      );
+    } finally {
+      setProviderBusy(false);
+    }
+  }
+
   const providerIcon = status?.provider === "phonepe" ? "phone-portrait-outline" : "card-outline";
   const connected = status?.status === "connected";
+  const cardProvider = status?.provider === "card";
+  const phonePeProvider = status?.provider === "phonepe";
 
   return (
     <Screen refreshing={loading} onRefresh={() => void load()}>
@@ -144,9 +200,9 @@ export default function PatientPaymentsSettingsScreen() {
         >
           <Text style={{ color: colors.text, fontWeight: "900" }}>Routing rule</Text>
           <Text style={{ color: colors.muted, lineHeight: 20 }}>
-            {status?.provider === "phonepe"
+            {phonePeProvider
               ? "Indian clinics use PhonePe for patient invoice payments."
-              : status?.provider === "card"
+              : cardProvider
               ? "Clinics outside India use card payments only in V28."
               : "Set a valid clinic country before online patient payments can be enabled."}
           </Text>
@@ -184,7 +240,7 @@ export default function PatientPaymentsSettingsScreen() {
           >
             <Text style={{ color: colors.warning, fontWeight: "900" }}>Backend foundation not applied yet</Text>
             <Text style={{ color: colors.muted, marginTop: 4, lineHeight: 20 }}>
-              Existing CapDent billing is unchanged. Receiving-account setup will activate only after the additive V28 backend migration is reviewed and deployed.
+              Existing CapDent billing is unchanged. Receiving-account setup activates only after the additive V28 backend migration and Edge Functions are reviewed and deployed.
             </Text>
           </View>
         ) : null}
@@ -195,23 +251,41 @@ export default function PatientPaymentsSettingsScreen() {
           </Text>
         ) : null}
 
-        {connected ? (
-          <AppButton
-            title={`Manage ${status?.providerLabel || "Payment"} Account`}
-            icon="open-outline"
-            disabled
-          />
+        {cardProvider ? (
+          <View style={{ gap: 10 }}>
+            <AppButton
+              title={connected ? "Continue / Update Card Account" : "Connect Card Receiving Account"}
+              icon="card-outline"
+              onPress={() => void connectCardAccount()}
+              loading={providerBusy}
+              loadingTitle="Opening secure onboarding…"
+              disabled={!canManage || !status?.backendReady}
+            />
+            <AppButton
+              title="Refresh Card Status"
+              icon="refresh-outline"
+              variant="secondary"
+              onPress={() => void refreshCardAccount()}
+              disabled={!canManage || !status?.backendReady || providerBusy}
+            />
+            <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 18 }}>
+              Stripe-hosted onboarding opens in your system browser because the one-time onboarding link must not be embedded or shared outside the authenticated app. CapDent stores only the connected account ID and safe readiness status.
+            </Text>
+          </View>
+        ) : phonePeProvider ? (
+          <View style={{ gap: 10 }}>
+            <AppButton
+              title={connected ? "PhonePe Receiving Account Connected" : "Connect PhonePe"}
+              icon="phone-portrait-outline"
+              disabled
+            />
+            <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 18 }}>
+              PhonePe patient-payment processing is implemented as a PG Partner flow, but clinic merchant onboarding stays disabled until PhonePe provides CapDent's approved partner merchant-onboarding/mapping process. We will not ask clinic owners to paste merchant secrets into Android.
+            </Text>
+          </View>
         ) : (
-          <AppButton
-            title={status?.provider === "phonepe" ? "Connect PhonePe" : status?.provider === "card" ? "Connect Card Receiving Account" : "Set Clinic Country First"}
-            icon={status?.provider === "phonepe" ? "phone-portrait-outline" : "card-outline"}
-            disabled
-          />
+          <AppButton title="Set Clinic Country First" icon="location-outline" disabled />
         )}
-
-        <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 18 }}>
-          Provider onboarding is intentionally disabled in this foundation step. We will enable this button only after the authenticated server onboarding flow and merchant verification are implemented and tested.
-        </Text>
       </SectionCard>
 
       <SectionCard
