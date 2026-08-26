@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, Share, Text, TextInput, View } from "react-native";
 import { AppButton } from "@/components/AppButton";
@@ -16,8 +17,14 @@ import {
   type InvoiceCenterReport,
   type InvoiceCenterRow,
 } from "@/lib/invoiceCenter";
+import {
+  checkPhonePeInvoicePayment,
+  createPhonePeInvoicePayment,
+  PHONEPE_PAYMENTS_ENABLED,
+} from "@/lib/phonePePayments";
 
 type InvoiceFilter = "all" | "open" | "paid";
+type PendingPhonePeOrder = { invoiceId: string; merchantOrderId: string } | null;
 
 const FILTERS: { key: InvoiceFilter; label: string }[] = [
   { key: "all", label: "All" },
@@ -46,6 +53,8 @@ export default function InvoiceCenterScreen() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<InvoiceFilter>("all");
+  const [phonePeInvoiceId, setPhonePeInvoiceId] = useState<string | null>(null);
+  const [pendingPhonePeOrder, setPendingPhonePeOrder] = useState<PendingPhonePeOrder>(null);
 
   async function load() {
     try {
@@ -99,6 +108,64 @@ export default function InvoiceCenterScreen() {
         "Share failed",
         error instanceof Error ? error.message : "Unable to share this invoice summary."
       );
+    }
+  }
+
+  async function verifyPhonePeOrder(invoiceId: string, merchantOrderId: string) {
+    const status = await checkPhonePeInvoicePayment(merchantOrderId);
+    if (status.settled) {
+      setPendingPhonePeOrder(null);
+      await load();
+      Alert.alert(
+        "PhonePe payment verified",
+        "PhonePe confirmed the payment and CapDent updated the invoice balance."
+      );
+      return;
+    }
+
+    setPendingPhonePeOrder({ invoiceId, merchantOrderId });
+    const message =
+      status.state === "AMOUNT_MISMATCH" || status.state === "REVIEW_REQUIRED"
+        ? "The payment needs owner review because the verified PhonePe amount no longer matches the invoice balance. CapDent did not mark the invoice paid."
+        : `PhonePe status: ${status.state}. CapDent has not marked this invoice paid.`;
+    Alert.alert("Payment not settled", message);
+  }
+
+  async function startPhonePePayment(invoice: InvoiceCenterRow) {
+    if (!PHONEPE_PAYMENTS_ENABLED) {
+      Alert.alert("PhonePe unavailable", "PhonePe collection is not enabled in this CapDent release.");
+      return;
+    }
+    if (invoice.dueAmount <= 0) return;
+
+    try {
+      setPhonePeInvoiceId(invoice.id);
+      const checkout = await createPhonePeInvoicePayment(invoice.id);
+      setPendingPhonePeOrder({ invoiceId: invoice.id, merchantOrderId: checkout.merchantOrderId });
+      await WebBrowser.openBrowserAsync(checkout.redirectUrl);
+      await verifyPhonePeOrder(invoice.id, checkout.merchantOrderId);
+    } catch (error) {
+      Alert.alert(
+        "PhonePe payment failed",
+        error instanceof Error ? error.message : "Unable to start or verify this PhonePe payment."
+      );
+    } finally {
+      setPhonePeInvoiceId(null);
+    }
+  }
+
+  async function recheckPhonePePayment(invoice: InvoiceCenterRow) {
+    if (pendingPhonePeOrder?.invoiceId !== invoice.id) return;
+    try {
+      setPhonePeInvoiceId(invoice.id);
+      await verifyPhonePeOrder(invoice.id, pendingPhonePeOrder.merchantOrderId);
+    } catch (error) {
+      Alert.alert(
+        "PhonePe status unavailable",
+        error instanceof Error ? error.message : "Unable to verify the payment right now."
+      );
+    } finally {
+      setPhonePeInvoiceId(null);
     }
   }
 
@@ -260,6 +327,30 @@ export default function InvoiceCenterScreen() {
                   </Text>
                 ) : null}
 
+                {PHONEPE_PAYMENTS_ENABLED && invoice.dueAmount > 0 ? (
+                  <View style={{ gap: 8 }}>
+                    <AppButton
+                      title="Pay with PhonePe"
+                      icon="phone-portrait-outline"
+                      onPress={() => void startPhonePePayment(invoice)}
+                      loading={phonePeInvoiceId === invoice.id}
+                      loadingTitle="Opening PhonePe..."
+                      disabled={Boolean(phonePeInvoiceId)}
+                    />
+                    {pendingPhonePeOrder?.invoiceId === invoice.id ? (
+                      <AppButton
+                        title="Check PhonePe Status"
+                        icon="refresh-outline"
+                        variant="secondary"
+                        onPress={() => void recheckPhonePePayment(invoice)}
+                        loading={phonePeInvoiceId === invoice.id}
+                        loadingTitle="Checking PhonePe..."
+                        disabled={Boolean(phonePeInvoiceId)}
+                      />
+                    ) : null}
+                  </View>
+                ) : null}
+
                 <View style={{ flexDirection: "row", gap: 8 }}>
                   <AppButton
                     title="Share Invoice"
@@ -294,10 +385,10 @@ export default function InvoiceCenterScreen() {
 
       <SectionCard
         title="Billing Record Safety"
-        subtitle="Invoice Center is read-only in this V27 batch."
+        subtitle="Invoice display and sharing are read-only; electronic collection is server verified."
       >
         <Text style={{ color: colors.muted, lineHeight: 21 }}>
-          Sharing an invoice does not collect payment, change an invoice balance, or mark a bill paid. Payment changes continue through CapDent's existing verified collection workflow. This is a clinic billing statement and is not presented as a GST tax invoice.
+          Sharing an invoice does not collect payment, change an invoice balance, or mark a bill paid. When PhonePe collection is enabled, CapDent updates the invoice only after the server independently verifies the PhonePe order status and amount. This is a clinic billing statement and is not presented as a GST tax invoice.
         </Text>
       </SectionCard>
     </Screen>
