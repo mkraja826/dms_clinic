@@ -22,6 +22,7 @@ try {
 const patientsScreen = readText("src/app/(tabs)/patients.tsx");
 const addPatientScreen = readText("src/app/patient/add.tsx");
 const uploadScreen = readText("src/app/patient/upload.tsx");
+const subscriptionScreen = readText("src/app/settings/subscription.tsx");
 const limits = readText("src/lib/v25Limits.ts");
 
 expect(
@@ -61,6 +62,18 @@ expect(
   uploadScreen.includes("uploadBlocked || uploading || done") &&
     uploadScreen.includes("View Plans"),
   "V27 upload UX must disable new upload submission when live entitlements block uploads and provide a plan action."
+);
+expect(
+  subscriptionScreen.includes("Clinic Usage") &&
+    subscriptionScreen.includes("getCapDentEntitlementsV25") &&
+    subscriptionScreen.includes("formatStorageBytes"),
+  "V27 plan screen must show live patient, upload, and storage usage from server entitlements."
+);
+expect(
+  subscriptionScreen.includes("Patient capacity available") &&
+    subscriptionScreen.includes("Upload capacity reached") &&
+    subscriptionScreen.includes("Capacity action needed"),
+  "V27 plan screen must clearly expose available and blocked clinic-capacity states."
 );
 expect(
   limits.includes("patientLimit: 100") &&
