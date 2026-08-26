@@ -10,10 +10,7 @@ import {
   DEFAULT_CLINIC_FEATURE_SETTINGS,
   getClinicFeatureSettings,
 } from "@/lib/clinicOptions";
-import {
-  analyticsPlan,
-  logCapDentAnalyticsEvent,
-} from "@/lib/firebaseAnalytics";
+import { logCapDentAnalyticsEvent } from "@/lib/firebaseAnalytics";
 import { uploadPatientProfilePhoto } from "@/lib/patientProfilePhoto";
 import {
   getCapDentEntitlementsV25,
@@ -109,10 +106,6 @@ export default function AddPatientScreen() {
       const serverQuotaMessage = patientQuotaMessage(serverEntitlements);
 
       if (serverQuotaMessage) {
-        void logCapDentAnalyticsEvent("capdent_quota_blocked", {
-          resource: "patient",
-          plan: analyticsPlan(serverEntitlements.plan),
-        });
         Alert.alert("Patient capacity reached", serverQuotaMessage, [
           { text: "Cancel", style: "cancel" },
           { text: "View Plans", onPress: () => router.push("/settings/subscription" as never) },
