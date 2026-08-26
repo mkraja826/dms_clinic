@@ -27,6 +27,53 @@ type CapDentClinicalFileType =
   | "report"
   | "other";
 type CapDentAnalyticsPlatform = "android" | "ios" | "web" | "unknown";
+type CapDentAnalyticsPlan = "free" | "cloud" | "intelligence" | "unknown";
+type CapDentAuthMethod = "email" | "google";
+type CapDentAuthOutcome = "success" | "failure";
+type CapDentAuthFailureCategory =
+  | "none"
+  | "invalid_credentials"
+  | "verification_required"
+  | "rate_limited"
+  | "network"
+  | "cancelled"
+  | "unknown";
+type CapDentBillingRecoveryAction = "restore" | "recheck" | "manage";
+type CapDentBillingRecoveryOutcome =
+  | "success"
+  | "refreshed"
+  | "not_found"
+  | "blocked"
+  | "failure";
+type CapDentBillingState =
+  | "none"
+  | "active"
+  | "trial_started"
+  | "grace_period"
+  | "account_hold"
+  | "pending_verification"
+  | "expired"
+  | "cancelled"
+  | "unknown";
+type CapDentNotificationHealthAction = "view" | "refresh" | "repair";
+type CapDentNotificationHealthOutcome =
+  | "healthy"
+  | "attention"
+  | "disabled"
+  | "registered"
+  | "permission_denied"
+  | "not_completed"
+  | "unavailable"
+  | "failure";
+type CapDentOwnerReviewAction = "view" | "refresh" | "open_card";
+type CapDentOwnerReviewItem =
+  | "none"
+  | "missed_followups"
+  | "paid_active"
+  | "waived_op"
+  | "patient_edits"
+  | "other";
+type CapDentAttentionBucket = "none" | "low" | "medium" | "high";
 
 type FirebaseAnalyticsParams = Record<string, string | number | boolean>;
 
@@ -39,12 +86,36 @@ type CapDentAnalyticsEvents = {
     role: CapDentAnalyticsRole;
     signed_in: boolean;
   };
+  capdent_auth_result: {
+    method: CapDentAuthMethod;
+    outcome: CapDentAuthOutcome;
+    failure_category: CapDentAuthFailureCategory;
+  };
   capdent_patient_registered: {
     profile_photo_requested: boolean;
   };
   capdent_quota_blocked: {
     resource: CapDentQuotaResource;
-    plan: "free" | "cloud" | "intelligence" | "unknown";
+    plan: CapDentAnalyticsPlan;
+  };
+  capdent_plan_viewed: {
+    plan: CapDentAnalyticsPlan;
+    locked_context: boolean;
+  };
+  capdent_billing_recovery: {
+    action: CapDentBillingRecoveryAction;
+    outcome: CapDentBillingRecoveryOutcome;
+    plan: CapDentAnalyticsPlan;
+    state: CapDentBillingState;
+  };
+  capdent_notification_health: {
+    action: CapDentNotificationHealthAction;
+    outcome: CapDentNotificationHealthOutcome;
+  };
+  capdent_owner_review: {
+    action: CapDentOwnerReviewAction;
+    item: CapDentOwnerReviewItem;
+    attention: CapDentAttentionBucket;
   };
   capdent_legal_consent_recorded: {
     platform: CapDentAnalyticsPlatform;
@@ -58,8 +129,13 @@ type CapDentAnalyticsEvents = {
 const SAFE_ANALYTICS_EVENTS = new Set<keyof CapDentAnalyticsEvents>([
   "capdent_app_ready",
   "capdent_screen_view",
+  "capdent_auth_result",
   "capdent_patient_registered",
   "capdent_quota_blocked",
+  "capdent_plan_viewed",
+  "capdent_billing_recovery",
+  "capdent_notification_health",
+  "capdent_owner_review",
   "capdent_legal_consent_recorded",
   "capdent_clinical_upload_complete",
 ]);
@@ -142,6 +218,75 @@ const SAFE_PLATFORMS = new Set<CapDentAnalyticsPlatform>([
   "unknown",
 ]);
 
+const SAFE_AUTH_METHODS = new Set<CapDentAuthMethod>(["email", "google"]);
+const SAFE_AUTH_OUTCOMES = new Set<CapDentAuthOutcome>(["success", "failure"]);
+const SAFE_AUTH_FAILURE_CATEGORIES = new Set<CapDentAuthFailureCategory>([
+  "none",
+  "invalid_credentials",
+  "verification_required",
+  "rate_limited",
+  "network",
+  "cancelled",
+  "unknown",
+]);
+const SAFE_BILLING_ACTIONS = new Set<CapDentBillingRecoveryAction>([
+  "restore",
+  "recheck",
+  "manage",
+]);
+const SAFE_BILLING_OUTCOMES = new Set<CapDentBillingRecoveryOutcome>([
+  "success",
+  "refreshed",
+  "not_found",
+  "blocked",
+  "failure",
+]);
+const SAFE_BILLING_STATES = new Set<CapDentBillingState>([
+  "none",
+  "active",
+  "trial_started",
+  "grace_period",
+  "account_hold",
+  "pending_verification",
+  "expired",
+  "cancelled",
+  "unknown",
+]);
+const SAFE_NOTIFICATION_ACTIONS = new Set<CapDentNotificationHealthAction>([
+  "view",
+  "refresh",
+  "repair",
+]);
+const SAFE_NOTIFICATION_OUTCOMES = new Set<CapDentNotificationHealthOutcome>([
+  "healthy",
+  "attention",
+  "disabled",
+  "registered",
+  "permission_denied",
+  "not_completed",
+  "unavailable",
+  "failure",
+]);
+const SAFE_OWNER_REVIEW_ACTIONS = new Set<CapDentOwnerReviewAction>([
+  "view",
+  "refresh",
+  "open_card",
+]);
+const SAFE_OWNER_REVIEW_ITEMS = new Set<CapDentOwnerReviewItem>([
+  "none",
+  "missed_followups",
+  "paid_active",
+  "waived_op",
+  "patient_edits",
+  "other",
+]);
+const SAFE_ATTENTION_BUCKETS = new Set<CapDentAttentionBucket>([
+  "none",
+  "low",
+  "medium",
+  "high",
+]);
+
 function safeAnalyticsRole(value: unknown): CapDentAnalyticsRole {
   return SAFE_ANALYTICS_ROLES.has(value as CapDentAnalyticsRole)
     ? (value as CapDentAnalyticsRole)
@@ -154,9 +299,85 @@ function safeAnalyticsScreen(value: unknown): CapDentAnalyticsScreen {
     : "other";
 }
 
-function safePlan(value: unknown): "free" | "cloud" | "intelligence" | "unknown" {
+function safePlan(value: unknown): CapDentAnalyticsPlan {
   if (value === "free" || value === "cloud" || value === "intelligence") return value;
   return "unknown";
+}
+
+export function analyticsPlan(value: unknown): CapDentAnalyticsPlan {
+  return safePlan(value);
+}
+
+export function analyticsAuthFailureCategory(error: unknown): CapDentAuthFailureCategory {
+  const record = error && typeof error === "object"
+    ? (error as { code?: unknown; message?: unknown; status?: unknown })
+    : null;
+  const text = `${String(record?.code ?? "")} ${String(record?.message ?? error ?? "")}`.toLowerCase();
+  const status = Number(record?.status ?? 0);
+
+  if (
+    text.includes("invalid_credentials") ||
+    text.includes("invalid login credentials") ||
+    text.includes("invalid password")
+  ) {
+    return "invalid_credentials";
+  }
+  if (
+    text.includes("email_not_confirmed") ||
+    text.includes("email not confirmed") ||
+    text.includes("verify your email")
+  ) {
+    return "verification_required";
+  }
+  if (
+    status === 429 ||
+    text.includes("rate limit") ||
+    text.includes("too many requests") ||
+    text.includes("over_email_send_rate_limit")
+  ) {
+    return "rate_limited";
+  }
+  if (
+    text.includes("network") ||
+    text.includes("fetch failed") ||
+    text.includes("connection") ||
+    text.includes("timeout")
+  ) {
+    return "network";
+  }
+  if (
+    text.includes("cancelled") ||
+    text.includes("canceled") ||
+    text.includes("user cancelled") ||
+    text.includes("user canceled")
+  ) {
+    return "cancelled";
+  }
+  return "unknown";
+}
+
+export function analyticsBillingState(value: unknown): CapDentBillingState {
+  return SAFE_BILLING_STATES.has(value as CapDentBillingState)
+    ? (value as CapDentBillingState)
+    : value == null || value === ""
+      ? "none"
+      : "unknown";
+}
+
+export function analyticsOwnerReviewItem(value: unknown): CapDentOwnerReviewItem {
+  if (value === "missed-followups") return "missed_followups";
+  if (value === "paid-active") return "paid_active";
+  if (value === "waived-op") return "waived_op";
+  if (value === "patient-edits") return "patient_edits";
+  return value == null || value === "" ? "none" : "other";
+}
+
+export function analyticsAttentionBucket(count: unknown): CapDentAttentionBucket {
+  const value = Math.max(0, Math.floor(Number(count) || 0));
+  if (value === 0) return "none";
+  if (value <= 2) return "low";
+  if (value <= 7) return "medium";
+  return "high";
 }
 
 function sanitizeParams<EventName extends keyof CapDentAnalyticsEvents>(
@@ -177,6 +398,17 @@ function sanitizeParams<EventName extends keyof CapDentAnalyticsEvents>(
     };
   }
 
+  if (eventName === "capdent_auth_result") {
+    const authParams = params as CapDentAnalyticsEvents["capdent_auth_result"];
+    return {
+      method: SAFE_AUTH_METHODS.has(authParams.method) ? authParams.method : "email",
+      outcome: SAFE_AUTH_OUTCOMES.has(authParams.outcome) ? authParams.outcome : "failure",
+      failure_category: SAFE_AUTH_FAILURE_CATEGORIES.has(authParams.failure_category)
+        ? authParams.failure_category
+        : "unknown",
+    };
+  }
+
   if (eventName === "capdent_patient_registered") {
     const patientParams = params as CapDentAnalyticsEvents["capdent_patient_registered"];
     return { profile_photo_requested: patientParams.profile_photo_requested === true };
@@ -187,6 +419,49 @@ function sanitizeParams<EventName extends keyof CapDentAnalyticsEvents>(
     return {
       resource: SAFE_QUOTA_RESOURCES.has(quotaParams.resource) ? quotaParams.resource : "patient",
       plan: safePlan(quotaParams.plan),
+    };
+  }
+
+  if (eventName === "capdent_plan_viewed") {
+    const planParams = params as CapDentAnalyticsEvents["capdent_plan_viewed"];
+    return {
+      plan: safePlan(planParams.plan),
+      locked_context: planParams.locked_context === true,
+    };
+  }
+
+  if (eventName === "capdent_billing_recovery") {
+    const recoveryParams = params as CapDentAnalyticsEvents["capdent_billing_recovery"];
+    return {
+      action: SAFE_BILLING_ACTIONS.has(recoveryParams.action) ? recoveryParams.action : "restore",
+      outcome: SAFE_BILLING_OUTCOMES.has(recoveryParams.outcome) ? recoveryParams.outcome : "failure",
+      plan: safePlan(recoveryParams.plan),
+      state: SAFE_BILLING_STATES.has(recoveryParams.state) ? recoveryParams.state : "unknown",
+    };
+  }
+
+  if (eventName === "capdent_notification_health") {
+    const notificationParams = params as CapDentAnalyticsEvents["capdent_notification_health"];
+    return {
+      action: SAFE_NOTIFICATION_ACTIONS.has(notificationParams.action) ? notificationParams.action : "view",
+      outcome: SAFE_NOTIFICATION_OUTCOMES.has(notificationParams.outcome)
+        ? notificationParams.outcome
+        : "failure",
+    };
+  }
+
+  if (eventName === "capdent_owner_review") {
+    const ownerReviewParams = params as CapDentAnalyticsEvents["capdent_owner_review"];
+    return {
+      action: SAFE_OWNER_REVIEW_ACTIONS.has(ownerReviewParams.action)
+        ? ownerReviewParams.action
+        : "view",
+      item: SAFE_OWNER_REVIEW_ITEMS.has(ownerReviewParams.item)
+        ? ownerReviewParams.item
+        : "other",
+      attention: SAFE_ATTENTION_BUCKETS.has(ownerReviewParams.attention)
+        ? ownerReviewParams.attention
+        : "none",
     };
   }
 
