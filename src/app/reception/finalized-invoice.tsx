@@ -11,6 +11,14 @@ import { colors } from "@/constants/colors";
 import { loadConsolidatedInvoiceSnapshot } from "@/lib/consolidatedBilling";
 import { formatClinicMoney } from "@/lib/clinicLocale";
 import type { CapDentInvoiceSnapshot } from "@/lib/invoiceDocument";
+import {
+  getPatientPaymentAccountStatus,
+  type PatientPaymentAccountStatus,
+} from "@/lib/patientPayments";
+import {
+  getLatestPatientPaymentRequest,
+  type PatientPaymentRequest,
+} from "@/lib/patientPaymentRequests";
 import { finalizedInvoiceMessage, openWhatsApp } from "@/lib/whatsapp";
 
 function formatDate(value: string) {
@@ -25,10 +33,21 @@ function formatDate(value: string) {
   });
 }
 
+function paymentStatusTone(status?: string | null): "primary" | "success" | "warning" | "danger" {
+  if (status === "reconciled") return "success";
+  if (status === "provider_verified" || status === "pending") return "warning";
+  if (status === "failed" || status === "expired" || status === "cancelled") return "danger";
+  return "primary";
+}
+
 export default function FinalizedInvoiceViewerScreen() {
   const params = useLocalSearchParams<{ bill_id?: string }>();
   const billId = typeof params.bill_id === "string" ? params.bill_id : "";
   const [snapshot, setSnapshot] = useState<CapDentInvoiceSnapshot | null>(null);
+  const [paymentAccount, setPaymentAccount] = useState<PatientPaymentAccountStatus | null>(null);
+  const [paymentRequest, setPaymentRequest] = useState<PatientPaymentRequest | null>(null);
+  const [paymentBackendReady, setPaymentBackendReady] = useState(true);
+  const [paymentBackendReason, setPaymentBackendReason] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
 
@@ -40,7 +59,16 @@ export default function FinalizedInvoiceViewerScreen() {
 
     try {
       setLoading(true);
-      setSnapshot(await loadConsolidatedInvoiceSnapshot(billId));
+      const [nextSnapshot, account, requestResult] = await Promise.all([
+        loadConsolidatedInvoiceSnapshot(billId),
+        getPatientPaymentAccountStatus(),
+        getLatestPatientPaymentRequest(billId),
+      ]);
+      setSnapshot(nextSnapshot);
+      setPaymentAccount(account);
+      setPaymentRequest(requestResult.request);
+      setPaymentBackendReady(requestResult.backendReady);
+      setPaymentBackendReason(requestResult.reason || null);
     } catch (error) {
       Alert.alert(
         "Final invoice unavailable",
@@ -83,6 +111,12 @@ export default function FinalizedInvoiceViewerScreen() {
   }
 
   const currency = snapshot?.currencyCode || "INR";
+  const receivingAccountReady = Boolean(
+    paymentAccount?.backendReady &&
+      paymentAccount.status === "connected" &&
+      paymentAccount.paymentsEnabled &&
+      paymentAccount.settlementsEnabled
+  );
 
   return (
     <Screen refreshing={loading} onRefresh={() => void load()}>
@@ -181,6 +215,59 @@ export default function FinalizedInvoiceViewerScreen() {
             </View>
           </SectionCard>
 
+          {snapshot.due > 0 ? (
+            <SectionCard
+              title="Online payment readiness"
+              subtitle="The clinic receiving account and provider request backend are checked separately from the legacy CapDent payment ledger."
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: colors.text, fontWeight: "900" }}>
+                    {paymentAccount?.providerLabel || "Online payment"}
+                  </Text>
+                  <Text style={{ color: colors.muted, marginTop: 3, lineHeight: 19 }}>
+                    {receivingAccountReady
+                      ? "Clinic receiving account is connected and settlement-enabled."
+                      : paymentAccount?.backendReady
+                        ? "Owner must connect and verify the clinic receiving account before a payment link can be created."
+                        : "Receiving-account backend is not deployed in this environment yet."}
+                  </Text>
+                </View>
+                <StatusBadge
+                  label={receivingAccountReady ? "Account ready" : "Not ready"}
+                  tone={receivingAccountReady ? "success" : "warning"}
+                />
+              </View>
+
+              {paymentRequest ? (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: colors.text, fontWeight: "900" }}>
+                      {formatClinicMoney(paymentRequest.amount, paymentRequest.currencyCode || currency)} request
+                    </Text>
+                    <Text style={{ color: colors.muted, marginTop: 3 }}>
+                      Provider state: {paymentRequest.status.replaceAll("_", " ")}
+                    </Text>
+                  </View>
+                  <StatusBadge
+                    label={paymentRequest.status.replaceAll("_", " ")}
+                    tone={paymentStatusTone(paymentRequest.status)}
+                  />
+                </View>
+              ) : null}
+
+              {!paymentBackendReady ? (
+                <Text style={{ color: colors.warning, fontWeight: "800", lineHeight: 20 }}>
+                  {paymentBackendReason || "Online payment request backend is pending."}
+                </Text>
+              ) : null}
+
+              <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 18 }}>
+                Pay Now is intentionally disabled until the trusted PhonePe/card adapter creates a secure hosted checkout URL and the webhook reconciliation path is complete.
+              </Text>
+            </SectionCard>
+          ) : null}
+
           {snapshot.notes ? (
             <SectionCard title="Notes">
               <Text style={{ color: colors.text, lineHeight: 21 }}>{snapshot.notes}</Text>
@@ -205,7 +292,7 @@ export default function FinalizedInvoiceViewerScreen() {
               </Text>
             ) : null}
             <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 18 }}>
-              Secure invoice links and online Pay Now are intentionally not included yet. They will be enabled only after the public token resolver and verified PhonePe/card payment backend are complete.
+              The current WhatsApp message contains the finalized invoice summary only. No Pay Now URL is included until the provider adapter and verified reconciliation layer are complete.
             </Text>
           </SectionCard>
         </>
