@@ -48,6 +48,21 @@ expect(
   "V27 clinical uploads must preserve the server-authoritative upload/storage quota check."
 );
 expect(
+  uploadScreen.includes("Plan & Upload Capacity") &&
+    uploadScreen.includes("formatStorageBytes"),
+  "V27 clinical uploads must show proactive upload and storage usage before file selection."
+);
+expect(
+  uploadScreen.includes("CAPDENT_V25_LIMITS.free.uploadWarningAt") &&
+    uploadScreen.includes("Upload capacity is running low"),
+  "V27 Free upload UX must warn from the finalized upload-warning threshold."
+);
+expect(
+  uploadScreen.includes("uploadBlocked || uploading || done") &&
+    uploadScreen.includes("View Plans"),
+  "V27 upload UX must disable new upload submission when live entitlements block uploads and provide a plan action."
+);
+expect(
   limits.includes("patientLimit: 100") &&
     limits.includes("uploadLimit: 150") &&
     limits.includes("uploadWarningAt: 120") &&
