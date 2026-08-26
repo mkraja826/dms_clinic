@@ -9,6 +9,11 @@ import { SectionCard } from "@/components/SectionCard";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { colors } from "@/constants/colors";
+import {
+  analyticsAttentionBucket,
+  analyticsOwnerReviewItem,
+  logCapDentAnalyticsEvent,
+} from "@/lib/firebaseAnalytics";
 import { getOwnerReviewReport, OwnerReviewReport, OwnerReviewTone } from "@/lib/ownerReview";
 
 function money(value: number) {
@@ -39,11 +44,19 @@ export default function OwnerReviewBoardScreen() {
   const [report, setReport] = useState<OwnerReviewReport | null>(null);
   const [loading, setLoading] = useState(true);
 
-  async function load() {
+  async function load(action: "view" | "refresh" = "refresh") {
     try {
       setLoading(true);
       const data = await getOwnerReviewReport();
       setReport(data);
+      const urgentCount = data.cards
+        .filter((card) => card.tone === "danger" || card.tone === "warning")
+        .reduce((sum, card) => sum + card.count, 0);
+      void logCapDentAnalyticsEvent("capdent_owner_review", {
+        action,
+        item: "none",
+        attention: analyticsAttentionBucket(urgentCount),
+      });
     } catch (error) {
       Alert.alert("Owner review failed", error instanceof Error ? error.message : "Please try again.");
     } finally {
@@ -52,14 +65,23 @@ export default function OwnerReviewBoardScreen() {
   }
 
   useEffect(() => {
-    load();
+    void load("view");
   }, []);
 
   const cards = report?.cards ?? [];
   const urgentCount = cards.filter((card) => card.tone === "danger" || card.tone === "warning").reduce((sum, card) => sum + card.count, 0);
 
+  function openCard(card: OwnerReviewReport["cards"][number]) {
+    void logCapDentAnalyticsEvent("capdent_owner_review", {
+      action: "open_card",
+      item: analyticsOwnerReviewItem(card.key),
+      attention: analyticsAttentionBucket(card.count),
+    });
+    router.push(card.route as never);
+  }
+
   return (
-    <Screen refreshing={loading} onRefresh={load}>
+    <Screen refreshing={loading} onRefresh={() => load("refresh")}>
       <View style={{ gap: 6 }}>
         <Text style={{ color: colors.text, fontSize: 30, fontWeight: "900" }}>Owner Review Board</Text>
         <Text style={{ color: colors.muted, fontSize: 15, lineHeight: 21 }}>
@@ -88,7 +110,7 @@ export default function OwnerReviewBoardScreen() {
                 </View>
                 <StatusBadge label={`${card.count} ${toneLabel(card.tone)}`} tone={card.tone} />
               </View>
-              <AppButton title={card.action} icon="open-outline" variant={card.count ? "secondary" : "ghost"} onPress={() => router.push(card.route as never)} />
+              <AppButton title={card.action} icon="open-outline" variant={card.count ? "secondary" : "ghost"} onPress={() => openCard(card)} />
             </View>
           ))}
         </View>
@@ -148,7 +170,7 @@ export default function OwnerReviewBoardScreen() {
       </SectionCard>
 
       <View style={{ flexDirection: "row", gap: 10 }}>
-        <AppButton title="Refresh" icon="refresh-outline" variant="secondary" onPress={load} loading={loading} style={{ flex: 1 }} />
+        <AppButton title="Refresh" icon="refresh-outline" variant="secondary" onPress={() => void load("refresh")} loading={loading} style={{ flex: 1 }} />
         <AppButton title="Clinic Report" icon="analytics-outline" variant="ghost" onPress={() => router.replace("/reports/clinic" as never)} style={{ flex: 1 }} />
       </View>
     </Screen>
