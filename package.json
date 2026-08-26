@@ -28,6 +28,7 @@
     "validate:v26": "node scripts/validate-capdent-v26.mjs",
     "validate:v26:rc": "node scripts/validate-capdent-v26.mjs --rc",
     "validate:v28:feature": "node scripts/validate-capdent-v28-feature.mjs",
+    "validate:v28:patient-payments": "node scripts/validate-capdent-v28-patient-payments.mjs",
     "verify:android-signing": "node scripts/verify-android-signing.mjs",
     "check:v18": "npm run prepare:v18 && npm run validate:v18 && npm run typecheck",
     "check:v21": "npm run prepare:v21 && npm run validate:v21 && npm run typecheck",
@@ -35,7 +36,7 @@
     "check:v25:rc": "npm run validate:v25:rc && npm run typecheck",
     "check:v26": "npm run validate:v26 && npm run typecheck",
     "check:v26:rc": "npm run validate:v26:rc && npm run typecheck",
-    "check:v28:feature": "npm run validate:v28:feature && npm run typecheck"
+    "check:v28:feature": "npm run validate:v28:feature && npm run validate:v28:patient-payments && npm run typecheck"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
