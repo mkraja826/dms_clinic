@@ -1,5 +1,4 @@
 type CapDentAnalyticsRole = "owner" | "doctor" | "reception" | "unknown";
-
 type CapDentAnalyticsScreen =
   | "dashboard"
   | "authentication"
@@ -17,7 +16,6 @@ type CapDentAnalyticsScreen =
   | "reception_workflow"
   | "image_viewer"
   | "other";
-
 type CapDentQuotaResource = "patient" | "upload" | "storage";
 type CapDentClinicalFileType =
   | "prescription"
@@ -38,8 +36,9 @@ type CapDentAuthFailureCategory =
   | "network"
   | "cancelled"
   | "unknown";
-type CapDentBillingRecoveryAction = "restore" | "recheck" | "manage";
+type CapDentBillingRecoveryAction = "view" | "restore" | "recheck" | "manage";
 type CapDentBillingRecoveryOutcome =
+  | "viewed"
   | "success"
   | "refreshed"
   | "not_found"
@@ -74,13 +73,10 @@ type CapDentOwnerReviewItem =
   | "patient_edits"
   | "other";
 type CapDentAttentionBucket = "none" | "low" | "medium" | "high";
-
 type FirebaseAnalyticsParams = Record<string, string | number | boolean>;
 
 type CapDentAnalyticsEvents = {
-  capdent_app_ready: {
-    role: CapDentAnalyticsRole;
-  };
+  capdent_app_ready: { role: CapDentAnalyticsRole };
   capdent_screen_view: {
     screen_name: CapDentAnalyticsScreen;
     role: CapDentAnalyticsRole;
@@ -91,9 +87,7 @@ type CapDentAnalyticsEvents = {
     outcome: CapDentAuthOutcome;
     failure_category: CapDentAuthFailureCategory;
   };
-  capdent_patient_registered: {
-    profile_photo_requested: boolean;
-  };
+  capdent_patient_registered: { profile_photo_requested: boolean };
   capdent_quota_blocked: {
     resource: CapDentQuotaResource;
     plan: CapDentAnalyticsPlan;
@@ -117,9 +111,7 @@ type CapDentAnalyticsEvents = {
     item: CapDentOwnerReviewItem;
     attention: CapDentAttentionBucket;
   };
-  capdent_legal_consent_recorded: {
-    platform: CapDentAnalyticsPlatform;
-  };
+  capdent_legal_consent_recorded: { platform: CapDentAnalyticsPlatform };
   capdent_clinical_upload_complete: {
     file_type: CapDentClinicalFileType;
     billing_requested: boolean;
@@ -140,43 +132,12 @@ const SAFE_ANALYTICS_EVENTS = new Set<keyof CapDentAnalyticsEvents>([
   "capdent_clinical_upload_complete",
 ]);
 
-type FirebaseAnalyticsAdapter = {
-  setConsent?: (consent: {
-    analytics_storage: boolean;
-    ad_storage: boolean;
-    ad_user_data: boolean;
-    ad_personalization: boolean;
-  }) => void | Promise<unknown>;
-  setAnalyticsCollectionEnabled?: (enabled: boolean) => void | Promise<unknown>;
-  logEvent: (
-    name: string,
-    params?: FirebaseAnalyticsParams
-  ) => void | Promise<unknown>;
-};
-
-export const FIREBASE_ANALYTICS_ENABLED =
-  process.env.EXPO_PUBLIC_ENABLE_FIREBASE_ANALYTICS === "true";
-
-let initialized = false;
-let initializationPromise: Promise<boolean> | null = null;
-let analyticsAdapter: FirebaseAnalyticsAdapter | null = null;
-
-/** Keep the native SDK behind an adapter so privacy rules remain testable. */
-export function configureFirebaseAnalyticsAdapter(
-  adapter: FirebaseAnalyticsAdapter | null
-) {
-  analyticsAdapter = adapter;
-  initialized = false;
-  initializationPromise = null;
-}
-
 const SAFE_ANALYTICS_ROLES = new Set<CapDentAnalyticsRole>([
   "owner",
   "doctor",
   "reception",
   "unknown",
 ]);
-
 const SAFE_ANALYTICS_SCREENS = new Set<CapDentAnalyticsScreen>([
   "dashboard",
   "authentication",
@@ -195,13 +156,11 @@ const SAFE_ANALYTICS_SCREENS = new Set<CapDentAnalyticsScreen>([
   "image_viewer",
   "other",
 ]);
-
 const SAFE_QUOTA_RESOURCES = new Set<CapDentQuotaResource>([
   "patient",
   "upload",
   "storage",
 ]);
-
 const SAFE_FILE_TYPES = new Set<CapDentClinicalFileType>([
   "prescription",
   "xray",
@@ -210,14 +169,12 @@ const SAFE_FILE_TYPES = new Set<CapDentClinicalFileType>([
   "report",
   "other",
 ]);
-
 const SAFE_PLATFORMS = new Set<CapDentAnalyticsPlatform>([
   "android",
   "ios",
   "web",
   "unknown",
 ]);
-
 const SAFE_AUTH_METHODS = new Set<CapDentAuthMethod>(["email", "google"]);
 const SAFE_AUTH_OUTCOMES = new Set<CapDentAuthOutcome>(["success", "failure"]);
 const SAFE_AUTH_FAILURE_CATEGORIES = new Set<CapDentAuthFailureCategory>([
@@ -230,11 +187,13 @@ const SAFE_AUTH_FAILURE_CATEGORIES = new Set<CapDentAuthFailureCategory>([
   "unknown",
 ]);
 const SAFE_BILLING_ACTIONS = new Set<CapDentBillingRecoveryAction>([
+  "view",
   "restore",
   "recheck",
   "manage",
 ]);
 const SAFE_BILLING_OUTCOMES = new Set<CapDentBillingRecoveryOutcome>([
+  "viewed",
   "success",
   "refreshed",
   "not_found",
@@ -287,13 +246,40 @@ const SAFE_ATTENTION_BUCKETS = new Set<CapDentAttentionBucket>([
   "high",
 ]);
 
-function safeAnalyticsRole(value: unknown): CapDentAnalyticsRole {
+type FirebaseAnalyticsAdapter = {
+  setConsent?: (consent: {
+    analytics_storage: boolean;
+    ad_storage: boolean;
+    ad_user_data: boolean;
+    ad_personalization: boolean;
+  }) => void | Promise<unknown>;
+  setAnalyticsCollectionEnabled?: (enabled: boolean) => void | Promise<unknown>;
+  logEvent: (name: string, params?: FirebaseAnalyticsParams) => void | Promise<unknown>;
+};
+
+export const FIREBASE_ANALYTICS_ENABLED =
+  process.env.EXPO_PUBLIC_ENABLE_FIREBASE_ANALYTICS === "true";
+
+let initialized = false;
+let initializationPromise: Promise<boolean> | null = null;
+let analyticsAdapter: FirebaseAnalyticsAdapter | null = null;
+
+/** Keep the native SDK behind an adapter so privacy rules remain testable. */
+export function configureFirebaseAnalyticsAdapter(
+  adapter: FirebaseAnalyticsAdapter | null
+) {
+  analyticsAdapter = adapter;
+  initialized = false;
+  initializationPromise = null;
+}
+
+function safeRole(value: unknown): CapDentAnalyticsRole {
   return SAFE_ANALYTICS_ROLES.has(value as CapDentAnalyticsRole)
     ? (value as CapDentAnalyticsRole)
     : "unknown";
 }
 
-function safeAnalyticsScreen(value: unknown): CapDentAnalyticsScreen {
+function safeScreen(value: unknown): CapDentAnalyticsScreen {
   return SAFE_ANALYTICS_SCREENS.has(value as CapDentAnalyticsScreen)
     ? (value as CapDentAnalyticsScreen)
     : "other";
@@ -357,11 +343,10 @@ export function analyticsAuthFailureCategory(error: unknown): CapDentAuthFailure
 }
 
 export function analyticsBillingState(value: unknown): CapDentBillingState {
+  if (value == null || value === "") return "none";
   return SAFE_BILLING_STATES.has(value as CapDentBillingState)
     ? (value as CapDentBillingState)
-    : value == null || value === ""
-      ? "none"
-      : "unknown";
+    : "unknown";
 }
 
 export function analyticsOwnerReviewItem(value: unknown): CapDentOwnerReviewItem {
@@ -384,99 +369,85 @@ function sanitizeParams<EventName extends keyof CapDentAnalyticsEvents>(
   eventName: EventName,
   params: CapDentAnalyticsEvents[EventName]
 ): FirebaseAnalyticsParams {
-  if (eventName === "capdent_app_ready") {
-    const appReady = params as CapDentAnalyticsEvents["capdent_app_ready"];
-    return { role: safeAnalyticsRole(appReady.role) };
+  switch (eventName) {
+    case "capdent_app_ready": {
+      const value = params as CapDentAnalyticsEvents["capdent_app_ready"];
+      return { role: safeRole(value.role) };
+    }
+    case "capdent_screen_view": {
+      const value = params as CapDentAnalyticsEvents["capdent_screen_view"];
+      return {
+        screen_name: safeScreen(value.screen_name),
+        role: safeRole(value.role),
+        signed_in: value.signed_in === true,
+      };
+    }
+    case "capdent_auth_result": {
+      const value = params as CapDentAnalyticsEvents["capdent_auth_result"];
+      return {
+        method: SAFE_AUTH_METHODS.has(value.method) ? value.method : "email",
+        outcome: SAFE_AUTH_OUTCOMES.has(value.outcome) ? value.outcome : "failure",
+        failure_category: SAFE_AUTH_FAILURE_CATEGORIES.has(value.failure_category)
+          ? value.failure_category
+          : "unknown",
+      };
+    }
+    case "capdent_patient_registered": {
+      const value = params as CapDentAnalyticsEvents["capdent_patient_registered"];
+      return { profile_photo_requested: value.profile_photo_requested === true };
+    }
+    case "capdent_quota_blocked": {
+      const value = params as CapDentAnalyticsEvents["capdent_quota_blocked"];
+      return {
+        resource: SAFE_QUOTA_RESOURCES.has(value.resource) ? value.resource : "patient",
+        plan: safePlan(value.plan),
+      };
+    }
+    case "capdent_plan_viewed": {
+      const value = params as CapDentAnalyticsEvents["capdent_plan_viewed"];
+      return {
+        plan: safePlan(value.plan),
+        locked_context: value.locked_context === true,
+      };
+    }
+    case "capdent_billing_recovery": {
+      const value = params as CapDentAnalyticsEvents["capdent_billing_recovery"];
+      return {
+        action: SAFE_BILLING_ACTIONS.has(value.action) ? value.action : "view",
+        outcome: SAFE_BILLING_OUTCOMES.has(value.outcome) ? value.outcome : "failure",
+        plan: safePlan(value.plan),
+        state: SAFE_BILLING_STATES.has(value.state) ? value.state : "unknown",
+      };
+    }
+    case "capdent_notification_health": {
+      const value = params as CapDentAnalyticsEvents["capdent_notification_health"];
+      return {
+        action: SAFE_NOTIFICATION_ACTIONS.has(value.action) ? value.action : "view",
+        outcome: SAFE_NOTIFICATION_OUTCOMES.has(value.outcome) ? value.outcome : "failure",
+      };
+    }
+    case "capdent_owner_review": {
+      const value = params as CapDentAnalyticsEvents["capdent_owner_review"];
+      return {
+        action: SAFE_OWNER_REVIEW_ACTIONS.has(value.action) ? value.action : "view",
+        item: SAFE_OWNER_REVIEW_ITEMS.has(value.item) ? value.item : "other",
+        attention: SAFE_ATTENTION_BUCKETS.has(value.attention) ? value.attention : "none",
+      };
+    }
+    case "capdent_legal_consent_recorded": {
+      const value = params as CapDentAnalyticsEvents["capdent_legal_consent_recorded"];
+      return {
+        platform: SAFE_PLATFORMS.has(value.platform) ? value.platform : "unknown",
+      };
+    }
+    case "capdent_clinical_upload_complete": {
+      const value = params as CapDentAnalyticsEvents["capdent_clinical_upload_complete"];
+      return {
+        file_type: SAFE_FILE_TYPES.has(value.file_type) ? value.file_type : "other",
+        billing_requested: value.billing_requested === true,
+      };
+    }
   }
-
-  if (eventName === "capdent_screen_view") {
-    const screenParams = params as CapDentAnalyticsEvents["capdent_screen_view"];
-    return {
-      screen_name: safeAnalyticsScreen(screenParams.screen_name),
-      role: safeAnalyticsRole(screenParams.role),
-      signed_in: screenParams.signed_in === true,
-    };
-  }
-
-  if (eventName === "capdent_auth_result") {
-    const authParams = params as CapDentAnalyticsEvents["capdent_auth_result"];
-    return {
-      method: SAFE_AUTH_METHODS.has(authParams.method) ? authParams.method : "email",
-      outcome: SAFE_AUTH_OUTCOMES.has(authParams.outcome) ? authParams.outcome : "failure",
-      failure_category: SAFE_AUTH_FAILURE_CATEGORIES.has(authParams.failure_category)
-        ? authParams.failure_category
-        : "unknown",
-    };
-  }
-
-  if (eventName === "capdent_patient_registered") {
-    const patientParams = params as CapDentAnalyticsEvents["capdent_patient_registered"];
-    return { profile_photo_requested: patientParams.profile_photo_requested === true };
-  }
-
-  if (eventName === "capdent_quota_blocked") {
-    const quotaParams = params as CapDentAnalyticsEvents["capdent_quota_blocked"];
-    return {
-      resource: SAFE_QUOTA_RESOURCES.has(quotaParams.resource) ? quotaParams.resource : "patient",
-      plan: safePlan(quotaParams.plan),
-    };
-  }
-
-  if (eventName === "capdent_plan_viewed") {
-    const planParams = params as CapDentAnalyticsEvents["capdent_plan_viewed"];
-    return {
-      plan: safePlan(planParams.plan),
-      locked_context: planParams.locked_context === true,
-    };
-  }
-
-  if (eventName === "capdent_billing_recovery") {
-    const recoveryParams = params as CapDentAnalyticsEvents["capdent_billing_recovery"];
-    return {
-      action: SAFE_BILLING_ACTIONS.has(recoveryParams.action) ? recoveryParams.action : "restore",
-      outcome: SAFE_BILLING_OUTCOMES.has(recoveryParams.outcome) ? recoveryParams.outcome : "failure",
-      plan: safePlan(recoveryParams.plan),
-      state: SAFE_BILLING_STATES.has(recoveryParams.state) ? recoveryParams.state : "unknown",
-    };
-  }
-
-  if (eventName === "capdent_notification_health") {
-    const notificationParams = params as CapDentAnalyticsEvents["capdent_notification_health"];
-    return {
-      action: SAFE_NOTIFICATION_ACTIONS.has(notificationParams.action) ? notificationParams.action : "view",
-      outcome: SAFE_NOTIFICATION_OUTCOMES.has(notificationParams.outcome)
-        ? notificationParams.outcome
-        : "failure",
-    };
-  }
-
-  if (eventName === "capdent_owner_review") {
-    const ownerReviewParams = params as CapDentAnalyticsEvents["capdent_owner_review"];
-    return {
-      action: SAFE_OWNER_REVIEW_ACTIONS.has(ownerReviewParams.action)
-        ? ownerReviewParams.action
-        : "view",
-      item: SAFE_OWNER_REVIEW_ITEMS.has(ownerReviewParams.item)
-        ? ownerReviewParams.item
-        : "other",
-      attention: SAFE_ATTENTION_BUCKETS.has(ownerReviewParams.attention)
-        ? ownerReviewParams.attention
-        : "none",
-    };
-  }
-
-  if (eventName === "capdent_legal_consent_recorded") {
-    const consentParams = params as CapDentAnalyticsEvents["capdent_legal_consent_recorded"];
-    return {
-      platform: SAFE_PLATFORMS.has(consentParams.platform) ? consentParams.platform : "unknown",
-    };
-  }
-
-  const uploadParams = params as CapDentAnalyticsEvents["capdent_clinical_upload_complete"];
-  return {
-    file_type: SAFE_FILE_TYPES.has(uploadParams.file_type) ? uploadParams.file_type : "other",
-    billing_requested: uploadParams.billing_requested === true,
-  };
 }
 
 export function analyticsRole(role?: string | null): CapDentAnalyticsRole {
@@ -506,7 +477,6 @@ export function analyticsScreenName(pathname?: string | null): CapDentAnalyticsS
   if (path.startsWith("/treatments")) return "treatments";
   if (path.startsWith("/reception/")) return "reception_workflow";
   if (path.startsWith("/image-viewer")) return "image_viewer";
-
   return "other";
 }
 
