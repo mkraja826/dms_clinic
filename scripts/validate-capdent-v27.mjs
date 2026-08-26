@@ -25,6 +25,11 @@ const uploadScreen = readText("src/app/patient/upload.tsx");
 const subscriptionScreen = readText("src/app/settings/subscription.tsx");
 const recoveryScreen = readText("src/app/settings/subscription-recovery.tsx");
 const recoveryService = readText("src/lib/googlePlayRecovery.ts");
+const notificationHealthScreen = readText("src/app/settings/notification-health.tsx");
+const notificationHealthService = readText("src/lib/paymentNotificationHealth.ts");
+const paymentNotifications = readText("src/lib/paymentNotifications.ts");
+const notificationCoordinator = readText("src/components/PaymentNotificationCoordinator.tsx");
+const paymentNotificationDispatcher = readText("supabase/functions/send-payment-notification/index.ts");
 const headMore = readText("src/app/(head)/more.tsx");
 const headDashboard = readText("src/app/(head)/dashboard.tsx");
 const limits = readText("src/lib/v25Limits.ts");
@@ -121,13 +126,53 @@ expect(
 expect(
   recoveryScreen.includes("account hold") &&
     recoveryScreen.includes("grace period") &&
-    recoveryScreen.includes("Expired") || recoveryScreen.includes("expired"),
+    (recoveryScreen.includes("Expired") || recoveryScreen.includes("expired")),
   "V27 billing recovery must explain non-active Google Play lifecycle states without treating them as paid access."
 );
 expect(
   headMore.includes("Billing Recovery") &&
     headMore.includes("/settings/subscription-recovery"),
   "V27 owner tools must provide a visible route to billing recovery."
+);
+expect(
+  notificationHealthScreen.includes("Notification Health") &&
+    notificationHealthScreen.includes("Repair Registration") &&
+    notificationHealthScreen.includes("Open Notification Settings") &&
+    notificationHealthScreen.includes("Linking.openSettings"),
+  "V27 notification health UI must expose device readiness, registration repair, and OS permission recovery."
+);
+expect(
+  notificationHealthService.includes("Notifications.getPermissionsAsync") &&
+    notificationHealthService.includes("device_push_tokens") &&
+    notificationHealthService.includes("payment_notification_jobs") &&
+    notificationHealthService.includes("payment_notification_deliveries"),
+  "V27 notification health must diagnose local permission plus server token, outbox, and delivery state."
+);
+expect(
+  notificationHealthService.includes("getCurrentPaymentPushInstallId") &&
+    notificationHealthService.includes("registerPaymentPushToken") &&
+    paymentNotifications.includes("export async function getCurrentPaymentPushInstallId"),
+  "V27 push recovery must repair the current installation through the existing authenticated registration path."
+);
+expect(
+  !notificationHealthScreen.includes("expo_push_token"),
+  "V27 notification health UI must never display the raw Expo push token."
+);
+expect(
+  notificationCoordinator.includes("Notifications.addPushTokenListener") &&
+    notificationCoordinator.includes("registerPaymentPushToken(profile)"),
+  "V27 must preserve automatic payment-push re-registration when the Expo token rotates."
+);
+expect(
+  paymentNotifications.includes('PAYMENT_NOTIFICATION_CHANNEL_ID = "payments_coin_drop_v1"') &&
+    paymentNotificationDispatcher.includes('channelId: "payments_coin_drop_v1"') &&
+    !paymentNotificationDispatcher.includes('channelId: "payments"'),
+  "V27 payment push dispatch must use the same payments_coin_drop_v1 Android channel enforced by the app release configuration."
+);
+expect(
+  headMore.includes("Notification Health") &&
+    headMore.includes("/settings/notification-health"),
+  "V27 owner tools must provide a visible route to notification health."
 );
 expect(
   limits.includes("patientLimit: 100") &&
