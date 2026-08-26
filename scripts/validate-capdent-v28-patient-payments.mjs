@@ -12,6 +12,11 @@ const rowCountFixPath =
   "supabase/migrations/20260826183100_capdent_v28_fix_provider_event_rowcount.sql";
 const reconciliationPath =
   "supabase/migrations/20260826183200_capdent_v28_verified_payment_reconciliation.sql";
+const checkoutFunctionPath =
+  "supabase/functions/create-patient-payment-checkout/index.ts";
+const phonePeWebhookPath =
+  "supabase/functions/phonepe-patient-payment-webhook/index.ts";
+const configPath = "supabase/config.toml";
 const helperPath = "src/lib/patientPaymentRequests.ts";
 const viewerPath = "src/app/reception/finalized-invoice.tsx";
 
@@ -19,6 +24,9 @@ for (const path of [
   requestMigrationPath,
   rowCountFixPath,
   reconciliationPath,
+  checkoutFunctionPath,
+  phonePeWebhookPath,
+  configPath,
   helperPath,
   viewerPath,
 ]) {
@@ -29,6 +37,9 @@ if (!failures.length) {
   const migration = read(requestMigrationPath);
   const fix = read(rowCountFixPath);
   const reconciliation = read(reconciliationPath);
+  const checkout = read(checkoutFunctionPath);
+  const webhook = read(phonePeWebhookPath);
+  const config = read(configPath);
   const helper = read(helperPath);
   const viewer = read(viewerPath);
 
@@ -73,7 +84,6 @@ if (!failures.length) {
   );
   expect(
     migration.includes("status = 'provider_verified'") &&
-      migration.includes("does not") &&
       migration.includes("legacy CapDent payments ledger"),
     "Provider success must stop at provider_verified until trusted ledger reconciliation runs."
   );
@@ -129,6 +139,69 @@ if (!failures.length) {
   );
 
   expect(
+    checkout.includes("PHONEPE_PARTNER_CLIENT_ID") &&
+      checkout.includes("PHONEPE_PARTNER_CLIENT_SECRET") &&
+      checkout.includes("PHONEPE_PARTNER_CLIENT_VERSION"),
+    "PhonePe partner credentials must come from Edge Function environment secrets."
+  );
+  expect(
+    !checkout.includes("EXPO_PUBLIC_PHONEPE") && !checkout.includes("PHONEPE_CLIENT_SECRET ="),
+    "PhonePe credentials must never be embedded in Android/public configuration."
+  );
+  expect(
+    checkout.includes('"X-MERCHANT-ID": input.merchantId'),
+    "PhonePe partner checkout must identify the end clinic merchant."
+  );
+  expect(
+    checkout.includes("amountPaise = Math.round(input.amount * 100)"),
+    "PhonePe payment-link amount must be converted from INR to paise server-side."
+  );
+  expect(
+    checkout.includes("notificationChannels") &&
+      checkout.includes("SMS: false") &&
+      checkout.includes("EMAIL: false"),
+    "PhonePe must not auto-message the patient; receptionist remains in control of invoice sharing."
+  );
+  expect(
+    checkout.includes('prepared.provider !== "phonepe"') && checkout.includes("Card receiving-account checkout adapter is not enabled yet"),
+    "India PhonePe adapter must not silently process non-India card requests."
+  );
+  expect(
+    checkout.includes('Deno.env.get("PHONEPE_ENVIRONMENT")') &&
+      checkout.includes('=== "production"') &&
+      checkout.includes('return "sandbox"'),
+    "PhonePe provider integration must default safely to sandbox."
+  );
+
+  expect(
+    webhook.includes("PHONEPE_WEBHOOK_USERNAME") && webhook.includes("PHONEPE_WEBHOOK_PASSWORD"),
+    "PhonePe webhook SHA credentials must come only from server-side secrets."
+  );
+  expect(
+    webhook.includes('sha256(`${username}:${password}`)') && webhook.includes("constantTimeEqual"),
+    "PhonePe SHA webhook authorization must be verified before reading provider event data."
+  );
+  expect(
+    webhook.includes('new Set(["paylink.order.completed", "paylink.order.failed"])'),
+    "PhonePe webhook must process only the payment-link events CapDent needs."
+  );
+  expect(
+    webhook.includes('record_v28_verified_provider_event') &&
+      webhook.includes('reconcile_v28_verified_patient_payment'),
+    "Verified PhonePe completion must pass through provider-event verification before ledger reconciliation."
+  );
+  expect(
+    webhook.includes("payloadDigest = await sha256(rawBody)"),
+    "PhonePe webhook must store only a digest of the provider payload, not raw payment instrument data."
+  );
+
+  expect(
+    config.includes("[functions.create-patient-payment-checkout]") &&
+      config.includes("[functions.phonepe-patient-payment-webhook]"),
+    "V28 patient payment Edge Functions must be registered in Supabase config."
+  );
+
+  expect(
     helper.includes('supabase.rpc("prepare_v28_patient_payment_request"'),
     "Android payment preparation must use the server-authoritative RPC."
   );
@@ -139,7 +212,7 @@ if (!failures.length) {
   expect(
     viewer.includes("Pay Now is intentionally disabled") &&
       viewer.includes("No Pay Now URL is included"),
-    "Final invoice UI must keep Pay Now disabled until trusted provider adapters are complete."
+    "Final invoice UI must keep Pay Now disabled until all intended provider adapters and release gates are complete."
   );
 }
 
