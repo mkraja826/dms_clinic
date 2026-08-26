@@ -10,16 +10,25 @@ const requestMigrationPath =
   "supabase/migrations/20260826183000_capdent_v28_patient_payment_requests.sql";
 const rowCountFixPath =
   "supabase/migrations/20260826183100_capdent_v28_fix_provider_event_rowcount.sql";
+const reconciliationPath =
+  "supabase/migrations/20260826183200_capdent_v28_verified_payment_reconciliation.sql";
 const helperPath = "src/lib/patientPaymentRequests.ts";
 const viewerPath = "src/app/reception/finalized-invoice.tsx";
 
-for (const path of [requestMigrationPath, rowCountFixPath, helperPath, viewerPath]) {
+for (const path of [
+  requestMigrationPath,
+  rowCountFixPath,
+  reconciliationPath,
+  helperPath,
+  viewerPath,
+]) {
   expect(existsSync(path), `Required V28 patient-payment path is missing: ${path}`);
 }
 
 if (!failures.length) {
   const migration = read(requestMigrationPath);
   const fix = read(rowCountFixPath);
+  const reconciliation = read(reconciliationPath);
   const helper = read(helperPath);
   const viewer = read(viewerPath);
 
@@ -66,22 +75,59 @@ if (!failures.length) {
     migration.includes("status = 'provider_verified'") &&
       migration.includes("does not") &&
       migration.includes("legacy CapDent payments ledger"),
-    "Provider success must stop at provider_verified until ledger reconciliation is implemented."
+    "Provider success must stop at provider_verified until trusted ledger reconciliation runs."
   );
   expect(
     !migration.includes("insert into public.payments") &&
       !migration.includes("update public.payments") &&
       !migration.includes("delete from public.payments"),
-    "The payment-request foundation must not mutate the existing payments table."
+    "The payment-request/provider-event foundation must not mutate the existing payments table."
   );
   expect(
     !migration.includes("update public.invoices") && !migration.includes("delete from public.invoices"),
-    "The payment-request foundation must not mutate legacy invoices."
+    "The payment-request/provider-event foundation must not mutate legacy invoices."
   );
   expect(
     fix.includes("v_row_count integer") && fix.includes("v_inserted := v_row_count > 0"),
     "Provider event duplicate handling must convert ROW_COUNT safely before returning a boolean."
   );
+
+  expect(
+    reconciliation.includes("create table if not exists public.patient_payment_reconciliation_entries"),
+    "Verified online payments must keep an audit mapping to the CapDent payment rows they create."
+  );
+  expect(
+    reconciliation.includes("status <> 'provider_verified'") &&
+      reconciliation.includes("provider_verified_at is null"),
+    "Ledger reconciliation must require a provider-verified request."
+  );
+  expect(
+    reconciliation.includes("round(v_current_due, 2) <> round(v_request.amount, 2)") &&
+      reconciliation.includes("status = 'reconciliation_required'"),
+    "A balance change after checkout must stop automatic reconciliation instead of over-crediting invoices."
+  );
+  expect(
+    reconciliation.includes("insert into public.payments") &&
+      reconciliation.includes("v_request.requested_by"),
+    "Trusted reconciliation must write through the existing CapDent payment ledger and retain the receptionist/owner who prepared the request."
+  );
+  expect(
+    reconciliation.includes("perform public.recalculate_invoice_financials(v_invoice.id)"),
+    "Verified payment allocation must reuse the existing production invoice financial recalculation logic."
+  );
+  expect(
+    reconciliation.includes("coalesce(nullif(trim(v_invoice.payment_category), ''), 'pending_collection')"),
+    "Verified payment rows must preserve each legacy invoice payment category."
+  );
+  expect(
+    reconciliation.includes("grant execute on function public.reconcile_v28_verified_patient_payment(uuid) to service_role"),
+    "Only trusted service-role code may reconcile a provider payment into the CapDent ledger."
+  );
+  expect(
+    !reconciliation.includes("grant execute on function public.reconcile_v28_verified_patient_payment(uuid) to authenticated"),
+    "Android/authenticated clients must never execute provider ledger reconciliation."
+  );
+
   expect(
     helper.includes('supabase.rpc("prepare_v28_patient_payment_request"'),
     "Android payment preparation must use the server-authoritative RPC."
@@ -93,7 +139,7 @@ if (!failures.length) {
   expect(
     viewer.includes("Pay Now is intentionally disabled") &&
       viewer.includes("No Pay Now URL is included"),
-    "Final invoice UI must keep Pay Now disabled until trusted provider and reconciliation layers are complete."
+    "Final invoice UI must keep Pay Now disabled until trusted provider adapters are complete."
   );
 }
 
