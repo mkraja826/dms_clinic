@@ -54,7 +54,7 @@ expect(
 );
 expect(
   uploadScreen.includes("CAPDENT_V25_LIMITS.free.uploadWarningAt") &&
-    uploadScreen.includes("Upload capacity is running low"),
+    uploadScreen.includes("upload capacity is running low"),
   "V27 Free upload UX must warn from the finalized upload-warning threshold."
 );
 expect(
