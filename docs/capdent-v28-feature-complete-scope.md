@@ -47,11 +47,19 @@ V28 is a real product release, not merely an Android `versionCode` increment. Th
 - Tooth chart remains separated from Add Visit where already designed, while preserving longitudinal history.
 - Mutation locking/duplicate-submit protection on critical clinical writes.
 
-### 7. Invoices, payments, and patient handover
-- Immutable/auditable invoice lifecycle with safe corrections/versioning.
-- Sequential invoice numbering where server support exists.
-- PDF/print/share output.
-- Patient handover through supported WhatsApp/email sharing paths without exposing clinic-internal secrets.
+### 7. Consolidated invoices, patient payments, and handover
+- Preserve the existing internal OP/X-ray/medication/treatment/other charge and payment paths; do not rewrite their working RPCs in place.
+- Individual charges/payments accumulate internally and are **not** automatically messaged to the patient.
+- Reception explicitly reviews and finalizes one consolidated patient-facing invoice for the billing cycle/visit.
+- The finalized invoice is an immutable/auditable snapshot with safe corrections/versioning and server-authoritative sequential numbering.
+- PDF/print/share output remains available.
+- Reception manually sends the finalized invoice through supported WhatsApp/share paths; no automatic WhatsApp is sent after individual fees.
+- Online payment is offered only for the verified remaining finalized-invoice balance.
+- Clinic country stored on the server controls the patient payment provider: explicit `IN` → PhonePe; other explicitly configured countries → card only for V28.
+- Missing/invalid clinic country disables online payment routing; CapDent must not infer India from phone number, IP, SIM, or device locale.
+- Patient money settles to the clinic's connected merchant receiving account, not to a CapDent operating account.
+- Provider credentials, merchant secrets, bank passwords, OTPs, UPI PINs, webhook secrets, and API keys must never be stored in Android or `EXPO_PUBLIC_*` configuration.
+- Provider webhook/callback verification is server-authoritative and idempotent before any verified online payment enters the existing CapDent payment ledger.
 - Payment review and owner financial reporting remain clinic-scoped.
 
 ### 8. Upload and gallery reliability
@@ -107,6 +115,6 @@ V28 must not be called complete until all of the following are true:
 5. Quota/consent backend migration is reviewed separately before production application.
 6. Clinic isolation/RLS regression tests pass.
 7. Physical-device smoke tests pass for owner/head doctor, doctor, and reception roles.
-8. Patient registration, visit, tooth chart, treatment, payment, invoice/share, gallery upload, billing recovery, and push notification flows pass.
+8. Patient registration, visit, tooth chart, treatment, consolidated invoice/share, online payment reconciliation, gallery upload, billing recovery, and push notification flows pass.
 9. Play Internal AAB is installed and tested before any Production promotion.
 10. Production release requires explicit approval after the above gates are green.
