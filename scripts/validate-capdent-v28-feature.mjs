@@ -16,6 +16,10 @@ const pricing = readText("src/lib/pricingV25.ts");
 const billing = readText("src/lib/googlePlayBilling.ts");
 const restore = readText("src/lib/googlePlayRestore.ts");
 const push = readText("src/lib/paymentNotifications.ts");
+const patientPayments = readText("src/lib/patientPayments.ts");
+const patientPaymentMigration = readText(
+  "supabase/migrations/20260826173000_capdent_v28_clinic_payment_accounts.sql"
+);
 
 expect(app.expo?.name === "CapDent", "V28 must remain the CapDent application.");
 expect(app.expo?.android?.package === "com.dms.clinic", "Android package must remain com.dms.clinic.");
@@ -46,17 +50,27 @@ expect(push.includes("getPaymentPushHealth"), "V28 must expose payment push heal
 expect(push.includes('record.type === "payment_received"'), "Payment notification payload safety check must remain present.");
 expect(push.includes('record.route === "/reports/payments"'), "Payment notifications must retain the safe payments route.");
 
+expect(patientPayments.includes('code === "IN" ? "phonepe" : "card"'), "Patient payment routing must use PhonePe only for explicitly Indian clinics and card for other configured countries.");
+expect(patientPayments.includes('supabase.rpc("get_clinic_patient_payment_status")'), "Patient payment status must come from the server-safe RPC.");
+expect(patientPaymentMigration.includes("create table if not exists public.clinic_payment_accounts"), "V28 clinic payment account migration is required.");
+expect(patientPaymentMigration.includes("revoke all on table public.clinic_payment_accounts from anon, authenticated"), "Android users must not directly mutate clinic payment account metadata.");
+expect(patientPaymentMigration.includes("if v_country_code = 'IN' then 'phonepe' else 'card'"), "Server payment routing must keep India on PhonePe and other configured countries on card.");
+expect(patientPaymentMigration.includes("Never infer India from phone, IP, SIM, device locale, or a missing country"), "Server payment routing must not infer clinic country from device/user signals.");
+
 for (const requiredPath of [
   "src/app/settings/clinic-health.tsx",
   "src/app/settings/restore-subscription.tsx",
+  "src/app/settings/patient-payments.tsx",
   "src/app/settings/guide.tsx",
   "src/app/settings/report-issue.tsx",
   "src/app/legal-consent.tsx",
   "src/lib/imageCompression.ts",
   "src/lib/invoiceDocument.ts",
   "src/lib/invoiceSnapshot.ts",
+  "src/lib/patientPayments.ts",
   "src/lib/storageUrls.ts",
   "src/lib/useImmediateMutationLock.ts",
+  "supabase/migrations/20260826173000_capdent_v28_clinic_payment_accounts.sql",
   "docs/capdent-v28-feature-complete-scope.md",
   "docs/capdent-v28-implementation-status.md",
 ]) {
