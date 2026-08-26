@@ -29,6 +29,10 @@ import {
 } from "@/lib/clinicLocale";
 import { getClinicPreferences } from "@/lib/clinicPreferences";
 import {
+  getOwnerReviewReport,
+  type OwnerReviewReport,
+} from "@/lib/ownerReview";
+import {
   DashboardStats,
   WorkflowDashboardSummary,
   getDashboardStats,
@@ -72,11 +76,29 @@ function isWaitingStatus(status?: string | null) {
   return ["scheduled", "waiting", "checked_in", "booked"].includes(value);
 }
 
+function ownerReviewIcon(key: string): IconName {
+  switch (key) {
+    case "missed-followups":
+      return "call-outline";
+    case "paid-active":
+      return "git-branch-outline";
+    case "waived-op":
+      return "receipt-outline";
+    case "patient-edits":
+      return "create-outline";
+    default:
+      return "alert-circle-outline";
+  }
+}
+
 export default function HeadDashboard() {
   const { profile } = useAuth();
   const { width } = useWindowDimensions();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [summary, setSummary] = useState<WorkflowDashboardSummary | null>(null);
+  const [ownerReview, setOwnerReview] = useState<OwnerReviewReport | null>(null);
+  const [ownerReviewLoading, setOwnerReviewLoading] = useState(true);
+  const [ownerReviewFailed, setOwnerReviewFailed] = useState(false);
   const [currencyCode, setCurrencyCode] = useState(
     getDefaultClinicPreferences().currencyCode
   );
@@ -88,7 +110,23 @@ export default function HeadDashboard() {
   const money = (value?: number | null) =>
     formatClinicMoney(value, currencyCode);
 
+  async function loadOwnerReview() {
+    try {
+      setOwnerReviewLoading(true);
+      setOwnerReview(await getOwnerReviewReport());
+      setOwnerReviewFailed(false);
+    } catch (error) {
+      console.warn("Owner review load failed:", error);
+      setOwnerReview(null);
+      setOwnerReviewFailed(true);
+    } finally {
+      setOwnerReviewLoading(false);
+    }
+  }
+
   async function load(force = false) {
+    void loadOwnerReview();
+
     try {
       setLoading(true);
       const [data, row, clinicPreferences] = await Promise.all([
@@ -143,6 +181,7 @@ export default function HeadDashboard() {
       );
       setRescheduleItem(null);
       await refreshWorkflow(true);
+      void loadOwnerReview();
     } catch (error) {
       Alert.alert(
         "Reschedule failed",
@@ -171,6 +210,7 @@ export default function HeadDashboard() {
     try {
       await updateAppointmentStatus(item.id, "completed");
       await refreshWorkflow(true);
+      void loadOwnerReview();
     } catch (error) {
       setStats(previousStats);
       setSummary(previousSummary);
@@ -209,6 +249,8 @@ export default function HeadDashboard() {
   const completedCount = summary?.completed_count ?? 0;
   const patientCount =
     summary?.today_patient_count ?? waitingCount + completedCount;
+  const ownerActionCount =
+    ownerReview?.cards.reduce((total, card) => total + Number(card.count || 0), 0) ?? 0;
 
   const breakdownRows = [
     {
@@ -244,7 +286,7 @@ export default function HeadDashboard() {
   ].filter((row) => Number(row.value || 0) > 0 || row.label !== "Other");
 
   return (
-    <Screen refreshing={loading} onRefresh={() => load(true)}>
+    <Screen refreshing={loading || ownerReviewLoading} onRefresh={() => load(true)}>
       <ClinicBrandHeader
         showManage
         subtitle={`${getRoleLabel(
@@ -291,6 +333,50 @@ export default function HeadDashboard() {
       </View>
 
       <DashboardSection
+        title="Needs Owner Attention"
+        subtitle={
+          ownerReviewLoading
+            ? "Checking follow-ups, treatment status, waivers, and patient edits."
+            : ownerReviewFailed
+              ? "Owner review is temporarily unavailable. Core dashboard data is still available."
+              : ownerActionCount
+                ? `${ownerActionCount} review item${ownerActionCount === 1 ? "" : "s"} need attention.`
+                : "No owner-review exceptions need attention right now."
+        }
+      >
+        {ownerReviewLoading ? (
+          <FlatListPanel>
+            <View style={{ padding: 16 }}>
+              <Text style={{ color: colors.muted, fontWeight: "700" }}>
+                Loading owner review...
+              </Text>
+            </View>
+          </FlatListPanel>
+        ) : ownerReview ? (
+          <FlatListPanel>
+            {ownerReview.cards.map((card, index) => (
+              <DashboardRow
+                key={card.key}
+                title={card.title}
+                subtitle={card.subtitle}
+                value={String(card.count)}
+                icon={ownerReviewIcon(card.key)}
+                tone={card.tone}
+                isLast={index === ownerReview.cards.length - 1}
+                onPress={() => router.push(card.route as never)}
+              />
+            ))}
+          </FlatListPanel>
+        ) : (
+          <EmptyState
+            title="Owner review unavailable"
+            message="Pull down to retry. Patient, appointment, treatment, and payment workflows remain available."
+            icon="alert-circle-outline"
+          />
+        )}
+      </DashboardSection>
+
+      <DashboardSection
         title="Collections"
         subtitle="Today's split, kept simple for closing review."
       >
@@ -331,7 +417,7 @@ export default function HeadDashboard() {
           />
           <DashboardRow
             title="Clinic Intelligence"
-            subtitle="Owner insight preview now, deeper analytics later"
+            subtitle="Open full owner review and operational exceptions"
             icon="sparkles-outline"
             tone="success"
             onPress={() => router.push("/reports/owner-review" as never)}
@@ -708,17 +794,21 @@ function DashboardRow({
   icon: IconName;
   value?: string;
   onPress: () => void;
-  tone?: "primary" | "success" | "warning";
+  tone?: "primary" | "success" | "warning" | "danger";
   isLast?: boolean;
 }) {
   const iconColor =
-    tone === "success"
+    tone === "danger"
+      ? colors.danger
+      : tone === "success"
       ? colors.success
       : tone === "warning"
       ? colors.warning
       : colors.primary;
   const iconBg =
-    tone === "success"
+    tone === "danger"
+      ? colors.dangerSoft
+      : tone === "success"
       ? colors.successSoft
       : tone === "warning"
       ? colors.warningSoft

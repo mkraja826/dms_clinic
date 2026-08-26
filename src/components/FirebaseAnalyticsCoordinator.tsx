@@ -17,6 +17,7 @@ export function FirebaseAnalyticsCoordinator({ children }: PropsWithChildren) {
   const { loading, session, profile } = useAuth();
   const appReadyLogged = useRef(false);
   const lastScreen = useRef<string | null>(null);
+  const lastFeaturePath = useRef<string | null>(null);
 
   useEffect(() => {
     void initializeFirebaseAnalytics();
@@ -42,6 +43,28 @@ export function FirebaseAnalyticsCoordinator({ children }: PropsWithChildren) {
       signed_in: Boolean(session),
     });
   }, [pathname, profile?.role, session]);
+
+  useEffect(() => {
+    if (lastFeaturePath.current === pathname) return;
+    lastFeaturePath.current = pathname;
+
+    if (pathname === "/settings/subscription") {
+      void logCapDentAnalyticsEvent("capdent_plan_viewed", {
+        plan: "unknown",
+        locked_context: false,
+      });
+      return;
+    }
+
+    if (pathname === "/settings/subscription-recovery") {
+      void logCapDentAnalyticsEvent("capdent_billing_recovery", {
+        action: "view",
+        outcome: "viewed",
+        plan: "unknown",
+        state: "unknown",
+      });
+    }
+  }, [pathname]);
 
   return children;
 }

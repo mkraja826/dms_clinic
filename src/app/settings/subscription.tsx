@@ -23,6 +23,10 @@ import {
   recordGooglePlaySubscriptionPurchase,
 } from "@/lib/googlePlayBilling";
 import { useAuth } from "@/lib/auth";
+import {
+  getCapDentEntitlementsV25,
+  type CapDentEntitlementsV25,
+} from "@/lib/pricingV25";
 import { getDashboardPath } from "@/lib/supabase";
 import {
   getClinicPlanLabel,
@@ -33,7 +37,7 @@ import {
   hasGooglePlayAutopay,
 } from "@/lib/subscription";
 import type { ClinicPlanName, ClinicSubscription } from "@/lib/subscription";
-import { CAPDENT_V25_LIMITS } from "@/lib/v25Limits";
+import { CAPDENT_V25_LIMITS, formatStorageBytes } from "@/lib/v25Limits";
 
 const RUPEE = "\u20B9";
 const PAID_PLANS_ENABLED = process.env.EXPO_PUBLIC_ENABLE_PAID_PLANS === "true";
@@ -42,6 +46,11 @@ const FREE_PATIENT_LIMIT = CAPDENT_V25_LIMITS.free.patientLimit;
 
 function money(value: number) {
   return `${RUPEE}${Math.round(Number(value || 0)).toLocaleString("en-IN")}`;
+}
+
+function usageText(count: number, limit: number | null, unit: string) {
+  if (limit === null) return `${count.toLocaleString("en-IN")} ${unit} • Unlimited`;
+  return `${count.toLocaleString("en-IN")} / ${limit.toLocaleString("en-IN")} ${unit}`;
 }
 
 function FeatureRow({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: string }) {
@@ -197,6 +206,7 @@ export default function SubscriptionScreen() {
   const params = useLocalSearchParams<{ locked?: string }>();
   const { profile } = useAuth();
   const [subscription, setSubscription] = useState<ClinicSubscription | null>(null);
+  const [entitlements, setEntitlements] = useState<CapDentEntitlementsV25 | null>(null);
   const [billingPlans, setBillingPlans] = useState<GooglePlayBillingPlan[]>([]);
   const [billingError, setBillingError] = useState<string | null>(
     PAID_PLANS_ENABLED ? googlePlayBillingUnavailableReason() : null
@@ -233,6 +243,14 @@ export default function SubscriptionScreen() {
       Alert.alert("Subscription load failed", error instanceof Error ? error.message : "Please try again.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadEntitlements() {
+    try {
+      setEntitlements(await getCapDentEntitlementsV25());
+    } catch (error) {
+      console.warn("Clinic usage load failed:", error);
     }
   }
 
@@ -278,6 +296,7 @@ export default function SubscriptionScreen() {
 
   useEffect(() => {
     load();
+    void loadEntitlements();
   }, [profile?.clinic_id]);
 
   useEffect(() => {
@@ -305,6 +324,7 @@ export default function SubscriptionScreen() {
 
           setSubscription(updatedSubscription);
           await load();
+          await loadEntitlements();
           if (!active) return;
 
           const planLabel = getClinicPlanLabel(getClinicPlanName(updatedSubscription));
@@ -388,6 +408,7 @@ export default function SubscriptionScreen() {
       refreshing={loading || (PAID_PLANS_ENABLED && loadingBilling)}
       onRefresh={() => {
         load();
+        void loadEntitlements();
         if (PAID_PLANS_ENABLED) loadBillingPlans();
       }}
     >
@@ -463,6 +484,56 @@ export default function SubscriptionScreen() {
           </View>
         </View>
       </SectionCard>
+
+      {entitlements ? (
+        <SectionCard
+          title="Clinic Usage"
+          subtitle="Live patient, upload, and storage capacity for this clinic."
+        >
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+            <StatusBadge label={`${entitlements.planLabel} plan`} />
+            <StatusBadge
+              label={entitlements.canAddPatient ? "Patient capacity available" : "Patient limit reached"}
+              tone={entitlements.canAddPatient ? "success" : "warning"}
+            />
+            <StatusBadge
+              label={entitlements.canUpload ? "Uploads available" : "Upload capacity reached"}
+              tone={entitlements.canUpload ? "success" : "warning"}
+            />
+          </View>
+
+          <FeatureRow
+            icon="people-outline"
+            label={usageText(entitlements.patientCount, entitlements.patientLimit, "patients")}
+          />
+          <FeatureRow
+            icon="cloud-upload-outline"
+            label={usageText(entitlements.uploadCount, entitlements.uploadLimit, "uploads")}
+          />
+          <FeatureRow
+            icon="server-outline"
+            label={`${formatStorageBytes(entitlements.storageUsedBytes)} used of ${formatStorageBytes(entitlements.storageLimitBytes)} storage`}
+          />
+
+          {(!entitlements.canAddPatient || !entitlements.canUpload) ? (
+            <View
+              style={{
+                borderRadius: 18,
+                padding: 12,
+                backgroundColor: colors.warningSoft,
+                borderWidth: 1,
+                borderColor: colors.border,
+                gap: 6,
+              }}
+            >
+              <Text style={{ color: colors.text, fontWeight: "900" }}>Capacity action needed</Text>
+              <Text style={{ color: colors.muted, lineHeight: 20 }}>
+                Existing clinic records remain available. Choose a higher plan below to add more patients or clinical files when the server limit is enforced.
+              </Text>
+            </View>
+          ) : null}
+        </SectionCard>
+      ) : null}
 
       {!PAID_PLANS_ENABLED ? (
         <SectionCard title="Free Access" subtitle="No subscription is required for this release.">

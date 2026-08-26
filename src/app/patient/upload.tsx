@@ -22,6 +22,7 @@ import { searchPatientsPage } from "@/lib/patientDirectory";
 import {
   getCapDentEntitlementsV25,
   uploadQuotaMessage,
+  type CapDentEntitlementsV25,
 } from "@/lib/pricingV25";
 import {
   FileType,
@@ -30,6 +31,7 @@ import {
   UploadProgressState,
   uploadPatientFile,
 } from "@/lib/supabase";
+import { CAPDENT_V25_LIMITS, formatStorageBytes } from "@/lib/v25Limits";
 
 type UploadType = FileType;
 
@@ -176,6 +178,8 @@ export default function ClinicalUploadScreen() {
   const [xrayFeeStatus, setXrayFeeStatus] = useState<"not_applicable" | "pending" | "paid" | "waived">("not_applicable");
   const [asset, setAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [loadingPatients, setLoadingPatients] = useState(true);
+  const [entitlements, setEntitlements] = useState<CapDentEntitlementsV25 | null>(null);
+  const [loadingEntitlements, setLoadingEntitlements] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<UploadProgressState | null>(null);
   const [done, setDone] = useState(false);
@@ -223,8 +227,20 @@ export default function ClinicalUploadScreen() {
     }
   }
 
+  async function loadEntitlements() {
+    try {
+      setLoadingEntitlements(true);
+      setEntitlements(await getCapDentEntitlementsV25());
+    } catch (error) {
+      console.warn("Upload capacity load failed:", error);
+    } finally {
+      setLoadingEntitlements(false);
+    }
+  }
+
   useEffect(() => {
     void loadPatients("");
+    void loadEntitlements();
   }, [incomingPatientId]);
 
   useEffect(() => {
@@ -260,8 +276,50 @@ export default function ClinicalUploadScreen() {
   }
 
   const filteredPatients = patients;
+  const hasLiveEntitlements = Boolean(entitlements?.clinicId);
+  const uploadLimit = entitlements?.uploadLimit ?? null;
+  const uploadCount = entitlements?.uploadCount ?? 0;
+  const uploadBlocked = hasLiveEntitlements && entitlements?.canUpload === false;
+  const uploadWarning =
+    hasLiveEntitlements &&
+    entitlements?.plan === "free" &&
+    uploadLimit !== null &&
+    uploadCount >= CAPDENT_V25_LIMITS.free.uploadWarningAt &&
+    uploadCount < uploadLimit &&
+    entitlements?.canUpload !== false;
+  const storageBlocked =
+    hasLiveEntitlements &&
+    entitlements?.storageLimitEnforced === true &&
+    entitlements.storageUsedBytes >= entitlements.storageLimitBytes;
+  const uploadCountBlocked =
+    hasLiveEntitlements &&
+    entitlements?.uploadLimitEnforced === true &&
+    uploadLimit !== null &&
+    uploadCount >= uploadLimit;
+  const uploadUsageText = !hasLiveEntitlements
+    ? "Upload availability will be checked again before saving."
+    : uploadLimit === null
+      ? `${uploadCount} uploads • Unlimited upload count`
+      : `${uploadCount} of ${uploadLimit} uploads used`;
+  const storageUsageText = hasLiveEntitlements && entitlements
+    ? `${formatStorageBytes(entitlements.storageUsedBytes)} of ${formatStorageBytes(entitlements.storageLimitBytes)} storage used`
+    : null;
 
   async function pickFromCamera() {
+    if (uploadBlocked) {
+      Alert.alert(
+        "Upload capacity reached",
+        storageBlocked
+          ? "This clinic has reached its storage capacity. View plans before adding another clinical file."
+          : "This clinic has reached its upload capacity. View plans before adding another clinical file.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "View Plans", onPress: () => router.push("/settings/subscription" as never) },
+        ]
+      );
+      return;
+    }
+
     const permission = await ImagePicker.requestCameraPermissionsAsync();
 
     if (!permission.granted) {
@@ -283,6 +341,20 @@ export default function ClinicalUploadScreen() {
   }
 
   async function pickFromGallery() {
+    if (uploadBlocked) {
+      Alert.alert(
+        "Upload capacity reached",
+        storageBlocked
+          ? "This clinic has reached its storage capacity. View plans before adding another clinical file."
+          : "This clinic has reached its upload capacity. View plans before adding another clinical file.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "View Plans", onPress: () => router.push("/settings/subscription" as never) },
+        ]
+      );
+      return;
+    }
+
     const result = await ImagePicker.launchImageLibraryAsync({
       quality: 1,
       allowsEditing: false,
@@ -325,8 +397,9 @@ export default function ClinicalUploadScreen() {
       xrayFeeStatus !== "waived";
 
     try {
-      const entitlements = await getCapDentEntitlementsV25();
-      const quotaMessage = uploadQuotaMessage(entitlements);
+      const latestEntitlements = await getCapDentEntitlementsV25();
+      setEntitlements(latestEntitlements);
+      const quotaMessage = uploadQuotaMessage(latestEntitlements);
 
       if (quotaMessage) {
         setUploadProgress(null);
@@ -360,6 +433,7 @@ export default function ClinicalUploadScreen() {
       });
 
       setDone(true);
+      void loadEntitlements();
 
       Alert.alert("Upload complete", `${config.label} saved to patient gallery.`, [
         {
@@ -403,6 +477,7 @@ export default function ClinicalUploadScreen() {
 
           if (persistedFile) {
             setDone(true);
+            void loadEntitlements();
             setUploadProgress((current) => ({
               phase: "complete",
               percent: 100,
@@ -454,7 +529,13 @@ export default function ClinicalUploadScreen() {
   }
 
   return (
-    <Screen refreshing={loadingPatients} onRefresh={loadPatients}>
+    <Screen
+      refreshing={loadingPatients || loadingEntitlements}
+      onRefresh={() => {
+        void loadPatients();
+        void loadEntitlements();
+      }}
+    >
       <View style={{ gap: 6 }}>
         <Text style={{ color: colors.text, fontSize: 30, fontWeight: "900" }}>
           Upload File
@@ -464,6 +545,69 @@ export default function ClinicalUploadScreen() {
           Capture or upload clinical files to the correct patient record. Use camera for prescriptions, X-rays, and before/after photos.
         </Text>
       </View>
+
+      <SectionCard
+        title="Plan & Upload Capacity"
+        subtitle={
+          hasLiveEntitlements && entitlements
+            ? `${entitlements.planLabel} plan • ${uploadUsageText}`
+            : "CapDent checks clinic upload and storage capacity before every clinical file."
+        }
+      >
+        {loadingEntitlements ? (
+          <Text style={{ color: colors.muted }}>Checking upload capacity...</Text>
+        ) : hasLiveEntitlements && entitlements ? (
+          <View style={{ gap: 10 }}>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+              <StatusBadge
+                label={uploadLimit === null ? `${uploadCount} uploads` : `${uploadCount} / ${uploadLimit} uploads`}
+                tone={uploadBlocked ? "warning" : "success"}
+              />
+              <StatusBadge
+                label={formatStorageBytes(entitlements.storageUsedBytes)}
+                tone={storageBlocked ? "warning" : "primary"}
+              />
+            </View>
+
+            <Text style={{ color: colors.text, fontWeight: "900", fontSize: 17 }}>
+              {uploadUsageText}
+            </Text>
+            <Text style={{ color: colors.muted, lineHeight: 20 }}>
+              {storageUsageText}
+            </Text>
+
+            {uploadBlocked ? (
+              <>
+                <Text style={{ color: colors.danger, lineHeight: 20, fontWeight: "700" }}>
+                  {storageBlocked
+                    ? "Storage capacity has been reached. Existing files remain available, but another clinical file cannot be added on the current plan."
+                    : uploadCountBlocked
+                      ? "Upload capacity has been reached. Existing files remain available, but another clinical file cannot be added on the current plan."
+                      : "Clinical uploads are unavailable under the current plan."}
+                </Text>
+                <AppButton
+                  title="View Plans"
+                  icon="card-outline"
+                  variant="secondary"
+                  onPress={() => router.push("/settings/subscription" as never)}
+                />
+              </>
+            ) : uploadWarning ? (
+              <Text style={{ color: colors.warning, lineHeight: 20, fontWeight: "700" }}>
+                {Math.max((uploadLimit ?? 0) - uploadCount, 0)} uploads remaining. Free-plan upload capacity is running low; upgrade before reaching {uploadLimit} uploads.
+              </Text>
+            ) : (
+              <Text style={{ color: colors.muted, lineHeight: 20 }}>
+                Uploads are available. CapDent will verify capacity again immediately before saving the file.
+              </Text>
+            )}
+          </View>
+        ) : (
+          <Text style={{ color: colors.muted, lineHeight: 20 }}>
+            Live usage is temporarily unavailable. Upload remains fail-safe and the server will verify the clinic allowance immediately before saving.
+          </Text>
+        )}
+      </SectionCard>
 
       <SectionCard title="Select Patient" subtitle="Confirm the correct patient before saving any clinical file.">
         {selectedPatient ? (
@@ -586,7 +730,7 @@ export default function ClinicalUploadScreen() {
             const selected = type === item.key;
 
             return (
-                <Pressable
+              <Pressable
                 key={item.key}
                 onPress={() => {
                   setType(item.key);
@@ -681,17 +825,19 @@ export default function ClinicalUploadScreen() {
       <SectionCard title="Choose Image" subtitle="Take a fresh photo or choose an existing image, then upload it to patient history.">
         <View style={{ flexDirection: "row", gap: 10 }}>
           <AppButton
-            title="Camera"
-            icon="camera-outline"
+            title={uploadBlocked ? "Upload Locked" : "Camera"}
+            icon={uploadBlocked ? "lock-closed-outline" : "camera-outline"}
             onPress={pickFromCamera}
+            disabled={uploadBlocked}
             style={{ flex: 1 }}
           />
 
           <AppButton
-            title="Gallery"
-            icon="images-outline"
+            title={uploadBlocked ? "Upload Locked" : "Gallery"}
+            icon={uploadBlocked ? "lock-closed-outline" : "images-outline"}
             variant="secondary"
             onPress={pickFromGallery}
+            disabled={uploadBlocked}
             style={{ flex: 1 }}
           />
         </View>
@@ -759,24 +905,26 @@ export default function ClinicalUploadScreen() {
           </View>
         ) : (
           <EmptyState
-            title="No image selected"
-            message="Take photo or choose from gallery."
-            icon="image-outline"
+            title={uploadBlocked ? "Upload capacity reached" : "No image selected"}
+            message={uploadBlocked ? "View plans to add another clinical file." : "Take photo or choose from gallery."}
+            icon={uploadBlocked ? "lock-closed-outline" : "image-outline"}
           />
         )}
 
         <AppButton
           title={
-            done
-              ? `${config.label} Uploaded`
-              : uploading
-                ? `Uploading ${uploadProgress?.percent ?? 0}%`
-                : `Upload ${config.label}`
+            uploadBlocked
+              ? "Upload Limit Reached"
+              : done
+                ? `${config.label} Uploaded`
+                : uploading
+                  ? `Uploading ${uploadProgress?.percent ?? 0}%`
+                  : `Upload ${config.label}`
           }
-          icon="cloud-upload-outline"
+          icon={uploadBlocked ? "lock-closed-outline" : "cloud-upload-outline"}
           onPress={upload}
           loading={uploading}
-          disabled={uploading || done}
+          disabled={uploadBlocked || uploading || done}
         />
       </SectionCard>
 

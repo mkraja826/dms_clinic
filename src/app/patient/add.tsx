@@ -10,11 +10,8 @@ import {
   DEFAULT_CLINIC_FEATURE_SETTINGS,
   getClinicFeatureSettings,
 } from "@/lib/clinicOptions";
+import { logCapDentAnalyticsEvent } from "@/lib/firebaseAnalytics";
 import { uploadPatientProfilePhoto } from "@/lib/patientProfilePhoto";
-import {
-  observeCapDentPricingV2,
-  type CapDentPricingV2Observation,
-} from "@/lib/pricingV2";
 import {
   getCapDentEntitlementsV25,
   patientQuotaMessage,
@@ -48,8 +45,6 @@ export default function AddPatientScreen() {
   });
   const [features, setFeatures] = useState(DEFAULT_CLINIC_FEATURE_SETTINGS);
   const [limitStatus, setLimitStatus] = useState<ClinicPatientLimitStatus | null>(null);
-  const [pricingObservation, setPricingObservation] =
-    useState<CapDentPricingV2Observation | null>(null);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const savePatientLockRef = useRef(false);
@@ -77,15 +72,9 @@ export default function AddPatientScreen() {
     }
   }
 
-  async function loadPricingObservation() {
-    const observation = await observeCapDentPricingV2();
-    setPricingObservation(observation);
-  }
-
   useEffect(() => {
     loadFeatures();
     loadLimitStatus();
-    loadPricingObservation();
   }, []);
 
   async function pickPatientPhoto() {
@@ -117,7 +106,7 @@ export default function AddPatientScreen() {
       const serverQuotaMessage = patientQuotaMessage(serverEntitlements);
 
       if (serverQuotaMessage) {
-        Alert.alert("Patient limit reached", serverQuotaMessage, [
+        Alert.alert("Patient capacity reached", serverQuotaMessage, [
           { text: "Cancel", style: "cancel" },
           { text: "View Plans", onPress: () => router.push("/settings/subscription" as never) },
         ]);
@@ -129,7 +118,7 @@ export default function AddPatientScreen() {
         setLimitStatus(usage);
 
         if (usage.level === "blocked") {
-          Alert.alert("Free patient limit reached", usage.message, [
+          Alert.alert("Patient capacity reached", usage.message, [
             { text: "Cancel", style: "cancel" },
             { text: "View Plans", onPress: () => router.push("/settings/subscription" as never) },
           ]);
@@ -137,7 +126,7 @@ export default function AddPatientScreen() {
         }
 
         if (usage.level === "warning") {
-          Alert.alert("Free patient slots low", usage.message, [
+          Alert.alert("Patient capacity running low", usage.message, [
             { text: "Cancel", style: "cancel" },
             { text: "Continue", onPress: () => void save(skipDuplicateCheck, true) },
           ]);
@@ -145,7 +134,7 @@ export default function AddPatientScreen() {
         }
 
         if (usage.level === "notice") {
-          Alert.alert("Free patient slots", usage.message);
+          Alert.alert("Patient capacity", usage.message);
         }
       }
 
@@ -195,6 +184,10 @@ export default function AddPatientScreen() {
         },
       });
 
+      void logCapDentAnalyticsEvent("capdent_patient_registered", {
+        profile_photo_requested: Boolean(features.enable_patient_photos && photoUri),
+      });
+
       let photoWarning = "";
       if (features.enable_patient_photos && photoUri) {
         try {
@@ -213,7 +206,6 @@ export default function AddPatientScreen() {
       } catch (usageError) {
         console.warn("Patient saved, but updated limit status could not load:", usageError);
       }
-      void loadPricingObservation();
 
       if (photoWarning) {
         const usageNotice =
@@ -223,60 +215,50 @@ export default function AddPatientScreen() {
             ? `\n\n${nextUsage.message}`
             : "";
         Alert.alert("Patient saved", `${photoWarning}${usageNotice}`, [
-          { text: "Open Patient", onPress: () => router.replace({ pathname: "/patient/[id]", params: { id: patient.id } }) },
+          {
+            text: "Open Patient",
+            onPress: () =>
+              router.replace({ pathname: "/patient/[id]", params: { id: patient.id } }),
+          },
         ]);
         return;
       }
 
-      if (nextUsage && !nextUsage.unlimited && (nextUsage.level === "notice" || nextUsage.level === "warning")) {
+      if (
+        nextUsage &&
+        !nextUsage.unlimited &&
+        (nextUsage.level === "notice" || nextUsage.level === "warning")
+      ) {
         Alert.alert("Patient saved", nextUsage.message, [
-          { text: "Open Patient", onPress: () => router.replace({ pathname: "/patient/[id]", params: { id: patient.id } }) },
+          {
+            text: "Open Patient",
+            onPress: () =>
+              router.replace({ pathname: "/patient/[id]", params: { id: patient.id } }),
+          },
         ]);
         return;
       }
 
       router.replace({ pathname: "/patient/[id]", params: { id: patient.id } });
     } catch (error) {
-      Alert.alert("Patient save failed", error instanceof Error ? error.message : "Unable to add patient.");
+      Alert.alert(
+        "Patient save failed",
+        error instanceof Error ? error.message : "Unable to add patient."
+      );
     } finally {
       savePatientLockRef.current = false;
       setSaving(false);
     }
   }
 
-  const observedEntitlements = pricingObservation?.entitlements;
-  const observedPatientUsage = observedEntitlements
-    ? observedEntitlements.patientLimit === null
-      ? `${observedEntitlements.patientCount} patients / unlimited`
-      : `${observedEntitlements.patientCount} / ${observedEntitlements.patientLimit} patients`
-    : null;
-
   return (
-    <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: 16, gap: 16 }}>
-      {pricingObservation && pricingObservation.status !== "disabled" ? (
-        <SectionCard
-          title="V25 Pricing Observation"
-          subtitle="Internal preview only. This screen does not block patient registration."
-        >
-          <Text style={{ color: colors.text, fontWeight: "800" }}>
-            {pricingObservation.status === "live"
-              ? `${observedEntitlements?.planLabel ?? "Free"} • ${observedPatientUsage}`
-              : "Safe fallback active"}
-          </Text>
-          <Text style={{ color: colors.muted, lineHeight: 20 }}>
-            {pricingObservation.message}
-          </Text>
-          {pricingObservation.status === "live" ? (
-            <Text style={{ color: colors.muted, lineHeight: 20 }}>
-              Server-reported enforcement: {observedEntitlements?.patientLimitEnforced ? "enabled" : "disabled"}. Grandfathered: {observedEntitlements?.grandfathered ? "yes" : "no"}.
-            </Text>
-          ) : null}
-        </SectionCard>
-      ) : null}
-
+    <ScrollView
+      contentInsetAdjustmentBehavior="automatic"
+      contentContainerStyle={{ padding: 16, gap: 16 }}
+    >
       {limitStatus && !limitStatus.unlimited && limitStatus.level !== "none" ? (
         <SectionCard
-          title={limitStatus.level === "blocked" ? "Free Patient Limit Reached" : "Free Patient Slots"}
+          title={limitStatus.level === "blocked" ? "Patient Capacity Reached" : "Patient Capacity"}
           subtitle={limitStatus.message}
         >
           {limitStatus.level === "blocked" ? (
@@ -290,7 +272,10 @@ export default function AddPatientScreen() {
         </SectionCard>
       ) : null}
 
-      <SectionCard title="Patient Details" subtitle="Name and phone are required. Add age and contact details if available.">
+      <SectionCard
+        title="Patient Details"
+        subtitle="Name and phone are required. Add age and contact details if available."
+      >
         {features.enable_patient_photos ? (
           <View style={{ alignItems: "center", gap: 10 }}>
             <Pressable
@@ -310,7 +295,11 @@ export default function AddPatientScreen() {
               }}
             >
               {photoUri ? (
-                <Image source={{ uri: photoUri }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+                <Image
+                  source={{ uri: photoUri }}
+                  style={{ width: "100%", height: "100%" }}
+                  resizeMode="cover"
+                />
               ) : (
                 <Text style={{ color: colors.primary, fontWeight: "900", textAlign: "center" }}>
                   Add Photo
@@ -324,15 +313,57 @@ export default function AddPatientScreen() {
           </View>
         ) : null}
 
-        <AppInput label="Full name" placeholder="Patient full name" value={form.name} onChangeText={(value) => setField("name", value)} />
-        <AppInput label="Gender" placeholder="Male / Female / Other" value={form.gender} onChangeText={(value) => setField("gender", value)} />
-        <AppInput label="Age" value={form.age} onChangeText={(value) => setField("age", value)} keyboardType="numeric" placeholder="Years" />
-        <AppInput label="Phone" placeholder="Patient mobile number" value={form.phone} onChangeText={(value) => setField("phone", value)} keyboardType="phone-pad" />
-        <AppInput label="Email optional" value={form.email} onChangeText={(value) => setField("email", value)} keyboardType="email-address" autoCapitalize="none" />
-        <AppInput label="Address" value={form.address} onChangeText={(value) => setField("address", value)} multiline />
-        <AppInput label="Emergency contact" placeholder="Optional emergency number" value={form.emergency_contact} onChangeText={(value) => setField("emergency_contact", value)} />
+        <AppInput
+          label="Full name"
+          placeholder="Patient full name"
+          value={form.name}
+          onChangeText={(value) => setField("name", value)}
+        />
+        <AppInput
+          label="Gender"
+          placeholder="Male / Female / Other"
+          value={form.gender}
+          onChangeText={(value) => setField("gender", value)}
+        />
+        <AppInput
+          label="Age"
+          value={form.age}
+          onChangeText={(value) => setField("age", value)}
+          keyboardType="numeric"
+          placeholder="Years"
+        />
+        <AppInput
+          label="Phone"
+          placeholder="Patient mobile number"
+          value={form.phone}
+          onChangeText={(value) => setField("phone", value)}
+          keyboardType="phone-pad"
+        />
+        <AppInput
+          label="Email optional"
+          value={form.email}
+          onChangeText={(value) => setField("email", value)}
+          keyboardType="email-address"
+          autoCapitalize="none"
+        />
+        <AppInput
+          label="Address"
+          value={form.address}
+          onChangeText={(value) => setField("address", value)}
+          multiline
+        />
+        <AppInput
+          label="Emergency contact"
+          placeholder="Optional emergency number"
+          value={form.emergency_contact}
+          onChangeText={(value) => setField("emergency_contact", value)}
+        />
       </SectionCard>
-      <SectionCard title="Medical History" subtitle="Mark important health conditions now. These can be edited later if patient reveals more.">
+
+      <SectionCard
+        title="Medical History"
+        subtitle="Mark important health conditions now. These can be edited later if patient reveals more."
+      >
         {[
           ["heart_issue", "Heart issue"],
           ["kidney_issue", "Kidney issue"],
@@ -340,24 +371,60 @@ export default function AddPatientScreen() {
           ["diabetes", "Diabetes / sugar"],
           ["blood_pressure", "Blood pressure / BP"],
         ].map(([key, label]) => (
-          <View key={key} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <View
+            key={key}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+            }}
+          >
             <Text style={{ color: colors.text, fontWeight: "700" }}>{label}</Text>
             <Switch
               accessibilityRole="switch"
               accessibilityLabel={label}
-              accessibilityState={{ checked: historyFlags[key as keyof typeof historyFlags] }}
+              accessibilityState={{
+                checked: historyFlags[key as keyof typeof historyFlags],
+              }}
               value={historyFlags[key as keyof typeof historyFlags]}
-              onValueChange={(value) => setHistoryFlags((current) => ({ ...current, [key]: value }))}
+              onValueChange={(value) =>
+                setHistoryFlags((current) => ({ ...current, [key]: value }))
+              }
               trackColor={{ true: colors.primarySoft, false: colors.border }}
-              thumbColor={historyFlags[key as keyof typeof historyFlags] ? colors.primary : "#FFFFFF"}
+              thumbColor={
+                historyFlags[key as keyof typeof historyFlags] ? colors.primary : "#FFFFFF"
+              }
             />
           </View>
         ))}
-        <AppInput label="Allergies" placeholder="Example: Penicillin, painkiller allergy" value={form.allergies} onChangeText={(value) => setField("allergies", value)} />
-        <AppInput label="Current medicines" placeholder="Medicines patient is taking" value={form.current_medicines} onChangeText={(value) => setField("current_medicines", value)} />
-        <AppInput label="Other notes" placeholder="Any other medical notes" value={form.other_notes} onChangeText={(value) => setField("other_notes", value)} multiline />
+        <AppInput
+          label="Allergies"
+          placeholder="Example: Penicillin, painkiller allergy"
+          value={form.allergies}
+          onChangeText={(value) => setField("allergies", value)}
+        />
+        <AppInput
+          label="Current medicines"
+          placeholder="Medicines patient is taking"
+          value={form.current_medicines}
+          onChangeText={(value) => setField("current_medicines", value)}
+        />
+        <AppInput
+          label="Other notes"
+          placeholder="Any other medical notes"
+          value={form.other_notes}
+          onChangeText={(value) => setField("other_notes", value)}
+          multiline
+        />
       </SectionCard>
-      <AppButton title="Register Patient" icon="person-add-outline" onPress={() => save()} loading={saving} />
+
+      <AppButton
+        title="Register Patient"
+        icon="person-add-outline"
+        onPress={() => save()}
+        loading={saving}
+      />
     </ScrollView>
   );
 }

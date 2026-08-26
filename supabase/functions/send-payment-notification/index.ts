@@ -31,6 +31,7 @@ type DeviceToken = {
   id: string;
   user_id: string;
   expo_push_token: string;
+  app_version: string | null;
 };
 
 type Delivery = {
@@ -96,6 +97,27 @@ async function secretsMatch(actual: string | null, expected: string) {
     difference |= (left[index] ?? 0) ^ (right[index] ?? 0);
   }
   return difference === 0;
+}
+
+function supportsCoinDropChannel(appVersion?: string | null) {
+  const parts = String(appVersion || "")
+    .split(".")
+    .slice(0, 3)
+    .map((part) => Number.parseInt(part, 10));
+  if (parts.length < 3 || parts.some((part) => !Number.isFinite(part))) {
+    return false;
+  }
+
+  const [major, minor, patch] = parts;
+  if (major !== 1) return major > 1;
+  if (minor !== 2) return minor > 2;
+  return patch >= 6;
+}
+
+function paymentChannelId(token: DeviceToken) {
+  return supportsCoinDropChannel(token.app_version)
+    ? "payments_coin_drop_v1"
+    : "payments";
 }
 
 async function updateJob(
@@ -206,7 +228,7 @@ async function loadEligibleTokens(
 
   const { data: tokens, error: tokenError } = await supabase
     .from("device_push_tokens")
-    .select("id,user_id,expo_push_token")
+    .select("id,user_id,expo_push_token,app_version")
     .eq("clinic_id", clinicId)
     .eq("active", true)
     .in("user_id", recipientIds);
@@ -349,7 +371,7 @@ async function dispatchJob(jobId: string) {
       const messages = tokenChunk.map((token) => ({
         to: token.expo_push_token,
         sound: "default",
-        channelId: "payments",
+        channelId: paymentChannelId(token),
         priority: "high",
         title: "Payment received",
         body: `${

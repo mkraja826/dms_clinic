@@ -75,6 +75,10 @@ async function getInstallId() {
   return created;
 }
 
+export async function getCurrentPaymentPushInstallId() {
+  return AsyncStorage.getItem(INSTALL_ID_KEY);
+}
+
 function getEasProjectId() {
   return (
     Constants.expoConfig?.extra?.eas?.projectId ??
