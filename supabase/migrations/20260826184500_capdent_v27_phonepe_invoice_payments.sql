@@ -2,6 +2,61 @@
 -- This migration creates an isolated merchant-order ledger and an idempotent,
 -- service-role-only settlement RPC. It does not enable PhonePe in any client.
 
+-- Fail before creating any PhonePe objects if the existing billing schema is
+-- missing a column required for atomic settlement. Supabase applies migrations
+-- transactionally, so a failed preflight leaves the database unchanged.
+do $$
+declare
+  v_missing text[] := array[]::text[];
+  v_column text;
+begin
+  if to_regclass('public.invoices') is null then
+    raise exception 'CapDent PhonePe preflight failed: public.invoices does not exist';
+  end if;
+
+  if to_regclass('public.payments') is null then
+    raise exception 'CapDent PhonePe preflight failed: public.payments does not exist';
+  end if;
+
+  foreach v_column in array array[
+    'id', 'clinic_id', 'patient_id', 'total_amount', 'paid_amount',
+    'due_amount', 'status', 'payment_category'
+  ]
+  loop
+    if not exists (
+      select 1
+      from information_schema.columns
+      where table_schema = 'public'
+        and table_name = 'invoices'
+        and column_name = v_column
+    ) then
+      v_missing := array_append(v_missing, 'invoices.' || v_column);
+    end if;
+  end loop;
+
+  foreach v_column in array array[
+    'id', 'clinic_id', 'invoice_id', 'patient_id', 'amount',
+    'payment_method', 'notes', 'payment_category', 'collected_by'
+  ]
+  loop
+    if not exists (
+      select 1
+      from information_schema.columns
+      where table_schema = 'public'
+        and table_name = 'payments'
+        and column_name = v_column
+    ) then
+      v_missing := array_append(v_missing, 'payments.' || v_column);
+    end if;
+  end loop;
+
+  if coalesce(array_length(v_missing, 1), 0) > 0 then
+    raise exception 'CapDent PhonePe preflight failed; missing billing columns: %',
+      array_to_string(v_missing, ', ');
+  end if;
+end;
+$$;
+
 create table if not exists public.phonepe_payment_orders (
   id uuid primary key default gen_random_uuid(),
   clinic_id uuid not null references public.clinics(id) on delete cascade,
@@ -66,6 +121,26 @@ begin
     raise exception 'PhonePe merchant order not found';
   end if;
 
+  -- Once CapDent has created the canonical payment row, later PhonePe status
+  -- responses must never downgrade the merchant ledger away from COMPLETED.
+  -- Safe provider metadata can still be refreshed for reconciliation.
+  if v_order.settled_payment_id is not null then
+    update public.phonepe_payment_orders
+    set state = 'COMPLETED',
+        phonepe_order_id = coalesce(nullif(p_phonepe_order_id, ''), phonepe_order_id),
+        phonepe_transaction_id = coalesce(nullif(p_phonepe_transaction_id, ''), phonepe_transaction_id),
+        last_status_payload = coalesce(p_status_payload, '{}'::jsonb),
+        updated_at = now()
+    where id = v_order.id;
+
+    return jsonb_build_object(
+      'settled', true,
+      'idempotent', true,
+      'state', 'COMPLETED',
+      'paymentId', v_order.settled_payment_id
+    );
+  end if;
+
   update public.phonepe_payment_orders
   set state = v_state,
       phonepe_order_id = coalesce(nullif(p_phonepe_order_id, ''), phonepe_order_id),
@@ -73,15 +148,6 @@ begin
       last_status_payload = coalesce(p_status_payload, '{}'::jsonb),
       updated_at = now()
   where id = v_order.id;
-
-  if v_order.settled_payment_id is not null then
-    return jsonb_build_object(
-      'settled', true,
-      'idempotent', true,
-      'state', v_state,
-      'paymentId', v_order.settled_payment_id
-    );
-  end if;
 
   if v_state <> 'COMPLETED' then
     return jsonb_build_object(
