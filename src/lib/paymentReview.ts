@@ -97,29 +97,15 @@ export function getPaymentReviewDateRange(key: PaymentReviewRangeKey): DateRange
   };
 }
 
-function applyDateRange<T>(query: T, column: string, range: DateRange): T {
-  if (!range.start || !range.end) return query;
-  return (query as any).gte(column, range.start).lte(column, range.end) as T;
+function moneyNumber(value: unknown) {
+  const number = Number(value || 0);
+  return Number.isFinite(number) ? number : 0;
 }
 
-async function safeRows<T>(label: string, query: PromiseLike<{ data: T[] | null; error: any }>) {
-  try {
-    const { data, error } = await query;
-    if (error) {
-      console.warn(`${label} payment review query failed:`, error.message || error);
-      return [] as T[];
-    }
-    return (data || []) as T[];
-  } catch (error) {
-    console.warn(`${label} payment review query failed:`, error);
-    return [] as T[];
-  }
-}
-
-function dateText(value?: string | null) {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
+function dateText(value: unknown) {
+  if (!value) return "—";
+  const date = new Date(String(value));
+  if (Number.isNaN(date.getTime())) return "—";
   return date.toLocaleString("en-IN", {
     day: "2-digit",
     month: "short",
@@ -129,51 +115,39 @@ function dateText(value?: string | null) {
   });
 }
 
-function roleLabel(role?: string | null) {
-  if (role === "owner" || role === "head_doctor") return "Owner / Head Doctor";
-  if (role === "working_doctor" || role === "doctor") return "Doctor";
-  if (role === "receptionist") return "Receptionist";
-  return role || "Staff";
+function categoryLabel(value: unknown) {
+  const key = String(value || "").trim().toLowerCase();
+  if (key === "op_fee") return "OP / Consultation";
+  if (key === "xray_fee") return "X-ray";
+  if (key === "medication_fee") return "Medication";
+  if (key === "treatment_fee") return "Treatment";
+  if (key === "pending_collection") return "Pending Collection";
+  if (key === "other") return "Other";
+  return key ? key.replaceAll("_", " ") : "Other";
 }
 
-function patientLabel(row?: { patient_code?: string | null; name?: string | null; phone?: string | null }) {
-  if (!row) return "Unknown patient";
-  const code = row.patient_code ? `${row.patient_code} - ` : "";
-  const phone = row.phone ? ` (${row.phone})` : "";
-  return `${code}${row.name || "Patient"}${phone}`;
+function providerLabel(value: unknown) {
+  const key = String(value || "").trim().toLowerCase();
+  if (key === "phonepe") return "PhonePe";
+  if (key === "card") return "Card";
+  return key || "Online";
 }
 
-function staffLabel(row?: { name?: string | null; role?: string | null }) {
-  if (!row) return "Unknown staff";
-  return `${row.name || "Staff"}${row.role ? ` - ${roleLabel(row.role)}` : ""}`;
-}
-
-function categoryLabel(value?: string | null) {
-  if (value === "op_fee" || value === "consultation_fee") return "OP / Consultation";
-  if (value === "xray_fee") return "X-ray";
-  if (value === "medication_fee") return "Medication";
-  if (value === "treatment_fee" || value === "treatment") return "Treatment";
-  if (value === "pending_collection") return "Pending Collection";
-  if (value === "other") return "Other";
-  return value || "Payment";
-}
-
-function providerLabel(value?: string | null) {
-  if (value === "phonepe") return "PhonePe";
-  if (value === "card") return "Card";
-  return value || "Online";
-}
-
-function maskMerchantId(value?: string | null) {
+function maskMerchantId(value: unknown) {
   const text = String(value || "").trim();
-  if (!text) return "Merchant not shown";
-  if (text.length <= 4) return "****";
-  return `${"*".repeat(Math.min(8, text.length - 4))}${text.slice(-4)}`;
+  if (!text) return "Merchant ID unavailable";
+  if (text.length <= 8) return `••••${text.slice(-2)}`;
+  return `${text.slice(0, 3)}••••${text.slice(-4)}`;
 }
 
-function moneyNumber(value: unknown) {
-  const amount = Number(value || 0);
-  return Number.isFinite(amount) ? amount : 0;
+function patientLabel(patient: any) {
+  if (!patient) return "Patient";
+  return patient.name || patient.patient_code || "Patient";
+}
+
+function staffLabel(staff: any) {
+  if (!staff) return "Unknown staff";
+  return staff.full_name || staff.name || staff.email || "Staff";
 }
 
 function addTotal(map: Map<string, PaymentReviewTotal>, label: string, amount: number) {
@@ -184,46 +158,55 @@ function addTotal(map: Map<string, PaymentReviewTotal>, label: string, amount: n
 }
 
 function sortedTotals(map: Map<string, PaymentReviewTotal>) {
-  return Array.from(map.values()).sort((a, b) => b.amount - a.amount || b.count - a.count);
+  return Array.from(map.values()).sort((a, b) => b.amount - a.amount);
 }
 
-function belongsToCurrentClinic(patientMap: Map<string, any>, patientId?: string | null) {
-  return Boolean(patientId && patientMap.has(patientId));
+async function safeRows<T>(label: string, query: PromiseLike<{ data: T[] | null; error: any }>) {
+  const { data, error } = await query;
+  if (error) {
+    console.warn(`${label} failed:`, error.message || error);
+    return [] as T[];
+  }
+  return (data ?? []) as T[];
 }
 
-export async function buildPaymentReview(rangeKey: PaymentReviewRangeKey): Promise<PaymentReviewReport> {
+function applyDateRange<T extends { gte: (column: string, value: string) => T; lte: (column: string, value: string) => T }>(
+  query: T,
+  column: string,
+  range: DateRange
+) {
+  let next = query;
+  if (range.start) next = next.gte(column, range.start);
+  if (range.end) next = next.lte(column, range.end);
+  return next;
+}
+
+function belongsToCurrentClinic(patientMap: Map<string, any>, patientId: unknown) {
+  return Boolean(patientId && patientMap.has(String(patientId)));
+}
+
+export async function getPaymentReviewReport(
+  rangeKey: PaymentReviewRangeKey = "today",
+  limit = 250
+): Promise<PaymentReviewReport> {
   const profile = await getCurrentProfile();
   if (!profile?.clinic_id) throw new Error("Clinic profile not found");
-
   const range = getPaymentReviewDateRange(rangeKey);
-  const limit = rangeKey === "all" ? 1000 : 500;
 
-  const [patientsAll, staffAll] = await Promise.all([
-    safeRows<any>(
-      "Payment review patients map",
-      supabase
-        .from("patients")
-        .select("id,patient_code,name,phone")
-        .eq("clinic_id", profile.clinic_id)
-        .limit(3000)
-    ),
-    safeRows<any>(
-      "Payment review staff map",
-      supabase
-        .from("profiles")
-        .select("id,name,role,email,active")
-        .eq("clinic_id", profile.clinic_id)
-        .limit(500)
-    ),
+  const [{ data: patients, error: patientError }, { data: staff, error: staffError }] = await Promise.all([
+    supabase.from("patients").select("id,name,patient_code").eq("clinic_id", profile.clinic_id),
+    supabase.from("profiles").select("id,full_name,email").eq("clinic_id", profile.clinic_id),
   ]);
+  if (patientError) throw patientError;
+  if (staffError) throw staffError;
 
-  const patientMap = new Map<string, any>(patientsAll.map((row) => [row.id, row]));
-  const staffMap = new Map<string, any>(staffAll.map((row) => [row.id, row]));
+  const patientMap = new Map((patients ?? []).map((patient: any) => [String(patient.id), patient]));
+  const staffMap = new Map((staff ?? []).map((row: any) => [String(row.id), row]));
 
   const paymentQuery = applyDateRange(
     supabase
       .from("payments")
-      .select("id,patient_id,amount,payment_method,payment_category,notes,collected_by,created_at")
+      .select("patient_id,amount,payment_method,payment_category,collected_by,notes,created_at")
       .eq("clinic_id", profile.clinic_id)
       .order("created_at", { ascending: false })
       .limit(limit),
@@ -276,7 +259,7 @@ export async function buildPaymentReview(rangeKey: PaymentReviewRangeKey): Promi
     const key = String(row.payment_request_id || "").trim();
     if (!key) return;
     const amount = moneyNumber(row.amount);
-    const existing = groupedOnline.get(key) || {
+    const existing: PaymentReviewOnlinePayment = groupedOnline.get(key) ?? {
       patient: patientLabel(patientMap.get(row.patient_id)),
       provider: providerLabel(row.provider),
       accountLabel: row.account_label_snapshot || "Clinic receiving account",
