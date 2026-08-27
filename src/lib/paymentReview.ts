@@ -18,6 +18,22 @@ export type PaymentReviewPayment = {
   createdAt: string;
 };
 
+export type PaymentReviewOnlineAllocation = {
+  category: string;
+  label: string;
+  amount: number;
+};
+
+export type PaymentReviewOnlinePayment = {
+  patient: string;
+  provider: string;
+  accountLabel: string;
+  merchantIdMasked: string;
+  total: number;
+  createdAt: string;
+  allocations: PaymentReviewOnlineAllocation[];
+};
+
 export type PaymentReviewPendingInvoice = {
   patient: string;
   total: number;
@@ -36,11 +52,14 @@ export type PaymentReviewReport = {
     collections: number;
     pendingDue: number;
     pendingInvoices: number;
+    verifiedOnlineRevenue: number;
+    verifiedOnlinePayments: number;
   };
   methodTotals: PaymentReviewTotal[];
   categoryTotals: PaymentReviewTotal[];
   staffTotals: PaymentReviewTotal[];
   recentPayments: PaymentReviewPayment[];
+  onlinePayments: PaymentReviewOnlinePayment[];
   pendingInvoices: PaymentReviewPendingInvoice[];
 };
 
@@ -130,13 +149,26 @@ function staffLabel(row?: { name?: string | null; role?: string | null }) {
 }
 
 function categoryLabel(value?: string | null) {
-  if (value === "op_fee") return "OP Fee";
+  if (value === "op_fee" || value === "consultation_fee") return "OP / Consultation";
   if (value === "xray_fee") return "X-ray";
-  if (value === "medication_fee") return "Medication Fee";
-  if (value === "treatment_fee") return "Treatment Fee";
+  if (value === "medication_fee") return "Medication";
+  if (value === "treatment_fee" || value === "treatment") return "Treatment";
   if (value === "pending_collection") return "Pending Collection";
   if (value === "other") return "Other";
   return value || "Payment";
+}
+
+function providerLabel(value?: string | null) {
+  if (value === "phonepe") return "PhonePe";
+  if (value === "card") return "Card";
+  return value || "Online";
+}
+
+function maskMerchantId(value?: string | null) {
+  const text = String(value || "").trim();
+  if (!text) return "Merchant not shown";
+  if (text.length <= 4) return "****";
+  return `${"*".repeat(Math.min(8, text.length - 4))}${text.slice(-4)}`;
 }
 
 function moneyNumber(value: unknown) {
@@ -191,7 +223,18 @@ export async function buildPaymentReview(rangeKey: PaymentReviewRangeKey): Promi
   const paymentQuery = applyDateRange(
     supabase
       .from("payments")
-      .select("patient_id,amount,payment_method,payment_category,notes,collected_by,created_at")
+      .select("id,patient_id,amount,payment_method,payment_category,notes,collected_by,created_at")
+      .eq("clinic_id", profile.clinic_id)
+      .order("created_at", { ascending: false })
+      .limit(limit),
+    "created_at",
+    range
+  );
+
+  const onlineQuery = applyDateRange(
+    supabase
+      .from("patient_payment_reconciliation_entries")
+      .select("payment_request_id,patient_id,amount,provider,provider_merchant_id_snapshot,account_label_snapshot,payment_category,line_label,created_at")
       .eq("clinic_id", profile.clinic_id)
       .order("created_at", { ascending: false })
       .limit(limit),
@@ -207,12 +250,14 @@ export async function buildPaymentReview(rangeKey: PaymentReviewRangeKey): Promi
     .order("due_amount", { ascending: false })
     .limit(500);
 
-  const [paymentsRaw, pendingInvoicesRaw] = await Promise.all([
+  const [paymentsRaw, onlineRowsRaw, pendingInvoicesRaw] = await Promise.all([
     safeRows<any>("Payment review payments", paymentQuery),
+    safeRows<any>("Payment review verified online allocations", onlineQuery),
     safeRows<any>("Payment review pending invoices", pendingInvoiceQuery),
   ]);
 
   const payments = paymentsRaw.filter((row) => belongsToCurrentClinic(patientMap, row.patient_id));
+  const onlineRows = onlineRowsRaw.filter((row) => belongsToCurrentClinic(patientMap, row.patient_id));
   const pendingInvoiceRows = pendingInvoicesRaw.filter((row) => belongsToCurrentClinic(patientMap, row.patient_id));
 
   const methodMap = new Map<string, PaymentReviewTotal>();
@@ -226,6 +271,34 @@ export async function buildPaymentReview(rangeKey: PaymentReviewRangeKey): Promi
     addTotal(staffMapTotals, staffLabel(staffMap.get(row.collected_by)), amount);
   });
 
+  const groupedOnline = new Map<string, PaymentReviewOnlinePayment>();
+  onlineRows.forEach((row) => {
+    const key = String(row.payment_request_id || "").trim();
+    if (!key) return;
+    const amount = moneyNumber(row.amount);
+    const existing = groupedOnline.get(key) || {
+      patient: patientLabel(patientMap.get(row.patient_id)),
+      provider: providerLabel(row.provider),
+      accountLabel: row.account_label_snapshot || "Clinic receiving account",
+      merchantIdMasked: maskMerchantId(row.provider_merchant_id_snapshot),
+      total: 0,
+      createdAt: dateText(row.created_at),
+      allocations: [],
+    };
+    existing.total += amount;
+    existing.allocations.push({
+      category: categoryLabel(row.payment_category),
+      label: row.line_label || categoryLabel(row.payment_category),
+      amount,
+    });
+    groupedOnline.set(key, existing);
+  });
+
+  const onlinePayments = Array.from(groupedOnline.values()).map((payment) => ({
+    ...payment,
+    allocations: payment.allocations.sort((a, b) => b.amount - a.amount),
+  }));
+  const verifiedOnlineRevenue = onlinePayments.reduce((sum, payment) => sum + payment.total, 0);
   const revenue = payments.reduce((sum, row) => sum + moneyNumber(row.amount), 0);
   const pendingDue = pendingInvoiceRows.reduce((sum, row) => sum + moneyNumber(row.due_amount), 0);
 
@@ -237,6 +310,8 @@ export async function buildPaymentReview(rangeKey: PaymentReviewRangeKey): Promi
       collections: payments.length,
       pendingDue,
       pendingInvoices: pendingInvoiceRows.length,
+      verifiedOnlineRevenue,
+      verifiedOnlinePayments: onlinePayments.length,
     },
     methodTotals: sortedTotals(methodMap),
     categoryTotals: sortedTotals(categoryMap),
@@ -250,6 +325,7 @@ export async function buildPaymentReview(rangeKey: PaymentReviewRangeKey): Promi
       notes: row.notes || "",
       createdAt: dateText(row.created_at),
     })),
+    onlinePayments: onlinePayments.slice(0, 80),
     pendingInvoices: pendingInvoiceRows.slice(0, 80).map((row) => ({
       patient: patientLabel(patientMap.get(row.patient_id)),
       total: moneyNumber(row.total_amount),
