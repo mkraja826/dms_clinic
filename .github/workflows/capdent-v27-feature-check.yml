@@ -11,7 +11,7 @@ on:
     paths:
       - "src/**"
       - "scripts/validate-capdent-v27*.mjs"
-      - "scripts/validate-capdent-v26.mjs"
+      - "scripts/validate-capdent-v26*.mjs"
       - "supabase/functions/**"
       - "supabase/migrations/**"
       - "docs/capdent-v27-phonepe-sandbox-runbook.md"
@@ -31,8 +31,10 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out V27 feature branch
+      - name: Check out V27 branch with frozen baseline history
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Use Node.js
         uses: actions/setup-node@v4
@@ -49,7 +51,13 @@ jobs:
         run: npm ci
 
       - name: Validate V27 features and typecheck
-        run: npm run check:v27
+        shell: bash
+        run: |
+          if [ "${GITHUB_REF_NAME}" = "release/capdent-v27" ]; then
+            npm run check:v27:rc
+          else
+            npm run check:v27
+          fi
 
       - name: Typecheck V27 PhonePe Edge Functions
         run: |
