@@ -10,6 +10,7 @@ const helper = readText("supabase/functions/_shared/phonepeV27.ts");
 const createPayment = readText("supabase/functions/phonepe-create-payment/index.ts");
 const checkPayment = readText("supabase/functions/phonepe-check-payment/index.ts");
 const callback = readText("supabase/functions/phonepe-callback/index.ts");
+const returnPage = readText("supabase/functions/phonepe-return/index.ts");
 const migration = readText("supabase/migrations/20260826184500_capdent_v27_phonepe_invoice_payments.sql");
 const client = readText("src/lib/phonePePayments.ts");
 const invoiceScreen = readText("src/app/reports/invoices.tsx");
@@ -34,6 +35,20 @@ expect(
   "V27 PhonePe credentials and callback authentication must remain server-side Edge Function secrets."
 );
 expect(
+  helper.includes('Deno.env.get("PHONEPE_ENV")') &&
+    helper.includes('=== "production"') &&
+    helper.includes('return "sandbox"'),
+  "V27 PhonePe server integration must default to sandbox unless production is explicitly selected."
+);
+expect(
+  helper.includes("safePhonePeCheckoutSnapshot") &&
+    helper.includes("safePhonePeOrderStatusSnapshot") &&
+    helper.includes("paymentMode: safeString(item.paymentMode)") &&
+    !helper.includes("instrument:") &&
+    !helper.includes("rail:"),
+  "V27 PhonePe persistence must allowlist reconciliation metadata and exclude payment instrument details."
+);
+expect(
   createPayment.includes('Deno.env.get("PHONEPE_PAYMENTS_ENABLED") !== "true"') &&
     createPayment.includes('.select("id,clinic_id,patient_id,total_amount,paid_amount,due_amount,status")') &&
     createPayment.includes("const dueAmount = Number(invoice.due_amount || 0)") &&
@@ -43,19 +58,37 @@ expect(
   "V27 PhonePe checkout creation must be kill-switched and derive the payable amount only from the authenticated clinic invoice."
 );
 expect(
+  createPayment.includes("last_status_payload: safePhonePeCheckoutSnapshot(checkout)") &&
+    !createPayment.includes("last_status_payload: checkout"),
+  "V27 PhonePe checkout creation must not persist the ephemeral checkout redirect URL."
+);
+expect(
   checkPayment.includes("getPhonePeOrderStatus(merchantOrderId)") &&
     checkPayment.includes("amountMatches") &&
     checkPayment.includes('state === "COMPLETED" && !amountMatches ? "AMOUNT_MISMATCH"') &&
-    checkPayment.includes('"settle_phonepe_invoice_payment_v27"'),
-  "V27 PhonePe status checks must verify PhonePe server-to-server, match the amount, and settle only through the idempotent database RPC."
+    checkPayment.includes('"settle_phonepe_invoice_payment_v27"') &&
+    checkPayment.includes("p_status_payload: safePhonePeOrderStatusSnapshot(status)") &&
+    !checkPayment.includes("p_status_payload: status"),
+  "V27 PhonePe status checks must verify PhonePe server-to-server, match the amount, persist only safe metadata, and settle through the idempotent database RPC."
 );
 expect(
   callback.includes("isValidPhonePeCallbackAuthorization") &&
     callback.includes("getPhonePeOrderStatus(merchantOrderId)") &&
     callback.includes("Never trust callback state/amount as payment proof") &&
     !callback.includes("callback?.payload?.state") &&
-    callback.includes('"settle_phonepe_invoice_payment_v27"'),
-  "V27 PhonePe webhook must authenticate the callback but independently re-query PhonePe before settlement."
+    callback.includes('"settle_phonepe_invoice_payment_v27"') &&
+    callback.includes("p_status_payload: safePhonePeOrderStatusSnapshot(status)") &&
+    !callback.includes("p_status_payload: status"),
+  "V27 PhonePe webhook must authenticate the callback but independently re-query PhonePe and persist only safe status metadata before settlement."
+);
+expect(
+  returnPage.includes('href="dms://reports/invoices"') &&
+    returnPage.includes("does not indicate that a payment succeeded") &&
+    returnPage.includes('"Cache-Control": "no-store, max-age=0"') &&
+    returnPage.includes('"Referrer-Policy": "no-referrer"') &&
+    !returnPage.includes("merchantOrderId") &&
+    !returnPage.includes("patient"),
+  "V27 PhonePe return page must contain no patient/order data and must direct users back to CapDent without claiming payment success."
 );
 expect(
   migration.includes("create table if not exists public.phonepe_payment_orders") &&
