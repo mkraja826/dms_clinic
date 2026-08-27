@@ -23,6 +23,13 @@ export type PhonePeOrderStatus = {
   [key: string]: unknown;
 };
 
+export type PhonePeCheckoutResponse = {
+  orderId?: string;
+  state?: string;
+  expireAt?: number;
+  redirectUrl?: string;
+};
+
 let cachedToken: { value: string; type: string; expiresAtMs: number } | null = null;
 
 export function requiredEnv(name: string) {
@@ -129,12 +136,7 @@ export async function createPhonePeCheckout(input: {
         },
       },
     }),
-  }) as Promise<{
-    orderId?: string;
-    state?: string;
-    expireAt?: number;
-    redirectUrl?: string;
-  }>;
+  }) as Promise<PhonePeCheckoutResponse>;
 }
 
 export async function getPhonePeOrderStatus(merchantOrderId: string) {
@@ -148,6 +150,44 @@ export function completedPhonePeTransactionId(status: PhonePeOrderStatus) {
   const details = Array.isArray(status.paymentDetails) ? status.paymentDetails : [];
   const completed = details.find((item) => String(item.state || "").toUpperCase() === "COMPLETED");
   return completed?.transactionId || details[0]?.transactionId || null;
+}
+
+function safeString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function safeNumber(value: unknown) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+export function safePhonePeCheckoutSnapshot(checkout: PhonePeCheckoutResponse) {
+  return {
+    orderId: safeString(checkout.orderId),
+    state: safeString(checkout.state)?.toUpperCase() || "UNKNOWN",
+    expireAt: safeNumber(checkout.expireAt),
+  };
+}
+
+export function safePhonePeOrderStatusSnapshot(status: PhonePeOrderStatus) {
+  const paymentDetails = Array.isArray(status.paymentDetails)
+    ? status.paymentDetails.map((item) => ({
+        transactionId: safeString(item.transactionId),
+        state: safeString(item.state)?.toUpperCase() || "UNKNOWN",
+        amount: safeNumber(item.amount),
+        paymentMode: safeString(item.paymentMode),
+      }))
+    : [];
+
+  return {
+    merchantOrderId: safeString(status.merchantOrderId),
+    orderId: safeString(status.orderId),
+    state: safeString(status.state)?.toUpperCase() || "UNKNOWN",
+    amount: safeNumber(status.amount),
+    errorCode: safeString(status.errorCode),
+    detailedErrorCode: safeString(status.detailedErrorCode),
+    paymentDetails,
+  };
 }
 
 async function sha256Hex(value: string) {
