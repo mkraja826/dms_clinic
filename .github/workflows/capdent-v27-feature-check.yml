@@ -14,6 +14,7 @@ on:
       - "scripts/validate-capdent-v26.mjs"
       - "supabase/functions/**"
       - "supabase/migrations/**"
+      - "docs/capdent-v27-phonepe-sandbox-runbook.md"
       - "app.config.js"
       - "app.json"
       - "eas.json"
@@ -39,11 +40,24 @@ jobs:
           node-version: 22.13.1
           cache: npm
 
+      - name: Use Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
       - name: Install locked dependencies
         run: npm ci
 
       - name: Validate V27 features and typecheck
         run: npm run check:v27
+
+      - name: Typecheck V27 PhonePe Edge Functions
+        run: |
+          deno check supabase/functions/_shared/phonepeV27.ts
+          deno check supabase/functions/phonepe-create-payment/index.ts
+          deno check supabase/functions/phonepe-check-payment/index.ts
+          deno check supabase/functions/phonepe-callback/index.ts
+          deno check supabase/functions/phonepe-return/index.ts
 
       - name: Check repository diff formatting
         run: git diff --check
