@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import {
   createPhonePeCheckout,
   requiredEnv,
+  safePhonePeCheckoutSnapshot,
 } from "../_shared/phonepeV27.ts";
 
 const corsHeaders = {
@@ -102,7 +103,7 @@ Deno.serve(async (req) => {
         .update({
           state: String(checkout.state || "PENDING").toUpperCase(),
           phonepe_order_id: checkout.orderId || null,
-          last_status_payload: checkout,
+          last_status_payload: safePhonePeCheckoutSnapshot(checkout),
           updated_at: new Date().toISOString(),
         })
         .eq("merchant_order_id", merchantOrderId);
