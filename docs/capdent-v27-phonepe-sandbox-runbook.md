@@ -14,13 +14,15 @@ The Android feature flag must remain **off** until all server checks below pass.
 - PhonePe merchant credentials and callback credentials are server-only Supabase secrets. Never add them to `.env`, `eas.json`, GitHub, Expo public configuration, or React Native source.
 - A callback body is never payment proof. The callback function re-queries PhonePe order status before settlement.
 - A successful browser redirect is never payment proof. CapDent rechecks PhonePe server-to-server.
-- Do not enable production PhonePe until sandbox payment, cancellation, pending, duplicate callback, and amount-change scenarios have all been reconciled.
+- Sandbox and production merchant orders are isolated in the database. An order created in one environment must never be rechecked or settled against the other environment.
+- Do not enable production PhonePe until sandbox payment, cancellation, pending, duplicate callback, amount-change, and environment-isolation scenarios have all been reconciled.
 
-## 1. Database migration
+## 1. Database migrations
 
-Apply:
+Apply in this order:
 
-`supabase/migrations/20260826184500_capdent_v27_phonepe_invoice_payments.sql`
+1. `supabase/migrations/20260826184500_capdent_v27_phonepe_invoice_payments.sql`
+2. `supabase/migrations/20260827022000_capdent_v27_phonepe_environment_guard.sql`
 
 Expected additions:
 
@@ -30,8 +32,10 @@ Expected additions:
 - idempotent settlement via `settled_payment_id`
 - amount/invoice ownership revalidation before inserting a CapDent payment
 - `REVIEW_REQUIRED` when the live invoice due amount changes after checkout starts
+- non-null `environment` restricted to `sandbox` or `production`
+- legacy/unclassified rows backfilled to `sandbox` before production activation
 
-After applying the migration, run Supabase security/performance advisors before enabling the server feature switch.
+After applying both migrations, run Supabase security/performance advisors before enabling the server feature switch.
 
 ## 2. Deploy Edge Functions
 
@@ -68,6 +72,8 @@ Set these only in the sandbox Supabase environment:
 
 Supabase supplies `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` to Edge Functions. Do not duplicate those into the Android bundle.
 
+`PHONEPE_ENV` must stay `sandbox` for the entire sandbox test cycle. Switching it to `production` is a separate production activation step; existing sandbox orders will be rejected by recheck/callback functions after that switch.
+
 ## 4. Configure PhonePe sandbox
 
 Use the same callback credentials as the Supabase secrets above.
@@ -85,9 +91,13 @@ The return page intentionally does **not** say that payment succeeded. It only s
 Confirm all of the following:
 
 - `npm run check:v27` passes.
+- Deno type-check passes for the shared PhonePe helper and all four PhonePe Edge Functions.
 - Normal EAS profiles still contain `EXPO_PUBLIC_ENABLE_PHONEPE_PAYMENTS=false`.
 - `phonepe-create-payment` rejects missing/invalid JWTs.
 - `phonepe-check-payment` rejects missing/invalid JWTs.
+- Checkout creation stores `environment = sandbox` while `PHONEPE_ENV=sandbox`.
+- `phonepe-check-payment` rejects an order whose stored environment does not equal the server environment before it calls PhonePe.
+- `phonepe-callback` rejects/acknowledges an environment mismatch without attempting settlement.
 - `phonepe-callback` rejects an invalid PhonePe `Authorization` header when server payments are enabled.
 - `phonepe-return` returns a static no-cache page and exposes no patient/order information.
 - The PhonePe ledger is inaccessible to `anon` and `authenticated` database roles.
@@ -113,12 +123,13 @@ Use a disposable test clinic and test invoice.
 ### A. Completed payment
 
 1. Start checkout for an invoice with a known due amount.
-2. Complete sandbox payment.
-3. Return to CapDent.
-4. Recheck status.
-5. Confirm exactly one `payments` row with `payment_method = 'PhonePe'`.
-6. Confirm invoice `paid_amount`, `due_amount`, and `status` match the verified payment.
-7. Recheck the same merchant order again and confirm settlement is idempotent and no second payment row is inserted.
+2. Confirm the merchant-order row is stamped `environment = sandbox`.
+3. Complete sandbox payment.
+4. Return to CapDent.
+5. Recheck status.
+6. Confirm exactly one `payments` row with `payment_method = 'PhonePe'`.
+7. Confirm invoice `paid_amount`, `due_amount`, and `status` match the verified payment.
+8. Recheck the same merchant order again and confirm settlement is idempotent and no second payment row is inserted.
 
 ### B. Cancelled/failed checkout
 
@@ -148,20 +159,30 @@ Use a disposable test clinic and test invoice.
 - Where the PhonePe sandbox permits controlled mismatch simulation, confirm `AMOUNT_MISMATCH` does not settle.
 - If the sandbox cannot simulate it, retain this as a code/DB validation test and do not weaken the guard.
 
+### G. Environment mismatch
+
+1. Create a disposable merchant order with `environment = sandbox`.
+2. In an isolated test environment only, exercise the reconciliation code as if the active environment were `production`.
+3. Confirm authenticated recheck returns an environment conflict before calling PhonePe.
+4. Confirm callback returns `environment_mismatch` without settlement.
+5. Confirm invoice and payment rows remain unchanged.
+
 ## 8. Evidence required before enabling any app profile
 
 Record:
 
-- Supabase migration version applied
+- both Supabase migration versions applied
 - Edge Function versions deployed
 - `verify_jwt` setting for each function
 - sandbox secret presence (names only, never values)
 - PhonePe sandbox merchant/callback configuration completed
 - completed-payment merchant order reference
+- merchant order environment evidence
 - idempotent recheck evidence
 - cancelled/failed evidence
 - changed-invoice `REVIEW_REQUIRED` evidence
-- latest successful `CapDent V27 feature check` run
+- environment-mismatch evidence
+- latest successful `CapDent V27 feature check` run including the Deno step
 
 Only after all evidence is green may a dedicated internal-testing profile be considered for `EXPO_PUBLIC_ENABLE_PHONEPE_PAYMENTS=true`.
 
