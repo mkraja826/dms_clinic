@@ -381,7 +381,7 @@ export default function PhonePeAccountsScreen() {
                   <View style={{ gap: 8 }}>
                     {canSetDefault ? (
                       <AppButton
-                        title="Use for New QR Payments"
+                        title="Set as Default"
                         icon="checkmark-circle-outline"
                         onPress={() => void makeDefault(account)}
                         disabled={busy}
