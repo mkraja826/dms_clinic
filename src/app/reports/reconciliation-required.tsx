@@ -1,12 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert, Text, View } from "react-native";
+import { Alert, Pressable, Text, View } from "react-native";
 import { AppButton } from "@/components/AppButton";
 import { EmptyState } from "@/components/EmptyState";
 import { Screen } from "@/components/Screen";
 import { SectionCard } from "@/components/SectionCard";
-import { StatusBadge } from "@/components/StatusBadge";
 import { colors } from "@/constants/colors";
 import { formatClinicMoney } from "@/lib/clinicLocale";
 import {
@@ -32,6 +31,7 @@ export default function ReconciliationRequiredScreen() {
   const [items, setItems] = useState<ReconciliationRequiredCase[]>([]);
   const [loading, setLoading] = useState(true);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   async function load() {
     try {
@@ -60,8 +60,7 @@ export default function ReconciliationRequiredScreen() {
       if (result.excessAmount > 0) {
         Alert.alert(
           "Current due applied",
-          `${formatClinicMoney(result.appliedAmount, item.currencyCode)} was applied to the patient's current due. ` +
-            `${formatClinicMoney(result.excessAmount, item.currencyCode)} remains unresolved and must be handled separately as a refund or approved clinic credit.`
+          `${formatClinicMoney(result.appliedAmount, item.currencyCode)} was applied. ${formatClinicMoney(result.excessAmount, item.currencyCode)} remains unresolved for refund or approved clinic credit.`
         );
       } else {
         Alert.alert(
@@ -85,17 +84,14 @@ export default function ReconciliationRequiredScreen() {
 
     Alert.alert(
       "Apply current due only?",
-      `${formatClinicMoney(safeApply, item.currencyCode)} will be written to the patient's CapDent payment ledger. ` +
+      `${formatClinicMoney(safeApply, item.currencyCode)} will be written to the patient's CapDent ledger.` +
         (excess > 0
-          ? `${formatClinicMoney(excess, item.currencyCode)} will NOT be applied and will remain flagged for refund/credit handling.`
-          : "No excess will remain.") +
-        "\n\nThis action does not issue any PhonePe refund.",
+          ? ` ${formatClinicMoney(excess, item.currencyCode)} will remain unresolved for refund/credit handling.`
+          : " No excess will remain.") +
+        "\n\nThis does not issue a PhonePe refund.",
       [
         { text: "Cancel", style: "cancel" },
-        {
-          text: "Apply Current Due",
-          onPress: () => void resolveCurrentDue(item),
-        },
+        { text: "Apply Current Due", onPress: () => void resolveCurrentDue(item) },
       ]
     );
   }
@@ -111,7 +107,7 @@ export default function ReconciliationRequiredScreen() {
           Payment Reconciliation
         </Text>
         <Text style={{ color: colors.muted, fontSize: 15, lineHeight: 21 }}>
-          Verified provider payments held because the CapDent invoice balance changed before the payment could be safely applied.
+          Review provider-confirmed payments that CapDent intentionally held instead of applying automatically.
         </Text>
       </View>
 
@@ -121,18 +117,15 @@ export default function ReconciliationRequiredScreen() {
           borderRadius: 20,
           backgroundColor: colors.warningSoft,
           borderWidth: 1,
-          borderColor: colors.border,
-          gap: 8,
+          borderColor: colors.warning,
+          flexDirection: "row",
+          gap: 10,
+          alignItems: "flex-start",
         }}
       >
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-          <Ionicons name="warning-outline" size={24} color={colors.warning} />
-          <Text style={{ flex: 1, color: colors.text, fontWeight: "900", fontSize: 16 }}>
-            Money was confirmed by the provider, but CapDent did not auto-apply it.
-          </Text>
-        </View>
-        <Text style={{ color: colors.muted, lineHeight: 20 }}>
-          You may safely apply only the amount still genuinely due. Any verified excess stays separate for refund or approved credit handling and is never silently added to the patient ledger.
+        <Ionicons name="shield-checkmark-outline" size={24} color={colors.warning} />
+        <Text style={{ flex: 1, color: colors.text, lineHeight: 20, fontWeight: "700" }}>
+          CapDent never over-credits a patient. Apply only what is still due; any excess remains separate for refund or approved clinic credit.
         </Text>
       </View>
 
@@ -141,75 +134,89 @@ export default function ReconciliationRequiredScreen() {
           {items.map((item) => {
             const safeApply = Math.min(item.verifiedAmount, item.currentDue);
             const excess = Math.max(item.verifiedAmount - safeApply, 0);
+            const expanded = expandedId === item.paymentRequestId;
+
             return (
               <SectionCard
                 key={item.paymentRequestId}
                 title={`${item.patientCode ? `${item.patientCode} - ` : ""}${item.patientName}`}
-                subtitle={`Provider verified ${dateText(item.providerVerifiedAt)}`}
+                subtitle={`Payment confirmed ${dateText(item.providerVerifiedAt)}`}
               >
                 <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                  <StatusBadge label="Reconciliation required" tone="warning" />
-                  <StatusBadge label={item.provider || "Provider"} tone="primary" />
-                </View>
-
-                <View style={{ gap: 8 }}>
-                  <View style={{ flexDirection: "row", gap: 10 }}>
-                    <Text style={{ flex: 1, color: colors.muted, fontWeight: "800" }}>Provider verified</Text>
-                    <Text style={{ color: colors.text, fontWeight: "900" }}>
-                      {formatClinicMoney(item.verifiedAmount, item.currencyCode)}
-                    </Text>
-                  </View>
-                  <View style={{ flexDirection: "row", gap: 10 }}>
-                    <Text style={{ flex: 1, color: colors.muted, fontWeight: "800" }}>Current CapDent due</Text>
-                    <Text style={{ color: colors.text, fontWeight: "900" }}>
-                      {formatClinicMoney(item.currentDue, item.currencyCode)}
-                    </Text>
-                  </View>
-                  <View style={{ flexDirection: "row", gap: 10 }}>
-                    <Text style={{ flex: 1, color: colors.muted, fontWeight: "800" }}>Safe amount to apply</Text>
-                    <Text style={{ color: colors.success, fontWeight: "900" }}>
-                      {formatClinicMoney(safeApply, item.currencyCode)}
-                    </Text>
-                  </View>
-                  <View style={{ flexDirection: "row", gap: 10 }}>
-                    <Text style={{ flex: 1, color: colors.muted, fontWeight: "800" }}>Excess left unresolved</Text>
-                    <Text style={{ color: excess > 0 ? colors.warning : colors.text, fontWeight: "900" }}>
-                      {formatClinicMoney(excess, item.currencyCode)}
-                    </Text>
-                  </View>
+                  <AmountTile label="Received" value={formatClinicMoney(item.verifiedAmount, item.currencyCode)} />
+                  <AmountTile label="Still due" value={formatClinicMoney(item.currentDue, item.currencyCode)} />
+                  <AmountTile label="Apply now" value={formatClinicMoney(safeApply, item.currencyCode)} success />
+                  <AmountTile label="Excess" value={formatClinicMoney(excess, item.currencyCode)} warning={excess > 0} />
                 </View>
 
                 <View
                   style={{
-                    borderRadius: 18,
                     padding: 12,
-                    backgroundColor: colors.background,
-                    borderWidth: 1,
-                    borderColor: colors.border,
-                    gap: 5,
+                    borderRadius: 16,
+                    backgroundColor: safeApply > 0 ? colors.successSoft : colors.warningSoft,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 10,
                   }}
                 >
-                  <Text style={{ color: colors.text, fontWeight: "900" }}>Receiving account</Text>
-                  <Text style={{ color: colors.muted }}>
-                    {item.accountLabel}{item.merchantIdMasked ? ` • ${item.merchantIdMasked}` : ""}
+                  <Ionicons
+                    name={safeApply > 0 ? "checkmark-circle-outline" : "alert-circle-outline"}
+                    size={22}
+                    color={safeApply > 0 ? colors.success : colors.warning}
+                  />
+                  <Text style={{ flex: 1, color: colors.text, lineHeight: 19, fontWeight: "800" }}>
+                    {safeApply > 0
+                      ? `${formatClinicMoney(safeApply, item.currencyCode)} can be safely applied now.`
+                      : "Nothing can be safely applied right now. Keep this payment under review."}
                   </Text>
                 </View>
 
-                <Text style={{ color: colors.muted, lineHeight: 19 }}>
-                  {item.failureMessage || "The invoice balance changed after checkout creation."}
-                </Text>
-                <Text style={{ color: colors.muted, fontSize: 12 }}>
-                  Last checked: {dateText(item.lastCheckedAt)}
-                </Text>
+                {safeApply > 0 ? (
+                  <AppButton
+                    title="Apply Current Due Only"
+                    icon="shield-checkmark-outline"
+                    onPress={() => confirmResolve(item)}
+                    loading={resolvingId === item.paymentRequestId}
+                    loadingTitle="Applying safe amount…"
+                    disabled={Boolean(resolvingId)}
+                  />
+                ) : null}
 
-                <AppButton
-                  title="Apply Current Due Only"
-                  icon="shield-checkmark-outline"
-                  onPress={() => confirmResolve(item)}
-                  loading={resolvingId === item.paymentRequestId}
-                  loadingTitle="Applying safe amount…"
-                  disabled={Boolean(resolvingId)}
-                />
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={expanded ? "Hide reconciliation details" : "Show reconciliation details"}
+                  onPress={() => setExpandedId(expanded ? null : item.paymentRequestId)}
+                  style={{
+                    minHeight: 44,
+                    borderRadius: 14,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    backgroundColor: colors.background,
+                    paddingHorizontal: 12,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <Text style={{ color: colors.text, fontWeight: "900" }}>
+                    {expanded ? "Hide details" : "Why was this held?"}
+                  </Text>
+                  <Ionicons name={expanded ? "chevron-up-outline" : "chevron-down-outline"} size={19} color={colors.primary} />
+                </Pressable>
+
+                {expanded ? (
+                  <View style={{ gap: 8 }}>
+                    <Text style={{ color: colors.muted, lineHeight: 19 }}>
+                      {item.failureMessage || "The invoice/category balance changed after checkout creation, so CapDent held the payment for owner review."}
+                    </Text>
+                    <Text style={{ color: colors.text, fontWeight: "800" }}>
+                      Receiving account: {item.accountLabel}{item.merchantIdMasked ? ` • ${item.merchantIdMasked}` : ""}
+                    </Text>
+                    <Text style={{ color: colors.muted, fontSize: 12 }}>
+                      Provider: {item.provider || "Provider"} • Last checked: {dateText(item.lastCheckedAt)}
+                    </Text>
+                  </View>
+                ) : null}
               </SectionCard>
             );
           })}
@@ -242,5 +249,43 @@ export default function ReconciliationRequiredScreen() {
         />
       </View>
     </Screen>
+  );
+}
+
+function AmountTile({
+  label,
+  value,
+  success,
+  warning,
+}: {
+  label: string;
+  value: string;
+  success?: boolean;
+  warning?: boolean;
+}) {
+  return (
+    <View
+      style={{
+        width: "48%",
+        minHeight: 78,
+        borderRadius: 16,
+        padding: 12,
+        backgroundColor: success ? colors.successSoft : warning ? colors.warningSoft : colors.background,
+        borderWidth: 1,
+        borderColor: success ? colors.success : warning ? colors.warning : colors.border,
+        justifyContent: "space-between",
+      }}
+    >
+      <Text style={{ color: colors.muted, fontSize: 12, fontWeight: "800" }}>{label}</Text>
+      <Text
+        style={{
+          color: success ? colors.success : warning ? colors.warning : colors.text,
+          fontSize: 18,
+          fontWeight: "900",
+        }}
+      >
+        {value}
+      </Text>
+    </View>
   );
 }
