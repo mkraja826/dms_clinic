@@ -1,0 +1,28 @@
+name: CapDent V28 dependency audit
+
+on:
+  push:
+    branches:
+      - feature/capdent-v28
+    paths:
+      - .github/workflows/capdent-v28-dependency-audit.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out V28 branch
+        uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.1
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Report npm audit findings
+        run: npm audit --json || true
