@@ -1,0 +1,72 @@
+name: CapDent V27 baseline refactor
+
+on:
+  push:
+    branches:
+      - feature/capdent-v27
+    paths:
+      - .github/workflows/capdent-v27-baseline-refactor.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refactor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out V27 feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/capdent-v27
+          fetch-depth: 0
+
+      - name: Replace current-tree V26 validation with frozen baseline validation
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("scripts/validate-capdent-v27.mjs")
+          source = path.read_text()
+          old = '''try {
+            execFileSync(process.execPath, ["scripts/validate-capdent-v26.mjs"], {
+              stdio: "inherit",
+            });
+          } catch {
+            failures.push("V26 production baseline validation must continue to pass before V27 changes can ship.");
+          }
+          '''
+          new = '''try {
+            execFileSync(process.execPath, ["scripts/validate-capdent-v26-frozen.mjs"], {
+              stdio: "inherit",
+            });
+          } catch {
+            failures.push("The certified frozen V26 baseline must validate independently before V27 changes can ship.");
+          }
+          '''
+          if source.count(old) != 1:
+              raise SystemExit("Expected exactly one V26 current-tree validation block")
+          path.write_text(source.replace(old, new))
+          PY
+
+      - name: Validate focused refactor
+        shell: bash
+        run: |
+          grep -q 'validate-capdent-v26-frozen.mjs' scripts/validate-capdent-v27.mjs
+          if grep -q 'execFileSync(process.execPath, \["scripts/validate-capdent-v26.mjs"\]' scripts/validate-capdent-v27.mjs; then
+            echo "Current-tree V26 validator invocation still exists."
+            exit 1
+          fi
+          changed="$(git diff --name-only)"
+          if [ "$changed" != "scripts/validate-capdent-v27.mjs" ]; then
+            echo "Unexpected files changed: $changed"
+            exit 1
+          fi
+
+      - name: Commit focused refactor
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/validate-capdent-v27.mjs
+          git commit -m "Validate V27 against frozen V26 baseline"
+          git push origin HEAD:feature/capdent-v27
