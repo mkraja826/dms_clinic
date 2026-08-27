@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import {
   completedPhonePeTransactionId,
+  currentPhonePeEnvironment,
   getPhonePeOrderStatus,
   isValidPhonePeCallbackAuthorization,
   requiredEnv,
@@ -42,6 +43,7 @@ Deno.serve(async (req) => {
     const adminClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
+    const environment = currentPhonePeEnvironment();
 
     let merchantOrderId = callbackMerchantOrderId;
     if (!merchantOrderId && callbackPhonePeOrderId) {
@@ -49,6 +51,7 @@ Deno.serve(async (req) => {
         .from("phonepe_payment_orders")
         .select("merchant_order_id")
         .eq("phonepe_order_id", callbackPhonePeOrderId)
+        .eq("environment", environment)
         .maybeSingle();
       if (mappedOrderError) throw mappedOrderError;
       merchantOrderId = String(mappedOrder?.merchant_order_id || "").trim();
@@ -60,12 +63,15 @@ Deno.serve(async (req) => {
 
     const { data: storedOrder, error: storedOrderError } = await adminClient
       .from("phonepe_payment_orders")
-      .select("merchant_order_id,amount_paise")
+      .select("merchant_order_id,amount_paise,environment")
       .eq("merchant_order_id", merchantOrderId)
       .maybeSingle();
     if (storedOrderError) throw storedOrderError;
     if (!storedOrder) {
       return json({ acknowledged: true, settled: false, reason: "order_not_found" });
+    }
+    if (String(storedOrder.environment || "") !== environment) {
+      return json({ acknowledged: true, settled: false, reason: "environment_mismatch" });
     }
 
     // Never trust callback state/amount as payment proof. Always verify the order
