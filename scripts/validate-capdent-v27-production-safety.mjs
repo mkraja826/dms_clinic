@@ -91,6 +91,19 @@ expect(
   !legalUrlMatches.some((url) => /localhost|127\.0\.0\.1/i.test(url)),
   "V27 legal links must never point to local or development hosts."
 );
+for (const url of legalUrlMatches) {
+  let capDentHosted = false;
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    capDentHosted = host === "capdent.in" || host.endsWith(".capdent.in");
+  } catch {
+    capDentHosted = false;
+  }
+  expect(
+    capDentHosted,
+    `V27 legal URL must be hosted under capdent.in: ${url}`
+  );
+}
 
 const directDependencies = {
   ...(pkg.dependencies || {}),
@@ -162,36 +175,11 @@ if (crashlyticsVersion) {
   notes.push("Crashlytics is not installed yet; V27 RC mode will block release until it is configured and data-safety documentation is reviewed.");
 }
 
-const legacyLegalHost = legalUrlMatches.some((url) => {
-  try {
-    return new URL(url).hostname === "dms.micirql.com";
-  } catch {
-    return false;
-  }
-});
-if (legacyLegalHost) {
-  notes.push("Legal links still use the legacy dms.micirql.com host; V27 RC mode requires CapDent-hosted legal URLs.");
-}
-
 if (rcMode) {
   expect(
     Boolean(crashlyticsVersion) && crashlyticsPluginPresent,
     "V27 RC requires Firebase Crashlytics to be installed and configured before release."
   );
-
-  for (const url of legalUrlMatches) {
-    let capDentHosted = false;
-    try {
-      const host = new URL(url).hostname.toLowerCase();
-      capDentHosted = host === "capdent.in" || host.endsWith(".capdent.in");
-    } catch {
-      capDentHosted = false;
-    }
-    expect(
-      capDentHosted,
-      `V27 RC legal URL must be hosted under capdent.in: ${url}`
-    );
-  }
 }
 
 if (failures.length > 0) {
