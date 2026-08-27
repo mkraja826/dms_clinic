@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import {
   createPhonePeCheckout,
+  currentPhonePeEnvironment,
   requiredEnv,
   safePhonePeCheckoutSnapshot,
 } from "../_shared/phonepeV27.ts";
@@ -76,6 +77,7 @@ Deno.serve(async (req) => {
       return json({ error: "This invoice has no payable balance" }, 409);
     }
 
+    const environment = currentPhonePeEnvironment();
     const merchantOrderId = `CD-${crypto.randomUUID()}`;
     const { error: orderInsertError } = await adminClient
       .from("phonepe_payment_orders")
@@ -87,6 +89,7 @@ Deno.serve(async (req) => {
         merchant_order_id: merchantOrderId,
         amount_paise: amountPaise,
         state: "CREATED",
+        environment,
       });
     if (orderInsertError) throw orderInsertError;
 
@@ -106,7 +109,8 @@ Deno.serve(async (req) => {
           last_status_payload: safePhonePeCheckoutSnapshot(checkout),
           updated_at: new Date().toISOString(),
         })
-        .eq("merchant_order_id", merchantOrderId);
+        .eq("merchant_order_id", merchantOrderId)
+        .eq("environment", environment);
 
       return json({
         merchantOrderId,
@@ -119,7 +123,8 @@ Deno.serve(async (req) => {
       await adminClient
         .from("phonepe_payment_orders")
         .update({ state: "INIT_FAILED", updated_at: new Date().toISOString() })
-        .eq("merchant_order_id", merchantOrderId);
+        .eq("merchant_order_id", merchantOrderId)
+        .eq("environment", environment);
       throw error;
     }
   } catch (error) {
