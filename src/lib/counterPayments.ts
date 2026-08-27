@@ -92,6 +92,14 @@ export async function getCounterPaymentQr(paymentRequestId: string): Promise<Cou
   };
 }
 
+export async function cancelCounterPaymentRequest(paymentRequestId: string) {
+  const { data, error } = await supabase.rpc("cancel_v28_counter_payment_request", {
+    p_payment_request_id: paymentRequestId,
+  });
+  if (error) throw error;
+  return String(data || "cancelled");
+}
+
 export async function getCounterPaymentStatus(paymentRequestId: string) {
   const { data, error } = await supabase
     .from("patient_payment_requests")
