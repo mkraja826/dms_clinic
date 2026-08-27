@@ -37,6 +37,11 @@ verify_jwt = true
 # Authenticated QR rendering for an already-created clinic payment request.
 verify_jwt = true
 
+[functions.delete-capdent-account]
+# Authenticated destructive account deletion. The function re-reads the server-side
+# profile role and requires role-specific confirmation before any deletion.
+verify_jwt = true
+
 [functions.phonepe-patient-payment-webhook]
 # PhonePe cannot present a Supabase user JWT. The function authenticates the
 # callback itself using PhonePe SHA webhook credentials before touching payment state.
