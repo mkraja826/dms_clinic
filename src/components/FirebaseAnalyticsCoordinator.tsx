@@ -8,9 +8,12 @@ import {
   logCapDentAnalyticsEvent,
 } from "@/lib/firebaseAnalytics";
 import { installFirebaseAnalyticsAdapter } from "@/lib/firebaseAnalyticsAdapter";
+import { initializeFirebaseCrashlytics } from "@/lib/firebaseCrashlytics";
+import { installFirebaseCrashlyticsAdapter } from "@/lib/firebaseCrashlyticsAdapter";
 
-// Install before any coordinator effect can initialize or emit an event.
+// Install before any coordinator effect can initialize Firebase telemetry.
 installFirebaseAnalyticsAdapter();
+installFirebaseCrashlyticsAdapter();
 
 export function FirebaseAnalyticsCoordinator({ children }: PropsWithChildren) {
   const pathname = usePathname();
@@ -21,6 +24,7 @@ export function FirebaseAnalyticsCoordinator({ children }: PropsWithChildren) {
 
   useEffect(() => {
     void initializeFirebaseAnalytics();
+    void initializeFirebaseCrashlytics();
   }, []);
 
   useEffect(() => {
