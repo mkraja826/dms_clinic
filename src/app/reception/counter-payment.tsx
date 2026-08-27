@@ -30,6 +30,16 @@ const CATEGORIES: { key: CounterPaymentCategory; label: string; icon: keyof type
   { key: "other", label: "Other", icon: "wallet-outline" },
 ];
 
+const POLL_TERMINAL_STATUSES = new Set([
+  "reconciled",
+  "reconciliation_required",
+  "partially_reconciled_excess",
+  "failed",
+  "expired",
+  "cancelled",
+  "superseded",
+]);
+
 function amountValue(value: string) {
   const parsed = Number(value.replace(/[^0-9.]/g, ""));
   return Number.isFinite(parsed) ? parsed : 0;
@@ -37,9 +47,27 @@ function amountValue(value: string) {
 
 function statusTone(status: string): "primary" | "success" | "warning" | "danger" {
   if (status === "reconciled") return "success";
-  if (status === "failed" || status === "expired" || status === "cancelled") return "danger";
-  if (status === "reconciliation_required") return "warning";
+  if (status === "reconciliation_required" || status === "partially_reconciled_excess") return "warning";
+  if (["failed", "expired", "cancelled", "superseded"].includes(status)) return "danger";
   return "primary";
+}
+
+function statusLabel(status: string, locallyExpired: boolean) {
+  if (status === "reconciled") return "Paid & recorded";
+  if (status === "reconciliation_required" || status === "partially_reconciled_excess") return "Needs review";
+  if (status === "failed") return "Payment failed";
+  if (status === "cancelled") return "Cancelled";
+  if (status === "superseded") return "QR replaced";
+  if (status === "expired" || locallyExpired) return "QR expired";
+  if (status === "provider_verified") return "Verifying payment";
+  return "Waiting for payment";
+}
+
+function formatCountdown(milliseconds: number) {
+  const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
 export default function CounterPaymentScreen() {
@@ -53,6 +81,7 @@ export default function CounterPaymentScreen() {
   const [qr, setQr] = useState<CounterPaymentQr | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<string>("");
   const [failureMessage, setFailureMessage] = useState<string | null>(null);
+  const [clock, setClock] = useState(Date.now());
   const searchSequence = useRef(0);
 
   async function searchPatients(text = query) {
@@ -77,7 +106,13 @@ export default function CounterPaymentScreen() {
   }, [query]);
 
   useEffect(() => {
-    if (!qr?.paymentRequestId || paymentStatus === "reconciled") return;
+    if (!qr?.expiresAt || POLL_TERMINAL_STATUSES.has(paymentStatus)) return;
+    const timer = setInterval(() => setClock(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [qr?.expiresAt, paymentStatus]);
+
+  useEffect(() => {
+    if (!qr?.paymentRequestId || POLL_TERMINAL_STATUSES.has(paymentStatus)) return;
     let cancelled = false;
     const check = async () => {
       try {
@@ -86,7 +121,7 @@ export default function CounterPaymentScreen() {
         setPaymentStatus(status.status);
         setFailureMessage(status.failureMessage);
       } catch {
-        // Keep QR visible; transient polling errors should not interrupt reception.
+        // A transient polling failure must not mark or mutate a payment locally.
       }
     };
     void check();
@@ -120,6 +155,7 @@ export default function CounterPaymentScreen() {
       });
       await createCounterPaymentCheckout(prepared.paymentRequestId);
       const nextQr = await getCounterPaymentQr(prepared.paymentRequestId);
+      setClock(Date.now());
       setQr(nextQr);
       setPaymentStatus(nextQr.status);
     } catch (error) {
@@ -129,15 +165,23 @@ export default function CounterPaymentScreen() {
     }
   }
 
-  function resetPayment() {
+  function resetPayment(options?: { keepAmount?: boolean }) {
     setQr(null);
     setPaymentStatus("");
     setFailureMessage(null);
-    setAmount("");
+    if (!options?.keepAmount) setAmount("");
+    setClock(Date.now());
   }
 
   const categoryLabel = CATEGORIES.find((item) => item.key === category)?.label || "Payment";
   const paid = paymentStatus === "reconciled";
+  const needsReview = paymentStatus === "reconciliation_required" || paymentStatus === "partially_reconciled_excess";
+  const providerExpiry = qr?.expiresAt ? new Date(qr.expiresAt).getTime() : 0;
+  const expiryRemaining = providerExpiry > 0 ? providerExpiry - clock : Number.POSITIVE_INFINITY;
+  const locallyExpired = Boolean(qr && providerExpiry > 0 && expiryRemaining <= 0 && !paid && !needsReview);
+  const unusable = locallyExpired || ["failed", "expired", "cancelled", "superseded"].includes(paymentStatus);
+  const qrPayable = Boolean(qr && !paid && !needsReview && !unusable && paymentStatus !== "provider_verified");
+  const displayStatus = statusLabel(paymentStatus, locallyExpired);
 
   return (
     <Screen>
@@ -306,7 +350,7 @@ export default function CounterPaymentScreen() {
       ) : (
         <>
           <SectionCard
-            title={paid ? "Payment received" : "Scan to pay"}
+            title={paid ? "Payment received" : needsReview ? "Payment needs review" : unusable ? "QR unavailable" : "Scan to pay"}
             subtitle={`${selectedPatient?.name || "Patient"} • ${categoryLabel} • ${formatClinicMoney(qr.amount, qr.currencyCode)}`}
           >
             <View style={{ alignItems: "center", gap: 14 }}>
@@ -321,16 +365,34 @@ export default function CounterPaymentScreen() {
                 }}>
                   <Ionicons name="checkmark-circle" size={96} color={colors.success} />
                 </View>
-              ) : (
+              ) : qrPayable ? (
                 <View style={{ padding: 14, borderRadius: 20, backgroundColor: "white" }}>
                   <SvgXml xml={qr.qrSvg} width={286} height={286} />
                 </View>
+              ) : (
+                <View style={{
+                  width: 140,
+                  height: 140,
+                  borderRadius: 70,
+                  backgroundColor: needsReview ? colors.warningSoft : colors.surfaceSoft,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}>
+                  <Ionicons
+                    name={needsReview ? "warning-outline" : paymentStatus === "provider_verified" ? "shield-checkmark-outline" : "qr-code-outline"}
+                    size={76}
+                    color={needsReview ? colors.warning : colors.muted}
+                  />
+                </View>
               )}
 
-              <StatusBadge
-                label={paid ? "Paid & recorded" : paymentStatus.replaceAll("_", " ") || "waiting for payment"}
-                tone={statusTone(paymentStatus)}
-              />
+              <StatusBadge label={displayStatus} tone={statusTone(locallyExpired ? "expired" : paymentStatus)} />
+
+              {qrPayable && Number.isFinite(expiryRemaining) ? (
+                <Text style={{ color: expiryRemaining <= 120000 ? colors.warning : colors.muted, fontWeight: "900" }}>
+                  QR expires in {formatCountdown(expiryRemaining)}
+                </Text>
+              ) : null}
 
               <Text style={{ color: paid ? colors.success : colors.text, fontWeight: "900", fontSize: 22 }}>
                 {formatClinicMoney(qr.amount, qr.currencyCode)}
@@ -338,10 +400,16 @@ export default function CounterPaymentScreen() {
               <Text style={{ color: colors.muted, textAlign: "center", lineHeight: 20 }}>
                 {paid
                   ? `${categoryLabel} payment has been verified and recorded automatically.`
-                  : "Ask the patient to scan this QR with a supported payment app. Keep this screen open until CapDent confirms payment."}
+                  : needsReview
+                    ? "The provider confirmed money was received, but CapDent did not auto-apply it. Owner/head doctor must review the reconciliation case."
+                    : paymentStatus === "provider_verified"
+                      ? "Payment was verified by the provider. CapDent is completing ledger reconciliation; do not collect the amount again."
+                      : unusable
+                        ? "Do not ask the patient to scan this QR. Generate a new QR only if payment has not already been made."
+                        : "Ask the patient to scan this QR with a supported payment app. Keep this screen open until CapDent confirms payment."}
               </Text>
               {failureMessage ? (
-                <Text style={{ color: colors.warning, textAlign: "center", fontWeight: "800", lineHeight: 19 }}>
+                <Text style={{ color: needsReview ? colors.warning : colors.muted, textAlign: "center", fontWeight: "800", lineHeight: 19 }}>
                   {failureMessage}
                 </Text>
               ) : null}
@@ -349,12 +417,54 @@ export default function CounterPaymentScreen() {
           </SectionCard>
 
           <View style={{ flexDirection: "row", gap: 10 }}>
-            <AppButton
-              title={paid ? "Collect Another" : "New QR"}
-              icon={paid ? "add-circle-outline" : "refresh-outline"}
-              onPress={resetPayment}
-              style={{ flex: 1 }}
-            />
+            {paid ? (
+              <AppButton
+                title="Collect Another"
+                icon="add-circle-outline"
+                onPress={() => resetPayment()}
+                style={{ flex: 1 }}
+              />
+            ) : needsReview || paymentStatus === "provider_verified" ? (
+              <AppButton
+                title="Refresh Status"
+                icon="refresh-outline"
+                variant="secondary"
+                onPress={async () => {
+                  try {
+                    const status = await getCounterPaymentStatus(qr.paymentRequestId);
+                    setPaymentStatus(status.status);
+                    setFailureMessage(status.failureMessage);
+                  } catch (error) {
+                    Alert.alert("Status unavailable", error instanceof Error ? error.message : "Please try again.");
+                  }
+                }}
+                style={{ flex: 1 }}
+              />
+            ) : unusable ? (
+              <AppButton
+                title="Generate New QR"
+                icon="refresh-outline"
+                onPress={() => resetPayment({ keepAmount: true })}
+                style={{ flex: 1 }}
+              />
+            ) : (
+              <AppButton
+                title="Cancel / New QR"
+                icon="refresh-outline"
+                variant="secondary"
+                onPress={() => {
+                  Alert.alert(
+                    "Replace this QR?",
+                    "Generate a new QR only if the patient has not already completed payment. If they already paid, keep this screen and wait for verification.",
+                    [
+                      { text: "Keep QR", style: "cancel" },
+                      { text: "Prepare New QR", onPress: () => resetPayment({ keepAmount: true }) },
+                    ]
+                  );
+                }}
+                style={{ flex: 1 }}
+              />
+            )}
             <AppButton
               title="Back"
               icon="arrow-back-outline"
