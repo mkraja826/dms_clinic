@@ -73,6 +73,7 @@ export default function ReceptionMoreToolsScreen() {
       </ToolSection>
 
       <ToolSection title="Collections">
+        <ToolRow title="Collect by QR" subtitle="Select patient, OP/X-ray/medication/treatment category and amount" icon="qr-code-outline" target="/reception/counter-payment" />
         <ToolRow title="Review Final Invoice" subtitle="Combine selected OP, X-ray, medication, treatment, and other charges before sending" icon="document-text-outline" target="/reception/final-invoice" />
         <ToolRow title="Finalized Invoices" subtitle="Review frozen invoices and manually send them to patients" icon="documents-outline" target="/reception/finalized-invoices" />
         <ToolRow title="Pending Payments" subtitle="Collect old due or treatment balance" icon="wallet-outline" target="/patient/payment" />
