@@ -147,7 +147,7 @@ function patientLabel(patient: any) {
 
 function staffLabel(staff: any) {
   if (!staff) return "Unknown staff";
-  return staff.full_name || staff.name || staff.email || "Staff";
+  return staff.name || staff.email || "Staff";
 }
 
 function addTotal(map: Map<string, PaymentReviewTotal>, label: string, amount: number) {
@@ -195,7 +195,7 @@ export async function getPaymentReviewReport(
 
   const [{ data: patients, error: patientError }, { data: staff, error: staffError }] = await Promise.all([
     supabase.from("patients").select("id,name,patient_code").eq("clinic_id", profile.clinic_id),
-    supabase.from("profiles").select("id,full_name,email").eq("clinic_id", profile.clinic_id),
+    supabase.from("profiles").select("id,name,email").eq("clinic_id", profile.clinic_id),
   ]);
   if (patientError) throw patientError;
   if (staffError) throw staffError;
