@@ -38,14 +38,14 @@ export function requiredEnv(name: string) {
   return value;
 }
 
-function phonePeEnvironment(): PhonePeEnvironment {
+export function currentPhonePeEnvironment(): PhonePeEnvironment {
   return Deno.env.get("PHONEPE_ENV")?.trim().toLowerCase() === "production"
     ? "production"
     : "sandbox";
 }
 
 function phonePeBaseUrls() {
-  if (phonePeEnvironment() === "production") {
+  if (currentPhonePeEnvironment() === "production") {
     return {
       oauth: "https://api.phonepe.com/apis/identity-manager",
       pg: "https://api.phonepe.com/apis/pg",
