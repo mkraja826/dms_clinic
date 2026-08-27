@@ -116,6 +116,26 @@ expect(
   "V27 PhonePe return page must contain no patient/order data and must direct users back to CapDent without claiming payment success."
 );
 expect(
+  migration.includes("CapDent PhonePe preflight failed") &&
+    migration.includes("information_schema.columns") &&
+    migration.includes("'invoices.' || v_column") &&
+    migration.includes("'payments.' || v_column") &&
+    migration.includes("'payment_category'") &&
+    migration.includes("'collected_by'"),
+  "V27 PhonePe migration must fail transactionally before installing settlement objects when the existing billing schema lacks required columns."
+);
+const idempotentCheckIndex = migration.indexOf("if v_order.settled_payment_id is not null then");
+const mutableStateUpdateIndex = migration.indexOf("set state = v_state");
+expect(
+  idempotentCheckIndex >= 0 &&
+    mutableStateUpdateIndex >= 0 &&
+    idempotentCheckIndex < mutableStateUpdateIndex &&
+    migration.includes("set state = 'COMPLETED'") &&
+    migration.includes("'idempotent', true") &&
+    migration.includes("'state', 'COMPLETED'"),
+  "V27 PhonePe settlement must preserve COMPLETED for an already-settled merchant order before processing any later provider state."
+);
+expect(
   migration.includes("create table if not exists public.phonepe_payment_orders") &&
     migration.includes("alter table public.phonepe_payment_orders enable row level security") &&
     migration.includes("grant all on table public.phonepe_payment_orders to service_role") &&
