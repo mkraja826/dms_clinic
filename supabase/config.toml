@@ -22,8 +22,19 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.create-patient-payment-checkout]
-# Reception/owner must be authenticated; the function calls the authoritative
-# remaining-balance RPC before creating PhonePe or connected-account card checkout.
+# Authenticated finalized-invoice checkout path.
+verify_jwt = true
+
+[functions.manage-phonepe-payment-accounts]
+# Owner/head-doctor authenticated management of clinic-owned PhonePe merchant IDs.
+verify_jwt = true
+
+[functions.create-counter-payment-checkout]
+# Authenticated owner/head-doctor/reception counter QR checkout path.
+verify_jwt = true
+
+[functions.get-counter-payment-qr]
+# Authenticated QR rendering for an already-created clinic payment request.
 verify_jwt = true
 
 [functions.phonepe-patient-payment-webhook]
@@ -40,9 +51,5 @@ verify_jwt = false
 enabled = true
 verify_jwt = false
 import_map = "./functions/hello-world/deno.json"
-# Uncomment to specify a custom file path to the entrypoint.
-# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
 entrypoint = "./functions/hello-world/index.ts"
-# Specifies static files to be bundled with the function. Supports glob patterns.
-# For example, if you want to serve static HTML pages from this function:
-# static_files = [ "./functions/hello-world/*.html" ]
+static_files = [ "./functions/hello-world/*.html" ]
