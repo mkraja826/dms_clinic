@@ -56,7 +56,7 @@ export async function prepareCounterPaymentRequest(input: {
 }
 
 export async function createCounterPaymentCheckout(paymentRequestId: string) {
-  const { data, error } = await supabase.functions.invoke("create-patient-payment-checkout", {
+  const { data, error } = await supabase.functions.invoke("create-counter-payment-checkout", {
     body: { payment_request_id: paymentRequestId },
   });
   if (error) throw error;
