@@ -12,6 +12,7 @@ const checkPayment = readText("supabase/functions/phonepe-check-payment/index.ts
 const callback = readText("supabase/functions/phonepe-callback/index.ts");
 const returnPage = readText("supabase/functions/phonepe-return/index.ts");
 const migration = readText("supabase/migrations/20260826184500_capdent_v27_phonepe_invoice_payments.sql");
+const environmentMigration = readText("supabase/migrations/20260827022000_capdent_v27_phonepe_environment_guard.sql");
 const client = readText("src/lib/phonePePayments.ts");
 const invoiceScreen = readText("src/app/reports/invoices.tsx");
 const envExample = readText(".env.example");
@@ -35,8 +36,9 @@ expect(
   "V27 PhonePe credentials and callback authentication must remain server-side Edge Function secrets."
 );
 expect(
-  /Deno\.env\.get\("PHONEPE_ENV"\)[\s\S]*===\s*"production"[\s\S]*\?\s*"production"[\s\S]*:\s*"sandbox"/.test(helper),
-  "V27 PhonePe server integration must default to sandbox unless production is explicitly selected."
+  helper.includes("export function currentPhonePeEnvironment") &&
+    /Deno\.env\.get\("PHONEPE_ENV"\)[\s\S]*===\s*"production"[\s\S]*\?\s*"production"[\s\S]*:\s*"sandbox"/.test(helper),
+  "V27 PhonePe server integration must expose a shared environment resolver and default to sandbox unless production is explicitly selected."
 );
 expect(
   helper.includes("safePhonePeCheckoutSnapshot") &&
@@ -56,9 +58,26 @@ expect(
   "V27 PhonePe checkout creation must be kill-switched and derive the payable amount only from the authenticated clinic invoice."
 );
 expect(
+  createPayment.includes("const environment = currentPhonePeEnvironment()") &&
+    createPayment.includes("environment,") &&
+    createPayment.includes('.eq("environment", environment)'),
+  "V27 PhonePe checkout creation must stamp merchant orders with the active sandbox/production environment."
+);
+expect(
   createPayment.includes("last_status_payload: safePhonePeCheckoutSnapshot(checkout)") &&
     !createPayment.includes("last_status_payload: checkout"),
   "V27 PhonePe checkout creation must not persist the ephemeral checkout redirect URL."
+);
+expect(
+  checkPayment.includes('new Set(["owner", "head_doctor", "receptionist"])') &&
+    checkPayment.includes("This role cannot verify PhonePe invoice payments"),
+  "V27 authenticated PhonePe rechecks must use the same authorized clinic collection roles as checkout creation."
+);
+expect(
+  checkPayment.includes("currentPhonePeEnvironment()") &&
+    checkPayment.includes("order.environment") &&
+    checkPayment.indexOf("order.environment") < checkPayment.indexOf("getPhonePeOrderStatus(merchantOrderId)"),
+  "V27 PhonePe rechecks must reject cross-environment merchant orders before calling PhonePe."
 );
 expect(
   checkPayment.includes("getPhonePeOrderStatus(merchantOrderId)") &&
@@ -68,6 +87,14 @@ expect(
     checkPayment.includes("p_status_payload: safePhonePeOrderStatusSnapshot(status)") &&
     !checkPayment.includes("p_status_payload: status"),
   "V27 PhonePe status checks must verify PhonePe server-to-server, match the amount, persist only safe metadata, and settle through the idempotent database RPC."
+);
+expect(
+  callback.includes("currentPhonePeEnvironment()") &&
+    callback.includes('.eq("environment", environment)') &&
+    callback.includes("storedOrder.environment") &&
+    callback.includes('reason: "environment_mismatch"') &&
+    callback.indexOf("storedOrder.environment") < callback.indexOf("getPhonePeOrderStatus(merchantOrderId)"),
+  "V27 PhonePe callbacks must resolve and reject cross-environment orders before querying PhonePe or settling an invoice."
 );
 expect(
   callback.includes("isValidPhonePeCallbackAuthorization") &&
@@ -99,6 +126,14 @@ expect(
     migration.includes("grant execute on function public.settle_phonepe_invoice_payment_v27") &&
     migration.includes("to service_role"),
   "V27 PhonePe settlement must be service-role-only, idempotent, invoice-bound, and fail closed if the invoice balance changed."
+);
+expect(
+  environmentMigration.includes("add column if not exists environment text") &&
+    environmentMigration.includes("set environment = 'sandbox'") &&
+    environmentMigration.includes("alter column environment set default 'sandbox'") &&
+    environmentMigration.includes("alter column environment set not null") &&
+    environmentMigration.includes("check (environment in ('sandbox', 'production'))"),
+  "V27 PhonePe ledger must isolate sandbox and production merchant orders at the database level."
 );
 expect(
   client.includes("EXPO_PUBLIC_ENABLE_PHONEPE_PAYMENTS") &&
