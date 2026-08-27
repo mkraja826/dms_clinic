@@ -92,7 +92,7 @@ export default function CounterPaymentScreen() {
       setLoadingPatients(true);
       const result = await searchPatientsPage({ query: text, page: 1, pageSize: 12 });
       if (sequence !== searchSequence.current) return;
-      setPatients(result.rows || []);
+      setPatients(result.patients || []);
     } catch (error) {
       if (sequence !== searchSequence.current) return;
       Alert.alert("Patient search failed", error instanceof Error ? error.message : "Please try again.");
@@ -175,9 +175,19 @@ export default function CounterPaymentScreen() {
   }
 
   async function retireCurrentQr() {
-    if (!qr?.paymentRequestId) return;
-    await cancelCounterPaymentRequest(qr.paymentRequestId);
-    resetPayment({ keepAmount: true });
+    if (!qr?.paymentRequestId) {
+      resetPayment({ keepAmount: true });
+      return;
+    }
+    try {
+      setGenerating(true);
+      await cancelCounterPaymentRequest(qr.paymentRequestId);
+      resetPayment({ keepAmount: true });
+    } catch (error) {
+      Alert.alert("Could not retire QR", error instanceof Error ? error.message : "Refresh payment status and try again.");
+    } finally {
+      setGenerating(false);
+    }
   }
 
   const categoryLabel = CATEGORIES.find((item) => item.key === category)?.label || "Payment";
@@ -193,101 +203,38 @@ export default function CounterPaymentScreen() {
   return (
     <Screen>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          onPress={() => router.back()}
-          hitSlop={8}
-          style={{
-            width: 42,
-            height: 42,
-            borderRadius: 16,
-            backgroundColor: colors.surfaceSoft,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
+        <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={() => router.back()} hitSlop={8} style={{ width: 42, height: 42, borderRadius: 16, backgroundColor: colors.surfaceSoft, alignItems: "center", justifyContent: "center" }}>
           <Ionicons name="arrow-back-outline" size={22} color={colors.primary} />
         </Pressable>
         <View style={{ flex: 1 }}>
           <Text style={{ color: colors.text, fontSize: 28, fontWeight: "900" }}>Collect by QR</Text>
-          <Text style={{ color: colors.muted, marginTop: 2, lineHeight: 20 }}>
-            Select patient, collection type and amount. CapDent records payment only after provider verification.
-          </Text>
+          <Text style={{ color: colors.muted, marginTop: 2, lineHeight: 20 }}>Select patient, collection type and amount. CapDent records payment only after provider verification.</Text>
         </View>
       </View>
 
       {!qr ? (
         <>
           <SectionCard title="Patient" subtitle="Search by patient name, phone or patient code.">
-            <TextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Search patient"
-              placeholderTextColor={colors.muted}
-              autoCapitalize="none"
-              style={{
-                minHeight: 48,
-                borderRadius: 16,
-                borderWidth: 1,
-                borderColor: colors.border,
-                backgroundColor: colors.background,
-                color: colors.text,
-                paddingHorizontal: 14,
-                fontWeight: "700",
-              }}
-            />
-
+            <TextInput value={query} onChangeText={setQuery} placeholder="Search patient" placeholderTextColor={colors.muted} autoCapitalize="none" style={{ minHeight: 48, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background, color: colors.text, paddingHorizontal: 14, fontWeight: "700" }} />
             {selectedPatient ? (
-              <View style={{
-                padding: 12,
-                borderRadius: 18,
-                backgroundColor: colors.primarySoft,
-                borderWidth: 1,
-                borderColor: colors.border,
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 10,
-              }}>
+              <View style={{ padding: 12, borderRadius: 18, backgroundColor: colors.primarySoft, borderWidth: 1, borderColor: colors.border, flexDirection: "row", alignItems: "center", gap: 10 }}>
                 <Ionicons name="person-circle-outline" size={28} color={colors.primary} />
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: colors.text, fontWeight: "900" }}>{selectedPatient.name}</Text>
-                  <Text style={{ color: colors.muted, marginTop: 2 }}>
-                    {selectedPatient.patient_code || "No patient code"}{selectedPatient.phone ? ` • ${selectedPatient.phone}` : ""}
-                  </Text>
+                  <Text style={{ color: colors.muted, marginTop: 2 }}>{selectedPatient.patient_code || "No patient code"}{selectedPatient.phone ? ` • ${selectedPatient.phone}` : ""}</Text>
                 </View>
-                <Pressable onPress={() => setSelectedPatient(null)} hitSlop={8}>
-                  <Ionicons name="close-circle" size={24} color={colors.muted} />
-                </Pressable>
+                <Pressable onPress={() => setSelectedPatient(null)} hitSlop={8}><Ionicons name="close-circle" size={24} color={colors.muted} /></Pressable>
               </View>
             ) : null}
-
             {!selectedPatient ? (
               <View style={{ gap: 8 }}>
                 {patients.map((patient) => (
-                  <Pressable
-                    key={patient.id}
-                    onPress={() => {
-                      setSelectedPatient(patient);
-                      setQuery("");
-                    }}
-                    style={({ pressed }) => ({
-                      padding: 12,
-                      borderRadius: 16,
-                      borderWidth: 1,
-                      borderColor: colors.border,
-                      backgroundColor: pressed ? colors.surfaceSoft : colors.background,
-                    })}
-                  >
+                  <Pressable key={patient.id} onPress={() => { setSelectedPatient(patient); setQuery(""); }} style={({ pressed }) => ({ padding: 12, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: pressed ? colors.surfaceSoft : colors.background })}>
                     <Text style={{ color: colors.text, fontWeight: "900" }}>{patient.name}</Text>
-                    <Text style={{ color: colors.muted, marginTop: 2 }}>
-                      {patient.patient_code || "Patient"}{patient.phone ? ` • ${patient.phone}` : ""}
-                    </Text>
+                    <Text style={{ color: colors.muted, marginTop: 2 }}>{patient.patient_code || "Patient"}{patient.phone ? ` • ${patient.phone}` : ""}</Text>
                   </Pressable>
                 ))}
-                {!loadingPatients && !patients.length ? (
-                  <EmptyState title="No patients found" message="Try another name, phone number or patient code." icon="search-outline" />
-                ) : null}
+                {!loadingPatients && !patients.length ? <EmptyState title="No patients found" message="Try another name, phone number or patient code." icon="search-outline" /> : null}
               </View>
             ) : null}
           </SectionCard>
@@ -297,22 +244,7 @@ export default function CounterPaymentScreen() {
               {CATEGORIES.map((item) => {
                 const selected = category === item.key;
                 return (
-                  <Pressable
-                    key={item.key}
-                    onPress={() => setCategory(item.key)}
-                    style={{
-                      width: "47%",
-                      minHeight: 74,
-                      padding: 12,
-                      borderRadius: 18,
-                      borderWidth: 1,
-                      borderColor: selected ? colors.primary : colors.border,
-                      backgroundColor: selected ? colors.primarySoft : colors.background,
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 10,
-                    }}
-                  >
+                  <Pressable key={item.key} onPress={() => setCategory(item.key)} style={{ width: "47%", minHeight: 74, padding: 12, borderRadius: 18, borderWidth: 1, borderColor: selected ? colors.primary : colors.border, backgroundColor: selected ? colors.primarySoft : colors.background, flexDirection: "row", alignItems: "center", gap: 10 }}>
                     <Ionicons name={item.icon} size={21} color={selected ? colors.primary : colors.muted} />
                     <Text style={{ flex: 1, color: colors.text, fontWeight: "900" }}>{item.label}</Text>
                     {selected ? <Ionicons name="checkmark-circle" size={20} color={colors.primary} /> : null}
@@ -323,169 +255,38 @@ export default function CounterPaymentScreen() {
           </SectionCard>
 
           <SectionCard title="Amount" subtitle={`Enter the ${categoryLabel} amount to collect now.`}>
-            <TextInput
-              value={amount}
-              onChangeText={setAmount}
-              keyboardType="decimal-pad"
-              placeholder="0"
-              placeholderTextColor={colors.muted}
-              style={{
-                minHeight: 58,
-                borderRadius: 18,
-                borderWidth: 1,
-                borderColor: colors.border,
-                backgroundColor: colors.background,
-                color: colors.text,
-                paddingHorizontal: 16,
-                fontSize: 24,
-                fontWeight: "900",
-              }}
-            />
-            <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 18 }}>
-              CapDent will reject an amount higher than the patient&apos;s outstanding balance in the selected category.
-            </Text>
+            <TextInput value={amount} onChangeText={setAmount} keyboardType="decimal-pad" placeholder="0" placeholderTextColor={colors.muted} style={{ minHeight: 58, borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background, color: colors.text, paddingHorizontal: 16, fontSize: 24, fontWeight: "900" }} />
+            <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 18 }}>CapDent will reject an amount higher than the patient&apos;s outstanding balance in the selected category.</Text>
           </SectionCard>
 
-          <AppButton
-            title="Generate QR"
-            icon="qr-code-outline"
-            onPress={() => void generateQr()}
-            loading={generating}
-            disabled={!selectedPatient || amountValue(amount) <= 0}
-          />
+          <AppButton title="Generate QR" icon="qr-code-outline" onPress={() => void generateQr()} loading={generating} disabled={!selectedPatient || amountValue(amount) <= 0} />
         </>
       ) : (
         <>
-          <SectionCard
-            title={paid ? "Payment received" : needsReview ? "Payment needs review" : unusable ? "QR unavailable" : "Scan to pay"}
-            subtitle={`${selectedPatient?.name || "Patient"} • ${categoryLabel} • ${formatClinicMoney(qr.amount, qr.currencyCode)}`}
-          >
+          <SectionCard title={paid ? "Payment received" : needsReview ? "Payment needs review" : unusable ? "QR unavailable" : "Scan to pay"} subtitle={`${selectedPatient?.name || "Patient"} • ${categoryLabel} • ${formatClinicMoney(qr.amount, qr.currencyCode)}`}>
             <View style={{ alignItems: "center", gap: 14 }}>
               {paid ? (
-                <View style={{
-                  width: 140,
-                  height: 140,
-                  borderRadius: 70,
-                  backgroundColor: colors.successSoft,
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}>
-                  <Ionicons name="checkmark-circle" size={96} color={colors.success} />
-                </View>
+                <View style={{ width: 140, height: 140, borderRadius: 70, backgroundColor: colors.successSoft, alignItems: "center", justifyContent: "center" }}><Ionicons name="checkmark-circle" size={96} color={colors.success} /></View>
               ) : qrPayable ? (
-                <View style={{ padding: 14, borderRadius: 20, backgroundColor: "white" }}>
-                  <SvgXml xml={qr.qrSvg} width={286} height={286} />
-                </View>
+                <View style={{ padding: 14, borderRadius: 20, backgroundColor: "white" }}><SvgXml xml={qr.qrSvg} width={286} height={286} /></View>
               ) : (
-                <View style={{
-                  width: 140,
-                  height: 140,
-                  borderRadius: 70,
-                  backgroundColor: needsReview ? colors.warningSoft : colors.surfaceSoft,
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}>
-                  <Ionicons
-                    name={needsReview ? "warning-outline" : paymentStatus === "provider_verified" ? "shield-checkmark-outline" : "qr-code-outline"}
-                    size={76}
-                    color={needsReview ? colors.warning : colors.muted}
-                  />
+                <View style={{ width: 140, height: 140, borderRadius: 70, backgroundColor: needsReview ? colors.warningSoft : colors.surfaceSoft, alignItems: "center", justifyContent: "center" }}>
+                  <Ionicons name={needsReview ? "warning-outline" : paymentStatus === "provider_verified" ? "shield-checkmark-outline" : "qr-code-outline"} size={76} color={needsReview ? colors.warning : colors.muted} />
                 </View>
               )}
-
               <StatusBadge label={displayStatus} tone={statusTone(locallyExpired ? "expired" : paymentStatus)} />
-
-              {qrPayable && Number.isFinite(expiryRemaining) ? (
-                <Text style={{ color: expiryRemaining <= 120000 ? colors.warning : colors.muted, fontWeight: "900" }}>
-                  QR expires in {formatCountdown(expiryRemaining)}
-                </Text>
-              ) : null}
-
-              <Text style={{ color: paid ? colors.success : colors.text, fontWeight: "900", fontSize: 22 }}>
-                {formatClinicMoney(qr.amount, qr.currencyCode)}
-              </Text>
+              {qrPayable && Number.isFinite(expiryRemaining) ? <Text style={{ color: expiryRemaining <= 120000 ? colors.warning : colors.muted, fontWeight: "900" }}>QR expires in {formatCountdown(expiryRemaining)}</Text> : null}
+              <Text style={{ color: paid ? colors.success : colors.text, fontWeight: "900", fontSize: 22 }}>{formatClinicMoney(qr.amount, qr.currencyCode)}</Text>
               <Text style={{ color: colors.muted, textAlign: "center", lineHeight: 20 }}>
-                {paid
-                  ? `${categoryLabel} payment has been verified and recorded automatically.`
-                  : needsReview
-                    ? "The provider confirmed money was received, but CapDent did not auto-apply it. Owner/head doctor must review the reconciliation case."
-                    : paymentStatus === "provider_verified"
-                      ? "Payment was verified by the provider. CapDent is completing ledger reconciliation; do not collect the amount again."
-                      : unusable
-                        ? "Do not ask the patient to scan this QR. Generate a new QR only if payment has not already been made."
-                        : "Ask the patient to scan this QR with a supported payment app. Keep this screen open until CapDent confirms payment."}
+                {paid ? `${categoryLabel} payment has been verified and recorded automatically.` : needsReview ? "Provider confirmed money was received, but CapDent did not auto-apply it because the category balance changed or the QR was no longer active. Owner/head doctor review is required." : unusable ? "Do not ask the patient to scan this QR. Generate a fresh QR if payment is still required." : paymentStatus === "provider_verified" ? "Provider confirmed the payment. CapDent is completing ledger reconciliation now." : "Ask the patient to scan this QR with a supported payment app. Keep this screen open until CapDent confirms payment."}
               </Text>
-              {failureMessage ? (
-                <Text style={{ color: needsReview ? colors.warning : colors.muted, textAlign: "center", fontWeight: "800", lineHeight: 19 }}>
-                  {failureMessage}
-                </Text>
-              ) : null}
+              {failureMessage ? <Text style={{ color: colors.warning, textAlign: "center", fontWeight: "800", lineHeight: 19 }}>{failureMessage}</Text> : null}
             </View>
           </SectionCard>
 
           <View style={{ flexDirection: "row", gap: 10 }}>
-            {paid ? (
-              <AppButton
-                title="Collect Another"
-                icon="add-circle-outline"
-                onPress={() => resetPayment()}
-                style={{ flex: 1 }}
-              />
-            ) : needsReview || paymentStatus === "provider_verified" ? (
-              <AppButton
-                title="Refresh Status"
-                icon="refresh-outline"
-                variant="secondary"
-                onPress={async () => {
-                  try {
-                    const status = await getCounterPaymentStatus(qr.paymentRequestId);
-                    setPaymentStatus(status.status);
-                    setFailureMessage(status.failureMessage);
-                  } catch (error) {
-                    Alert.alert("Status unavailable", error instanceof Error ? error.message : "Please try again.");
-                  }
-                }}
-                style={{ flex: 1 }}
-              />
-            ) : unusable ? (
-              <AppButton
-                title="Generate New QR"
-                icon="refresh-outline"
-                onPress={() => resetPayment({ keepAmount: true })}
-                style={{ flex: 1 }}
-              />
-            ) : (
-              <AppButton
-                title="Cancel / New QR"
-                icon="refresh-outline"
-                variant="secondary"
-                onPress={() => {
-                  Alert.alert(
-                    "Replace this QR?",
-                    "Generate a new QR only if the patient has not already completed payment. If they already paid, keep this screen and wait for verification.",
-                    [
-                      { text: "Keep QR", style: "cancel" },
-                      {
-                        text: "Retire QR",
-                        onPress: () => {
-                          void retireCurrentQr().catch((error) => {
-                            Alert.alert("QR could not be retired", error instanceof Error ? error.message : "Refresh payment status and try again.");
-                          });
-                        },
-                      },
-                    ]
-                  );
-                }}
-                style={{ flex: 1 }}
-              />
-            )}
-            <AppButton
-              title="Back"
-              icon="arrow-back-outline"
-              variant="secondary"
-              onPress={() => router.back()}
-              style={{ flex: 1 }}
-            />
+            <AppButton title={paid ? "Collect Another" : needsReview ? "Close" : unusable ? "Generate New QR" : "Cancel / New QR"} icon={paid ? "add-circle-outline" : needsReview ? "close-circle-outline" : "refresh-outline"} onPress={() => { if (paid || needsReview || unusable) resetPayment({ keepAmount: !paid }); else void retireCurrentQr(); }} loading={generating} style={{ flex: 1 }} />
+            <AppButton title="Back" icon="arrow-back-outline" variant="secondary" onPress={() => router.back()} style={{ flex: 1 }} />
           </View>
         </>
       )}
