@@ -16,6 +16,14 @@ export type ReconciliationRequiredCase = {
   lastCheckedAt: string | null;
 };
 
+export type ReconciliationResolutionResult = {
+  resolutionStatus: string;
+  verifiedAmount: number;
+  appliedAmount: number;
+  excessAmount: number;
+  paymentRows: number;
+};
+
 function numberValue(value: unknown) {
   const parsed = Number(value || 0);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -40,4 +48,26 @@ export async function getReconciliationRequiredCases(): Promise<ReconciliationRe
     providerVerifiedAt: row.provider_verified_at ? String(row.provider_verified_at) : null,
     lastCheckedAt: row.last_checked_at ? String(row.last_checked_at) : null,
   }));
+}
+
+export async function applyCurrentDueFromVerifiedPayment(
+  paymentRequestId: string,
+  notes?: string
+): Promise<ReconciliationResolutionResult> {
+  const { data, error } = await supabase.rpc("resolve_v28_reconciliation_apply_current_due", {
+    p_payment_request_id: paymentRequestId,
+    p_notes: notes?.trim() || null,
+  });
+  if (error) throw error;
+
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) throw new Error("Reconciliation resolution did not return a result");
+
+  return {
+    resolutionStatus: String(row.resolution_status || ""),
+    verifiedAmount: numberValue(row.verified_amount),
+    appliedAmount: numberValue(row.applied_amount),
+    excessAmount: numberValue(row.excess_amount),
+    paymentRows: Math.max(0, Math.trunc(numberValue(row.payment_rows))),
+  };
 }
