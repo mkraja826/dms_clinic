@@ -12,6 +12,7 @@ on:
       - "src/**"
       - "scripts/validate-capdent-v27*.mjs"
       - "scripts/validate-capdent-v26*.mjs"
+      - "scripts/test-capdent-v27*.mjs"
       - "supabase/functions/**"
       - "supabase/migrations/**"
       - "docs/capdent-v27-phonepe-sandbox-runbook.md"
@@ -58,6 +59,9 @@ jobs:
           else
             npm run check:v27
           fi
+
+      - name: Prove V27 version transition is independent of frozen V26
+        run: node scripts/test-capdent-v27-version-transition.mjs
 
       - name: Typecheck V27 PhonePe Edge Functions
         run: |
