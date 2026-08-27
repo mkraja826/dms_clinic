@@ -117,6 +117,18 @@ const TERMINAL_ORDER_EVENTS = new Set([
   "PG_ORDER_FAILED",
 ]);
 
+const WEBHOOK_VERIFIABLE_REQUEST_STATES = new Set([
+  "pending",
+  "provider_verified",
+  "reconciled",
+  "reconciliation_required",
+  "partially_reconciled_excess",
+  "failed",
+  "expired",
+  "cancelled",
+  "superseded",
+]);
+
 Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
@@ -162,7 +174,7 @@ Deno.serve(async (req) => {
     if (requestError) throw requestError;
     if (!requestRow) return json({ error: "PhonePe order is not linked to a CapDent payment request" }, 404);
     if (!requestRow.payment_account_id) return json({ error: "CapDent payment request has no locked receiving account" }, 409);
-    if (!new Set(["pending", "provider_verified", "reconciled", "reconciliation_required", "failed"]).has(String(requestRow.status))) {
+    if (!WEBHOOK_VERIFIABLE_REQUEST_STATES.has(String(requestRow.status))) {
       return json({ error: "CapDent payment request is not in a webhook-verifiable state" }, 409);
     }
     if (String(requestRow.currency_code || "").trim().toUpperCase() !== "INR") {
@@ -178,15 +190,11 @@ Deno.serve(async (req) => {
       .single();
     if (accountError || !account) throw accountError || new Error("Clinic PhonePe account not found");
 
-    if (
-      account.id !== requestRow.payment_account_id ||
-      account.provider !== "phonepe" ||
-      account.status !== "connected" ||
-      account.verification_status !== "verified" ||
-      account.payments_enabled !== true ||
-      account.settlements_enabled !== true
-    ) {
-      return json({ error: "Locked clinic PhonePe account is not verified and enabled" }, 409);
+    // New checkout creation requires a currently verified/enabled account. A webhook is
+    // different: it verifies money for an order that was already created and locked to
+    // this account. Disabling the account later must not make real received money vanish.
+    if (account.id !== requestRow.payment_account_id || account.provider !== "phonepe") {
+      return json({ error: "Locked clinic PhonePe account does not match the payment request" }, 409);
     }
 
     const clinicMerchantId = String(account.provider_merchant_id || "").trim();
@@ -266,17 +274,27 @@ Deno.serve(async (req) => {
 
     let reconciliation: unknown = null;
     if (success) {
-      const { data, error } = await adminClient.rpc("reconcile_v28_verified_patient_payment", {
-        p_payment_request_id: requestRow.id,
-      });
-      if (error) throw error;
-      reconciliation = data;
+      const { data: refreshedRequest, error: refreshError } = await adminClient
+        .from("patient_payment_requests")
+        .select("status")
+        .eq("id", requestRow.id)
+        .single();
+      if (refreshError || !refreshedRequest) throw refreshError || new Error("Payment request status could not be refreshed");
+
+      const refreshedStatus = String(refreshedRequest.status || "");
+      if (refreshedStatus === "provider_verified" || refreshedStatus === "reconciliation_required") {
+        const { data, error } = await adminClient.rpc("reconcile_v28_verified_patient_payment", {
+          p_payment_request_id: requestRow.id,
+        });
+        if (error) throw error;
+        reconciliation = data;
+      }
     }
 
     return json({
       received: true,
       duplicate: inserted === false,
-      state: success ? "completed" : "failed",
+      state: success ? "completed" : verifiedState === "EXPIRED" ? "expired" : "failed",
       reconciliation,
     });
   } catch (error) {
