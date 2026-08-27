@@ -10,6 +10,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { colors } from "@/constants/colors";
 import { formatClinicMoney } from "@/lib/clinicLocale";
 import {
+  applyCurrentDueFromVerifiedPayment,
   getReconciliationRequiredCases,
   type ReconciliationRequiredCase,
 } from "@/lib/reconciliationReview";
@@ -30,6 +31,7 @@ function dateText(value?: string | null) {
 export default function ReconciliationRequiredScreen() {
   const [items, setItems] = useState<ReconciliationRequiredCase[]>([]);
   const [loading, setLoading] = useState(true);
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
 
   async function load() {
     try {
@@ -43,6 +45,59 @@ export default function ReconciliationRequiredScreen() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function resolveCurrentDue(item: ReconciliationRequiredCase) {
+    if (resolvingId) return;
+    try {
+      setResolvingId(item.paymentRequestId);
+      const result = await applyCurrentDueFromVerifiedPayment(
+        item.paymentRequestId,
+        "Owner confirmed applying only the current CapDent due from a provider-verified payment."
+      );
+      await load();
+
+      if (result.excessAmount > 0) {
+        Alert.alert(
+          "Current due applied",
+          `${formatClinicMoney(result.appliedAmount, item.currencyCode)} was applied to the patient's current due. ` +
+            `${formatClinicMoney(result.excessAmount, item.currencyCode)} remains unresolved and must be handled separately as a refund or approved clinic credit.`
+        );
+      } else {
+        Alert.alert(
+          "Payment reconciled",
+          `${formatClinicMoney(result.appliedAmount, item.currencyCode)} was safely applied to the patient's current due.`
+        );
+      }
+    } catch (error) {
+      Alert.alert(
+        "Resolution failed",
+        error instanceof Error ? error.message : "Please try again."
+      );
+    } finally {
+      setResolvingId(null);
+    }
+  }
+
+  function confirmResolve(item: ReconciliationRequiredCase) {
+    const safeApply = Math.min(item.verifiedAmount, item.currentDue);
+    const excess = Math.max(item.verifiedAmount - safeApply, 0);
+
+    Alert.alert(
+      "Apply current due only?",
+      `${formatClinicMoney(safeApply, item.currencyCode)} will be written to the patient's CapDent payment ledger. ` +
+        (excess > 0
+          ? `${formatClinicMoney(excess, item.currencyCode)} will NOT be applied and will remain flagged for refund/credit handling.`
+          : "No excess will remain.") +
+        "\n\nThis action does not issue any PhonePe refund.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Apply Current Due",
+          onPress: () => void resolveCurrentDue(item),
+        },
+      ]
+    );
   }
 
   useEffect(() => {
@@ -77,14 +132,15 @@ export default function ReconciliationRequiredScreen() {
           </Text>
         </View>
         <Text style={{ color: colors.muted, lineHeight: 20 }}>
-          Review the patient ledger and receiving account before deciding whether the clinic should refund, credit, or otherwise resolve the difference. This screen does not move money.
+          You may safely apply only the amount still genuinely due. Any verified excess stays separate for refund or approved credit handling and is never silently added to the patient ledger.
         </Text>
       </View>
 
       {items.length ? (
         <View style={{ gap: 12 }}>
           {items.map((item) => {
-            const delta = item.verifiedAmount - item.currentDue;
+            const safeApply = Math.min(item.verifiedAmount, item.currentDue);
+            const excess = Math.max(item.verifiedAmount - safeApply, 0);
             return (
               <SectionCard
                 key={item.paymentRequestId}
@@ -110,9 +166,15 @@ export default function ReconciliationRequiredScreen() {
                     </Text>
                   </View>
                   <View style={{ flexDirection: "row", gap: 10 }}>
-                    <Text style={{ flex: 1, color: colors.muted, fontWeight: "800" }}>Difference to review</Text>
-                    <Text style={{ color: colors.warning, fontWeight: "900" }}>
-                      {formatClinicMoney(Math.abs(delta), item.currencyCode)}
+                    <Text style={{ flex: 1, color: colors.muted, fontWeight: "800" }}>Safe amount to apply</Text>
+                    <Text style={{ color: colors.success, fontWeight: "900" }}>
+                      {formatClinicMoney(safeApply, item.currencyCode)}
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: "row", gap: 10 }}>
+                    <Text style={{ flex: 1, color: colors.muted, fontWeight: "800" }}>Excess left unresolved</Text>
+                    <Text style={{ color: excess > 0 ? colors.warning : colors.text, fontWeight: "900" }}>
+                      {formatClinicMoney(excess, item.currencyCode)}
                     </Text>
                   </View>
                 </View>
@@ -127,9 +189,7 @@ export default function ReconciliationRequiredScreen() {
                     gap: 5,
                   }}
                 >
-                  <Text style={{ color: colors.text, fontWeight: "900" }}>
-                    Receiving account
-                  </Text>
+                  <Text style={{ color: colors.text, fontWeight: "900" }}>Receiving account</Text>
                   <Text style={{ color: colors.muted }}>
                     {item.accountLabel}{item.merchantIdMasked ? ` • ${item.merchantIdMasked}` : ""}
                   </Text>
@@ -141,6 +201,15 @@ export default function ReconciliationRequiredScreen() {
                 <Text style={{ color: colors.muted, fontSize: 12 }}>
                   Last checked: {dateText(item.lastCheckedAt)}
                 </Text>
+
+                <AppButton
+                  title="Apply Current Due Only"
+                  icon="shield-checkmark-outline"
+                  onPress={() => confirmResolve(item)}
+                  loading={resolvingId === item.paymentRequestId}
+                  loadingTitle="Applying safe amount…"
+                  disabled={Boolean(resolvingId)}
+                />
               </SectionCard>
             );
           })}
