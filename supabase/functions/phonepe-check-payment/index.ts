@@ -3,6 +3,7 @@ import {
   completedPhonePeTransactionId,
   getPhonePeOrderStatus,
   requiredEnv,
+  safePhonePeOrderStatusSnapshot,
 } from "../_shared/phonepeV27.ts";
 
 const corsHeaders = {
@@ -79,7 +80,7 @@ Deno.serve(async (req) => {
         p_phonepe_state: settlementState,
         p_phonepe_order_id: status.orderId || null,
         p_phonepe_transaction_id: transactionId,
-        p_status_payload: status,
+        p_status_payload: safePhonePeOrderStatusSnapshot(status),
       }
     );
     if (settlementError) throw settlementError;
