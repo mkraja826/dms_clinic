@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import {
   completedPhonePeTransactionId,
+  currentPhonePeEnvironment,
   getPhonePeOrderStatus,
   requiredEnv,
   safePhonePeOrderStatusSnapshot,
@@ -54,17 +55,27 @@ Deno.serve(async (req) => {
       return json({ error: "Active clinic profile not found" }, 403);
     }
 
+    const allowedRoles = new Set(["owner", "head_doctor", "receptionist"]);
+    if (!allowedRoles.has(String(profile.role))) {
+      return json({ error: "This role cannot verify PhonePe invoice payments" }, 403);
+    }
+
     const body = await req.json().catch(() => ({}));
     const merchantOrderId = String(body?.merchant_order_id || "").trim();
     if (!merchantOrderId) return json({ error: "merchant_order_id is required" }, 400);
 
     const { data: order, error: orderError } = await adminClient
       .from("phonepe_payment_orders")
-      .select("merchant_order_id,clinic_id,invoice_id,amount_paise,settled_payment_id")
+      .select("merchant_order_id,clinic_id,invoice_id,amount_paise,settled_payment_id,environment")
       .eq("merchant_order_id", merchantOrderId)
       .eq("clinic_id", profile.clinic_id)
       .single();
     if (orderError || !order) return json({ error: "PhonePe order not found" }, 404);
+
+    const environment = currentPhonePeEnvironment();
+    if (String(order.environment || "") !== environment) {
+      return json({ error: "PhonePe order belongs to a different payment environment" }, 409);
+    }
 
     const status = await getPhonePeOrderStatus(merchantOrderId);
     const state = String(status.state || "UNKNOWN").toUpperCase();
