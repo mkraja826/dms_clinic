@@ -60,10 +60,7 @@ async function phonePeAccessToken() {
   return accessToken;
 }
 
-async function getPhonePeOrderStatus(input: {
-  merchantOrderId: string;
-  merchantId: string;
-}) {
+async function getPhonePeOrderStatus(input: { merchantOrderId: string; merchantId: string }) {
   const token = await phonePeAccessToken();
   const { pgBase } = phonePeUrls();
   const statusUrl = `${pgBase}/checkout/v2/order/${encodeURIComponent(input.merchantOrderId)}/status`;
@@ -95,10 +92,7 @@ async function sha256(value: string) {
 }
 
 function normalizeShaAuthorization(value: string | null) {
-  return String(value || "")
-    .trim()
-    .replace(/^sha256\s+/i, "")
-    .toLowerCase();
+  return String(value || "").trim().replace(/^sha256\s+/i, "").toLowerCase();
 }
 
 function constantTimeEqual(left: string, right: string) {
@@ -119,8 +113,6 @@ function firstTransactionId(payload: any) {
 const TERMINAL_ORDER_EVENTS = new Set([
   "CHECKOUT_ORDER_COMPLETED",
   "CHECKOUT_ORDER_FAILED",
-  // PhonePe's current SDK exposes both checkout and PG order callback types.
-  // Status verification below remains authoritative regardless of callback label.
   "PG_ORDER_COMPLETED",
   "PG_ORDER_FAILED",
 ]);
@@ -129,8 +121,6 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
   try {
-    // PhonePe's callback verifier hashes the configured username/password as
-    // SHA256(`${username}:${password}`). Keep those credentials server-only.
     const username = requiredEnv("PHONEPE_WEBHOOK_USERNAME");
     const password = requiredEnv("PHONEPE_WEBHOOK_PASSWORD");
     const expectedAuth = await sha256(`${username}:${password}`);
@@ -146,8 +136,6 @@ Deno.serve(async (req) => {
     const event = String(body?.type || "").trim().toUpperCase();
 
     if (!TERMINAL_ORDER_EVENTS.has(event)) {
-      // Transaction-attempt failures are not terminal because the hosted
-      // checkout may allow another attempt. Ignore them after authentication.
       return json({ received: true, ignored: true });
     }
 
@@ -157,9 +145,7 @@ Deno.serve(async (req) => {
     const callbackMerchantId = String(callbackPayload?.merchantId || "").trim();
     const callbackAmountPaise = Number(callbackPayload?.amount);
 
-    if (!merchantOrderId) {
-      return json({ error: "PhonePe callback is missing merchant order ID" }, 400);
-    }
+    if (!merchantOrderId) return json({ error: "PhonePe callback is missing merchant order ID" }, 400);
 
     const supabaseUrl = requiredEnv("SUPABASE_URL");
     const serviceRoleKey = requiredEnv("SUPABASE_SERVICE_ROLE_KEY");
@@ -175,31 +161,41 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (requestError) throw requestError;
     if (!requestRow) return json({ error: "PhonePe order is not linked to a CapDent payment request" }, 404);
+    if (!requestRow.payment_account_id) return json({ error: "CapDent payment request has no locked receiving account" }, 409);
+    if (!new Set(["pending", "provider_verified", "reconciled", "reconciliation_required", "failed"]).has(String(requestRow.status))) {
+      return json({ error: "CapDent payment request is not in a webhook-verifiable state" }, 409);
+    }
     if (String(requestRow.currency_code || "").trim().toUpperCase() !== "INR") {
       return json({ error: "PhonePe payment request currency is invalid" }, 409);
     }
 
     const { data: account, error: accountError } = await adminClient
       .from("clinic_payment_accounts")
-      .select("provider_merchant_id")
+      .select("id,provider,provider_merchant_id,status,verification_status,payments_enabled,settlements_enabled")
       .eq("id", requestRow.payment_account_id)
       .eq("clinic_id", requestRow.clinic_id)
       .eq("provider", "phonepe")
       .single();
     if (accountError || !account) throw accountError || new Error("Clinic PhonePe account not found");
 
+    if (
+      account.id !== requestRow.payment_account_id ||
+      account.provider !== "phonepe" ||
+      account.status !== "connected" ||
+      account.verification_status !== "verified" ||
+      account.payments_enabled !== true ||
+      account.settlements_enabled !== true
+    ) {
+      return json({ error: "Locked clinic PhonePe account is not verified and enabled" }, 409);
+    }
+
     const clinicMerchantId = String(account.provider_merchant_id || "").trim();
     if (!clinicMerchantId) return json({ error: "Clinic PhonePe merchant is not configured" }, 409);
     if (callbackMerchantId && callbackMerchantId !== clinicMerchantId) {
-      return json({ error: "PhonePe callback merchant does not match the clinic receiving account" }, 409);
+      return json({ error: "PhonePe callback merchant does not match the locked clinic receiving account" }, 409);
     }
 
-    // Callback authentication proves who sent the callback. It does not prove
-    // the current payment state. Always re-query PhonePe before touching money.
-    const statusPayload = await getPhonePeOrderStatus({
-      merchantOrderId,
-      merchantId: clinicMerchantId,
-    });
+    const statusPayload = await getPhonePeOrderStatus({ merchantOrderId, merchantId: clinicMerchantId });
 
     const verifiedMerchantOrderId = String(statusPayload?.merchantOrderId || "").trim();
     const verifiedOrderId = String(statusPayload?.orderId || "").trim();
@@ -214,8 +210,8 @@ Deno.serve(async (req) => {
     if (callbackOrderId && verifiedOrderId && callbackOrderId !== verifiedOrderId) {
       return json({ error: "PhonePe callback order does not match verified order status" }, 409);
     }
-    if (verifiedMerchantId && verifiedMerchantId !== clinicMerchantId) {
-      return json({ error: "PhonePe verified merchant does not match the clinic receiving account" }, 409);
+    if (!verifiedMerchantId || verifiedMerchantId !== clinicMerchantId) {
+      return json({ error: "PhonePe verified merchant does not match the locked clinic receiving account" }, 409);
     }
     if (!Number.isSafeInteger(expectedAmountPaise) || expectedAmountPaise <= 0) {
       return json({ error: "CapDent payment request amount is invalid" }, 409);
@@ -223,59 +219,49 @@ Deno.serve(async (req) => {
     if (!Number.isSafeInteger(verifiedAmountPaise) || verifiedAmountPaise !== expectedAmountPaise) {
       return json({ error: "PhonePe verified amount does not match the CapDent payment request" }, 409);
     }
-    if (
-      Number.isSafeInteger(callbackAmountPaise) &&
-      callbackAmountPaise > 0 &&
-      callbackAmountPaise !== verifiedAmountPaise
-    ) {
+    if (Number.isSafeInteger(callbackAmountPaise) && callbackAmountPaise > 0 && callbackAmountPaise !== verifiedAmountPaise) {
       return json({ error: "PhonePe callback amount does not match verified order status" }, 409);
     }
 
-    if (verifiedState === "PENDING") {
-      // Return a retryable response rather than acknowledging a terminal
-      // callback while PhonePe's own status endpoint still says pending.
-      return json({ error: "PhonePe order status is not terminal yet" }, 503);
-    }
+    if (verifiedState === "PENDING") return json({ error: "PhonePe order status is not terminal yet" }, 503);
 
     const success = verifiedState === "COMPLETED";
     const failed = verifiedState === "FAILED" || verifiedState === "EXPIRED";
-    if (!success && !failed) {
-      return json({ error: "PhonePe order status is not a supported terminal state" }, 503);
-    }
+    if (!success && !failed) return json({ error: "PhonePe order status is not a supported terminal state" }, 503);
 
     const transactionId = firstTransactionId(statusPayload);
     const verificationEvidence = JSON.stringify({
+      paymentAccountId: account.id,
       merchantOrderId,
       orderId: verifiedOrderId,
-      merchantId: verifiedMerchantId || clinicMerchantId,
+      merchantId: verifiedMerchantId,
       state: verifiedState,
       amount: verifiedAmountPaise,
       transactionId,
     });
     const verificationDigest = await sha256(`${callbackDigest}|${verificationEvidence}`);
     const eventFingerprint = [
+      account.id,
       event,
       merchantOrderId,
       verifiedOrderId,
+      verifiedMerchantId,
       transactionId,
       verifiedState,
       verifiedAmountPaise,
     ].join("|");
     const providerEventId = await sha256(eventFingerprint);
 
-    const { data: inserted, error: eventError } = await adminClient.rpc(
-      "record_v28_verified_provider_event",
-      {
-        p_payment_request_id: requestRow.id,
-        p_provider_event_id: providerEventId,
-        p_provider_request_id: merchantOrderId,
-        p_event_type: `${event}:${verifiedState}`,
-        p_amount: verifiedAmountPaise / 100,
-        p_currency_code: "INR",
-        p_payload_digest: verificationDigest,
-        p_success: success,
-      }
-    );
+    const { data: inserted, error: eventError } = await adminClient.rpc("record_v28_verified_provider_event", {
+      p_payment_request_id: requestRow.id,
+      p_provider_event_id: providerEventId,
+      p_provider_request_id: merchantOrderId,
+      p_event_type: `${event}:${verifiedState}`,
+      p_amount: verifiedAmountPaise / 100,
+      p_currency_code: "INR",
+      p_payload_digest: verificationDigest,
+      p_success: success,
+    });
     if (eventError) throw eventError;
 
     let reconciliation: unknown = null;
