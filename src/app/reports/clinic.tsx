@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Text, View } from "react-native";
+import { Alert, Pressable, Text, View } from "react-native";
 import { AppButton } from "@/components/AppButton";
 import { EmptyState } from "@/components/EmptyState";
 import { Screen } from "@/components/Screen";
@@ -26,6 +26,69 @@ function todayLabel() {
     month: "short",
     year: "numeric",
   });
+}
+
+type ReportLink = {
+  title: string;
+  subtitle: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  route: string;
+  tone?: "primary" | "warning" | "success";
+};
+
+function ReportLinkCard({ item }: { item: ReportLink }) {
+  const backgroundColor =
+    item.tone === "warning"
+      ? colors.warningSoft
+      : item.tone === "success"
+        ? colors.successSoft
+        : colors.background;
+  const iconColor =
+    item.tone === "warning"
+      ? colors.warning
+      : item.tone === "success"
+        ? colors.success
+        : colors.primary;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={item.title}
+      onPress={() => router.push(item.route as never)}
+      style={{
+        flex: 1,
+        minWidth: "47%",
+        minHeight: 116,
+        padding: 14,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor,
+        gap: 10,
+      }}
+    >
+      <View
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: 14,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: colors.surface,
+        }}
+      >
+        <Ionicons name={item.icon} size={21} color={iconColor} />
+      </View>
+      <View style={{ gap: 3 }}>
+        <Text style={{ color: colors.text, fontWeight: "900", fontSize: 15 }}>
+          {item.title}
+        </Text>
+        <Text style={{ color: colors.muted, lineHeight: 18, fontSize: 12 }}>
+          {item.subtitle}
+        </Text>
+      </View>
+    </Pressable>
+  );
 }
 
 export default function ClinicReportScreen() {
@@ -101,6 +164,76 @@ export default function ClinicReportScreen() {
     },
   ];
 
+  const moneyLinks: ReportLink[] = [
+    {
+      title: "Payment Review",
+      subtitle: "Closing totals, methods, categories, staff and dues.",
+      icon: "card-outline",
+      route: "/reports/payments",
+      tone: "success",
+    },
+    {
+      title: "Verified Online",
+      subtitle: "Provider-verified payments and receiving accounts.",
+      icon: "shield-checkmark-outline",
+      route: "/reports/online-payments",
+      tone: "success",
+    },
+    {
+      title: "Reconciliation",
+      subtitle: "Resolve verified payments held for owner review.",
+      icon: "warning-outline",
+      route: "/reports/reconciliation-required",
+      tone: "warning",
+    },
+  ];
+
+  const operationsLinks: ReportLink[] = [
+    {
+      title: "Owner Review Board",
+      subtitle: "Missed follow-ups, treatment and patient-detail exceptions.",
+      icon: "clipboard-outline",
+      route: "/reports/owner-review",
+      tone: "warning",
+    },
+    {
+      title: "Follow-ups",
+      subtitle: "Review due and missed patient follow-ups.",
+      icon: "repeat-outline",
+      route: "/reports/followups",
+    },
+    {
+      title: "Treatments",
+      subtitle: "Track open, completed and paid treatment work.",
+      icon: "hammer-outline",
+      route: "/reports/treatments",
+    },
+  ];
+
+  const teamLinks: ReportLink[] = [
+    {
+      title: "Staff Performance",
+      subtitle: "Collections, work and clinic responsibility by staff.",
+      icon: "people-circle-outline",
+      route: "/reports/staff-performance",
+    },
+  ];
+
+  const recordLinks: ReportLink[] = [
+    {
+      title: "Activity Log",
+      subtitle: "Review important clinic actions and changes.",
+      icon: "pulse-outline",
+      route: "/reports/activity",
+    },
+    {
+      title: "Excel Export",
+      subtitle: "Download owner-friendly clinic data for records.",
+      icon: "download-outline",
+      route: "/reports/export",
+    },
+  ];
+
   return (
     <Screen refreshing={loading} onRefresh={load}>
       <View style={{ gap: 6 }}>
@@ -108,29 +241,20 @@ export default function ClinicReportScreen() {
           Clinic Report
         </Text>
         <Text style={{ color: colors.muted, fontSize: 15, lineHeight: 21 }}>
-          Owner summary for {todayLabel()}. Use this before closing the clinic
-          day.
+          Owner summary for {todayLabel()}. Use this before closing the clinic day.
         </Text>
       </View>
 
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
         <StatCard
           label="Today Revenue"
-          value={
-            loading
-              ? "..."
-              : money(summary?.today_revenue ?? stats?.todayRevenue)
-          }
+          value={loading ? "..." : money(summary?.today_revenue ?? stats?.todayRevenue)}
           icon="cash-outline"
           tone="success"
         />
         <StatCard
           label="Pending Due"
-          value={
-            loading
-              ? "..."
-              : money(summary?.pending_payments ?? stats?.pendingPayments)
-          }
+          value={loading ? "..." : money(summary?.pending_payments ?? stats?.pendingPayments)}
           icon="wallet-outline"
           tone="warning"
         />
@@ -181,9 +305,7 @@ export default function ClinicReportScreen() {
               <Text style={{ flex: 1, color: colors.text, fontWeight: "900" }}>
                 {row.label}
               </Text>
-              <Text
-                style={{ color: colors.text, fontWeight: "900", fontSize: 16 }}
-              >
+              <Text style={{ color: colors.text, fontWeight: "900", fontSize: 16 }}>
                 {loading ? "..." : money(row.value)}
               </Text>
             </View>
@@ -214,11 +336,7 @@ export default function ClinicReportScreen() {
           />
           <StatCard
             label="Old Pending"
-            value={
-              loading
-                ? "..."
-                : money(summary?.pending_payments ?? stats?.pendingPayments)
-            }
+            value={loading ? "..." : money(summary?.pending_payments ?? stats?.pendingPayments)}
             icon="alert-circle-outline"
             tone="warning"
           />
@@ -226,125 +344,52 @@ export default function ClinicReportScreen() {
       </SectionCard>
 
       <SectionCard
-        title="Owner Tools"
-        subtitle="Review follow-ups, treatments, staff work, payments, activity and exports."
+        title="Reports & Controls"
+        subtitle="Everything the owner needs for closing, review and clinic records."
       >
-        <View style={{ gap: 10 }}>
-          <View
-            style={{
-              padding: 14,
-              borderRadius: 20,
-              backgroundColor: colors.primarySoft,
-              borderWidth: 1,
-              borderColor: colors.border,
-              gap: 6,
-            }}
-          >
-            <Text
-              style={{ color: colors.text, fontWeight: "900", fontSize: 16 }}
-            >
-              Follow-up + treatment review + staff performance + payment review
-              + activity + Excel
+        <View style={{ gap: 18 }}>
+          <View style={{ gap: 8 }}>
+            <Text style={{ color: colors.text, fontWeight: "900", fontSize: 16 }}>
+              Money
             </Text>
-            <Text style={{ color: colors.muted, lineHeight: 20 }}>
-              Track due follow-ups, open treatments, staff work, collections,
-              staff actions and owner-friendly export data.
-            </Text>
-          </View>
-
-          <View
-            style={{
-              padding: 14,
-              borderRadius: 20,
-              backgroundColor: colors.warningSoft,
-              borderWidth: 1,
-              borderColor: colors.border,
-              gap: 8,
-            }}
-          >
-            <View
-              style={{ flexDirection: "row", alignItems: "center", gap: 10 }}
-            >
-              <Ionicons
-                name="shield-checkmark-outline"
-                size={24}
-                color={colors.warning}
-              />
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={{
-                    color: colors.text,
-                    fontWeight: "900",
-                    fontSize: 16,
-                  }}
-                >
-                  Owner Review Board
-                </Text>
-                <Text
-                  style={{ color: colors.muted, marginTop: 2, lineHeight: 19 }}
-                >
-                  One screen for missed follow-ups, paid-but-active treatments,
-                  waived OP fees and patient detail edits.
-                </Text>
-              </View>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+              {moneyLinks.map((item) => (
+                <ReportLinkCard key={item.title} item={item} />
+              ))}
             </View>
-            <AppButton
-              title="Open Review Board"
-              icon="clipboard-outline"
-              onPress={() => router.push("/reports/owner-review" as never)}
-            />
           </View>
 
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <AppButton
-              title="Follow-ups"
-              icon="repeat-outline"
-              onPress={() => router.push("/reports/followups" as never)}
-              style={{ flex: 1 }}
-            />
-            <AppButton
-              title="Treatments"
-              icon="hammer-outline"
-              variant="secondary"
-              onPress={() => router.push("/reports/treatments" as never)}
-              style={{ flex: 1 }}
-            />
+          <View style={{ gap: 8 }}>
+            <Text style={{ color: colors.text, fontWeight: "900", fontSize: 16 }}>
+              Operations
+            </Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+              {operationsLinks.map((item) => (
+                <ReportLinkCard key={item.title} item={item} />
+              ))}
+            </View>
           </View>
 
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <AppButton
-              title="Staff Work"
-              icon="people-circle-outline"
-              variant="secondary"
-              onPress={() =>
-                router.push("/reports/staff-performance" as never)
-              }
-              style={{ flex: 1 }}
-            />
-            <AppButton
-              title="Payment Review"
-              icon="card-outline"
-              variant="secondary"
-              onPress={() => router.push("/reports/payments" as never)}
-              style={{ flex: 1 }}
-            />
+          <View style={{ gap: 8 }}>
+            <Text style={{ color: colors.text, fontWeight: "900", fontSize: 16 }}>
+              Team
+            </Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+              {teamLinks.map((item) => (
+                <ReportLinkCard key={item.title} item={item} />
+              ))}
+            </View>
           </View>
 
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <AppButton
-              title="Activity Log"
-              icon="pulse-outline"
-              variant="secondary"
-              onPress={() => router.push("/reports/activity" as never)}
-              style={{ flex: 1 }}
-            />
-            <AppButton
-              title="Excel Export"
-              icon="download-outline"
-              variant="secondary"
-              onPress={() => router.push("/reports/export" as never)}
-              style={{ flex: 1 }}
-            />
+          <View style={{ gap: 8 }}>
+            <Text style={{ color: colors.text, fontWeight: "900", fontSize: 16 }}>
+              Records
+            </Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+              {recordLinks.map((item) => (
+                <ReportLinkCard key={item.title} item={item} />
+              ))}
+            </View>
           </View>
         </View>
       </SectionCard>
