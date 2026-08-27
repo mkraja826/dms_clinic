@@ -6,9 +6,30 @@ const expect = (condition, message) => {
   if (!condition) failures.push(message);
 };
 
+const rcMode =
+  process.argv.includes("--rc") || process.env.CAPDENT_V27_RC === "true";
 const pkg = readJson("package.json");
 const app = readJson("app.json");
 const eas = readJson("eas.json");
+
+const v26Version = "1.2.6";
+const v26AndroidVersionCode = 27;
+
+function parseVersion(value) {
+  const match = String(value || "").trim().match(/^(\d+)\.(\d+)\.(\d+)$/);
+  return match ? match.slice(1).map(Number) : null;
+}
+
+function isVersionGreater(left, right) {
+  const a = parseVersion(left);
+  const b = parseVersion(right);
+  if (!a || !b) return false;
+  for (let index = 0; index < 3; index += 1) {
+    if (a[index] > b[index]) return true;
+    if (a[index] < b[index]) return false;
+  }
+  return false;
+}
 
 const v27Preview = pkg.scripts?.["build:v27:android:preview"] || "";
 const v27Internal = pkg.scripts?.["build:v27:android:play-internal"] || "";
@@ -50,9 +71,26 @@ expect(
   "Expo app version and package.json version must stay aligned for V27."
 );
 expect(
-  Number.isInteger(app.expo?.android?.versionCode) && app.expo.android.versionCode >= 27,
+  parseVersion(app.expo?.version) !== null,
+  "V27 app version must remain a three-part numeric release version."
+);
+expect(
+  Number.isInteger(app.expo?.android?.versionCode) && app.expo.android.versionCode >= v26AndroidVersionCode,
   "V27 Android versionCode must remain a valid local integer at or above the frozen V26 baseline until the release bump is prepared."
 );
+
+if (rcMode) {
+  expect(
+    isVersionGreater(app.expo?.version, v26Version),
+    `V27 RC versionName must advance beyond frozen V26 ${v26Version}; current value is ${app.expo?.version || "missing"}.`
+  );
+  expect(
+    Number.isInteger(app.expo?.android?.versionCode) &&
+      app.expo.android.versionCode > v26AndroidVersionCode,
+    `V27 RC Android versionCode must be greater than frozen V26 code ${v26AndroidVersionCode}; current value is ${app.expo?.android?.versionCode ?? "missing"}.`
+  );
+}
+
 expect(
   eas.cli?.appVersionSource === "local" &&
     eas.build?.production?.autoIncrement === false &&
@@ -71,4 +109,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log("CapDent V27 release-path validation passed.");
+console.log(`CapDent V27 release-path validation passed${rcMode ? " (RC mode)" : ""}.`);
