@@ -26,20 +26,13 @@ function statusTone(status?: string): "primary" | "success" | "warning" | "dange
 
 function statusLabel(status?: string) {
   switch (status) {
-    case "connected":
-      return "Connected";
-    case "pending":
-      return "Verification pending";
-    case "restricted":
-      return "Restricted";
-    case "disabled":
-      return "Disabled";
-    case "country_required":
-      return "Country required";
-    case "unavailable":
-      return "Backend pending";
-    default:
-      return "Not connected";
+    case "connected": return "Connected";
+    case "pending": return "Verification pending";
+    case "restricted": return "Restricted";
+    case "disabled": return "Disabled";
+    case "country_required": return "Country required";
+    case "unavailable": return "Backend pending";
+    default: return "Not connected";
   }
 }
 
@@ -79,23 +72,18 @@ export default function PatientPaymentsSettingsScreen() {
 
   async function connectCardAccount() {
     if (!canManage || status?.provider !== "card" || !status.backendReady || providerBusy) return;
-
     try {
       setProviderBusy(true);
       const result = await startCardPaymentAccountOnboarding();
       const supported = await Linking.canOpenURL(result.onboardingUrl);
       if (!supported) throw new Error("The Stripe onboarding page could not be opened on this device");
-
       await Linking.openURL(result.onboardingUrl);
       Alert.alert(
         "Card account onboarding opened",
         "Complete Stripe's secure business, identity, and settlement-bank setup in your browser. Return to CapDent and tap Refresh Card Status afterward."
       );
     } catch (error) {
-      Alert.alert(
-        "Card account setup failed",
-        error instanceof Error ? error.message : "Please try again."
-      );
+      Alert.alert("Card account setup failed", error instanceof Error ? error.message : "Please try again.");
     } finally {
       setProviderBusy(false);
     }
@@ -103,7 +91,6 @@ export default function PatientPaymentsSettingsScreen() {
 
   async function refreshCardAccount() {
     if (!canManage || status?.provider !== "card" || providerBusy) return;
-
     try {
       setProviderBusy(true);
       const result = await syncCardPaymentAccount();
@@ -117,10 +104,7 @@ export default function PatientPaymentsSettingsScreen() {
           : "The receiving account is not fully enabled yet."
       );
     } catch (error) {
-      Alert.alert(
-        "Card status refresh failed",
-        error instanceof Error ? error.message : "Please try again."
-      );
+      Alert.alert("Card status refresh failed", error instanceof Error ? error.message : "Please try again.");
     } finally {
       setProviderBusy(false);
     }
@@ -139,65 +123,32 @@ export default function PatientPaymentsSettingsScreen() {
           accessibilityLabel="Back"
           onPress={() => router.back()}
           hitSlop={8}
-          style={{
-            width: 42,
-            height: 42,
-            borderRadius: 16,
-            backgroundColor: colors.surfaceSoft,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
+          style={{ width: 42, height: 42, borderRadius: 16, backgroundColor: colors.surfaceSoft, alignItems: "center", justifyContent: "center" }}
         >
           <Ionicons name="arrow-back-outline" size={22} color={colors.primary} />
         </Pressable>
         <View style={{ flex: 1 }}>
-          <Text style={{ color: colors.text, fontSize: 27, fontWeight: "900" }}>
-            Patient Payments
-          </Text>
+          <Text style={{ color: colors.text, fontSize: 27, fontWeight: "900" }}>Patient Payments</Text>
           <Text style={{ color: colors.muted, marginTop: 2, lineHeight: 20 }}>
             Connect the clinic's receiving account for finalized patient invoices.
           </Text>
         </View>
       </View>
 
-      <SectionCard
-        title="Payment route"
-        subtitle="CapDent chooses the patient payment provider from the clinic country stored on the server."
-      >
+      <SectionCard title="Payment route" subtitle="CapDent chooses the patient payment provider from the clinic country stored on the server.">
         <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-          <View
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 17,
-              backgroundColor: colors.primarySoft,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
+          <View style={{ width: 48, height: 48, borderRadius: 17, backgroundColor: colors.primarySoft, alignItems: "center", justifyContent: "center" }}>
             <Ionicons name={providerIcon} size={24} color={colors.primary} />
           </View>
           <View style={{ flex: 1, gap: 3 }}>
-            <Text style={{ color: colors.text, fontSize: 18, fontWeight: "900" }}>
-              {status?.providerLabel || "Checking provider…"}
-            </Text>
+            <Text style={{ color: colors.text, fontSize: 18, fontWeight: "900" }}>{status?.providerLabel || "Checking provider…"}</Text>
             <Text style={{ color: colors.muted, lineHeight: 19 }}>
               Country: {status?.countryCode || "Not configured"} • Currency: {status?.currencyCode || "Not configured"}
             </Text>
           </View>
           <StatusBadge label={statusLabel(status?.status)} tone={statusTone(status?.status)} />
         </View>
-
-        <View
-          style={{
-            borderRadius: 18,
-            padding: 14,
-            borderWidth: 1,
-            borderColor: colors.border,
-            backgroundColor: colors.surfaceSoft,
-            gap: 6,
-          }}
-        >
+        <View style={{ borderRadius: 18, padding: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceSoft, gap: 6 }}>
           <Text style={{ color: colors.text, fontWeight: "900" }}>Routing rule</Text>
           <Text style={{ color: colors.muted, lineHeight: 20 }}>
             {phonePeProvider
@@ -228,23 +179,6 @@ export default function PatientPaymentsSettingsScreen() {
           </View>
         </View>
 
-        {!status?.backendReady ? (
-          <View
-            style={{
-              borderRadius: 18,
-              padding: 14,
-              backgroundColor: colors.warningSoft,
-              borderWidth: 1,
-              borderColor: colors.border,
-            }}
-          >
-            <Text style={{ color: colors.warning, fontWeight: "900" }}>Backend foundation not applied yet</Text>
-            <Text style={{ color: colors.muted, marginTop: 4, lineHeight: 20 }}>
-              Existing CapDent billing is unchanged. Receiving-account setup activates only after the additive V28 backend migration and Edge Functions are reviewed and deployed.
-            </Text>
-          </View>
-        ) : null}
-
         {!canManage ? (
           <Text style={{ color: colors.warning, fontWeight: "800", lineHeight: 20 }}>
             Only the clinic owner or head doctor can connect or manage the receiving account.
@@ -269,18 +203,19 @@ export default function PatientPaymentsSettingsScreen() {
               disabled={!canManage || !status?.backendReady || providerBusy}
             />
             <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 18 }}>
-              Stripe-hosted onboarding opens in your system browser because the one-time onboarding link must not be embedded or shared outside the authenticated app. CapDent stores only the connected account ID and safe readiness status.
+              Stripe-hosted onboarding opens in your system browser. CapDent stores only the connected account ID and safe readiness status.
             </Text>
           </View>
         ) : phonePeProvider ? (
           <View style={{ gap: 10 }}>
             <AppButton
-              title={connected ? "PhonePe Receiving Account Connected" : "Connect PhonePe"}
+              title={connected ? "Manage PhonePe Accounts" : "Add PhonePe Merchant Account"}
               icon="phone-portrait-outline"
-              disabled
+              onPress={() => router.push("/settings/phonepe-accounts" as never)}
+              disabled={!canManage || !status?.backendReady}
             />
             <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 18 }}>
-              PhonePe patient-payment processing is implemented as a PG Partner flow, but clinic merchant onboarding stays disabled until PhonePe provides CapDent's approved partner merchant-onboarding/mapping process. We will not ask clinic owners to paste merchant secrets into Android.
+              Owners and head doctors can add multiple PhonePe Merchant IDs. New accounts stay pending and cannot receive patient payments until provider verification is complete. Never enter PhonePe passwords, OTPs, API keys, or UPI PINs into CapDent.
             </Text>
           </View>
         ) : (
@@ -288,10 +223,7 @@ export default function PatientPaymentsSettingsScreen() {
         )}
       </SectionCard>
 
-      <SectionCard
-        title="Patient invoice rule"
-        subtitle="Online payment is attached only to the receptionist-finalized consolidated invoice."
-      >
+      <SectionCard title="Patient invoice rule" subtitle="Online payment is attached only to the receptionist-finalized consolidated invoice.">
         <View style={{ gap: 9 }}>
           <Text style={{ color: colors.text, fontWeight: "800" }}>1. Record OP, X-ray, medication, treatment, and other charges internally.</Text>
           <Text style={{ color: colors.text, fontWeight: "800" }}>2. Reception reviews all charges and payments together.</Text>
@@ -301,14 +233,7 @@ export default function PatientPaymentsSettingsScreen() {
         </View>
       </SectionCard>
 
-      <AppButton
-        title="Refresh Status"
-        icon="refresh-outline"
-        variant="secondary"
-        onPress={() => void load()}
-        loading={loading}
-        loadingTitle="Checking receiving account…"
-      />
+      <AppButton title="Refresh Status" icon="refresh-outline" variant="secondary" onPress={() => void load()} loading={loading} loadingTitle="Checking receiving account…" />
     </Screen>
   );
 }
