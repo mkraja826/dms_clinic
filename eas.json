@@ -45,6 +45,26 @@
       },
       "autoIncrement": false
     },
+    "v28-test": {
+      "credentialsSource": "local",
+      "environment": "production",
+      "distribution": "internal",
+      "autoIncrement": false,
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://mzjtdcpbvoximdukpukd.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_3krFoyWgVzrZP1g_pUy32g_iIn1AdYb",
+        "EXPO_PUBLIC_ENABLE_PAID_PLANS": "true",
+        "EXPO_PUBLIC_ENABLE_PRICING_V2_OBSERVATION": "false",
+        "EXPO_PUBLIC_ENABLE_FIREBASE_ANALYTICS": "true",
+        "EXPO_PUBLIC_ENABLE_REALTIME": "true",
+        "EXPO_PUBLIC_ENABLE_PAYMENT_PUSH": "true",
+        "EXPO_PUBLIC_ENABLE_TOOTH_CHART": "true",
+        "EXPO_PUBLIC_USE_SIGNED_STORAGE_URLS": "true"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
     "production": {
       "credentialsSource": "local",
       "environment": "production",
