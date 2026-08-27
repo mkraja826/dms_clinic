@@ -11,6 +11,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { colors } from "@/constants/colors";
 import { formatClinicMoney } from "@/lib/clinicLocale";
 import {
+  cancelCounterPaymentRequest,
   createCounterPaymentCheckout,
   getCounterPaymentQr,
   getCounterPaymentStatus,
@@ -171,6 +172,12 @@ export default function CounterPaymentScreen() {
     setFailureMessage(null);
     if (!options?.keepAmount) setAmount("");
     setClock(Date.now());
+  }
+
+  async function retireCurrentQr() {
+    if (!qr?.paymentRequestId) return;
+    await cancelCounterPaymentRequest(qr.paymentRequestId);
+    resetPayment({ keepAmount: true });
   }
 
   const categoryLabel = CATEGORIES.find((item) => item.key === category)?.label || "Payment";
@@ -458,7 +465,14 @@ export default function CounterPaymentScreen() {
                     "Generate a new QR only if the patient has not already completed payment. If they already paid, keep this screen and wait for verification.",
                     [
                       { text: "Keep QR", style: "cancel" },
-                      { text: "Prepare New QR", onPress: () => resetPayment({ keepAmount: true }) },
+                      {
+                        text: "Retire QR",
+                        onPress: () => {
+                          void retireCurrentQr().catch((error) => {
+                            Alert.alert("QR could not be retired", error instanceof Error ? error.message : "Refresh payment status and try again.");
+                          });
+                        },
+                      },
                     ]
                   );
                 }}
