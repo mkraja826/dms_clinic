@@ -320,3 +320,6 @@ export async function getPaymentReviewReport(
     })),
   };
 }
+
+// Preserve the existing report API used by the owner payment screens.
+export const buildPaymentReview = getPaymentReviewReport;
