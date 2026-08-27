@@ -8,6 +8,7 @@ const corsHeaders = {
 
 type CheckoutBody = {
   bill_id?: string;
+  payment_request_id?: string;
 };
 
 type PreparedRequest = {
@@ -110,8 +111,8 @@ async function phonePeAccessToken() {
   return accessToken;
 }
 
-async function createPhonePeStandardCheckout(input: { requestId: string; amount: number; currencyCode: string; merchantId: string; invoiceNumber: string }) {
-  if (input.currencyCode !== "INR") throw new Error("PhonePe Standard Checkout requires an INR clinic invoice");
+async function createPhonePeStandardCheckout(input: { requestId: string; amount: number; currencyCode: string; merchantId: string; label: string }) {
+  if (input.currencyCode !== "INR") throw new Error("PhonePe Standard Checkout requires INR");
   const amountPaise = Math.round(input.amount * 100);
   if (!Number.isSafeInteger(amountPaise) || amountPaise <= 0) throw new Error("Invalid PhonePe payment amount");
   const merchantOrderId = `CDP_${input.requestId.replace(/-/g, "")}`;
@@ -129,7 +130,7 @@ async function createPhonePeStandardCheckout(input: { requestId: string; amount:
       amount: amountPaise,
       expireAfter: expireAfterSeconds,
       metaInfo: { udf1: input.requestId },
-      paymentFlow: { type: "PG_CHECKOUT", message: `CapDent invoice ${input.invoiceNumber}`.slice(0, 150), merchantUrls: { redirectUrl } },
+      paymentFlow: { type: "PG_CHECKOUT", message: input.label.slice(0, 150), merchantUrls: { redirectUrl } },
     }),
   });
   const payload = await response.json().catch(() => ({}));
@@ -148,7 +149,7 @@ async function createPhonePeStandardCheckout(input: { requestId: string; amount:
   };
 }
 
-async function createStripeCardCheckout(input: { requestId: string; amount: number; currencyCode: string; connectedAccountId: string; invoiceNumber: string }) {
+async function createStripeCardCheckout(input: { requestId: string; amount: number; currencyCode: string; connectedAccountId: string; label: string }) {
   if (!/^acct_[A-Za-z0-9]+$/.test(input.connectedAccountId)) throw new Error("Clinic card receiving account is invalid");
   const currency = input.currencyCode.trim().toLowerCase();
   const unitAmount = stripeMinorAmount(input.amount, input.currencyCode);
@@ -157,7 +158,7 @@ async function createStripeCardCheckout(input: { requestId: string; amount: numb
   body.set("payment_method_types[0]", "card");
   body.set("line_items[0][price_data][currency]", currency);
   body.set("line_items[0][price_data][unit_amount]", String(unitAmount));
-  body.set("line_items[0][price_data][product_data][name]", `CapDent invoice ${input.invoiceNumber}`.slice(0, 120));
+  body.set("line_items[0][price_data][product_data][name]", input.label.slice(0, 120));
   body.set("line_items[0][quantity]", "1");
   body.set("client_reference_id", input.requestId);
   body.set("metadata[capdent_payment_request_id]", input.requestId);
@@ -197,43 +198,61 @@ Deno.serve(async (req) => {
     const userClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } }, auth: { persistSession: false, autoRefreshToken: false } });
     const { data: userData, error: userError } = await userClient.auth.getUser();
     if (userError || !userData.user) return json({ error: "Invalid user session" }, 401);
+
     const body = (await req.json().catch(() => ({}))) as CheckoutBody;
     const billId = String(body.bill_id || "").trim();
-    if (!billId) return json({ error: "Final invoice ID is required" }, 400);
-
-    const { data: preparedData, error: preparedError } = await userClient.rpc("prepare_v28_patient_payment_request", { p_bill_id: billId });
-    if (preparedError) return json({ error: preparedError.message }, 400);
-    const prepared = asPreparedRequest(preparedData);
-    if (!prepared) return json({ error: "Payment request was not returned by the server" }, 500);
-    if (prepared.request_status === "pending" && /^https:\/\//i.test(prepared.checkout_url || "")) {
-      return json({ paymentRequestId: prepared.payment_request_id, provider: prepared.provider, amount: prepared.amount, currencyCode: prepared.currency_code, checkoutUrl: prepared.checkout_url, expiresAt: prepared.expires_at || null });
-    }
+    const suppliedRequestId = String(body.payment_request_id || "").trim();
+    if (!billId && !suppliedRequestId) return json({ error: "Final invoice ID or payment request ID is required" }, 400);
+    if (billId && suppliedRequestId) return json({ error: "Use either bill_id or payment_request_id, not both" }, 400);
 
     const adminClient = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
+    let paymentRequestId = suppliedRequestId;
+
+    if (billId) {
+      const { data: preparedData, error: preparedError } = await userClient.rpc("prepare_v28_patient_payment_request", { p_bill_id: billId });
+      if (preparedError) return json({ error: preparedError.message }, 400);
+      const prepared = asPreparedRequest(preparedData);
+      if (!prepared) return json({ error: "Payment request was not returned by the server" }, 500);
+      if (prepared.request_status === "pending" && /^https:\/\//i.test(prepared.checkout_url || "")) {
+        return json({ paymentRequestId: prepared.payment_request_id, provider: prepared.provider, amount: prepared.amount, currencyCode: prepared.currency_code, checkoutUrl: prepared.checkout_url, expiresAt: prepared.expires_at || null });
+      }
+      paymentRequestId = prepared.payment_request_id;
+    }
+
     const { data: requestRow, error: requestError } = await adminClient
       .from("patient_payment_requests")
-      .select("id,clinic_id,patient_id,consolidated_bill_id,payment_account_id,provider,amount,currency_code,status")
-      .eq("id", prepared.payment_request_id)
+      .select("id,clinic_id,patient_id,consolidated_bill_id,payment_account_id,provider,amount,currency_code,country_code,status,request_mode,payment_category,checkout_url,expires_at")
+      .eq("id", paymentRequestId)
       .single();
     if (requestError || !requestRow) throw requestError || new Error("Prepared request not found");
+
+    if (suppliedRequestId) {
+      const { data: profile, error: profileError } = await adminClient
+        .from("profiles")
+        .select("clinic_id,role,active")
+        .eq("id", userData.user.id)
+        .single();
+      if (profileError || !profile || profile.active !== true || profile.clinic_id !== requestRow.clinic_id) {
+        return json({ error: "Payment request does not belong to your active clinic" }, 403);
+      }
+      if (!new Set(["owner", "head_doctor", "receptionist"]).has(String(profile.role || ""))) {
+        return json({ error: "Your role cannot create a counter checkout" }, 403);
+      }
+      if (requestRow.request_mode !== "counter_qr") return json({ error: "Direct payment_request_id checkout is only for counter QR requests" }, 409);
+    }
+
+    if (requestRow.status === "pending" && /^https:\/\//i.test(String(requestRow.checkout_url || ""))) {
+      return json({ paymentRequestId: requestRow.id, provider: requestRow.provider, amount: Number(requestRow.amount || 0), currencyCode: String(requestRow.currency_code || "").toUpperCase(), checkoutUrl: requestRow.checkout_url, expiresAt: requestRow.expires_at || null });
+    }
     if (requestRow.status !== "prepared") return json({ error: "Payment request is no longer available for checkout creation" }, 409);
 
-    const [{ data: account, error: accountError }, { data: bill, error: billError }] = await Promise.all([
-      adminClient
-        .from("clinic_payment_accounts")
-        .select("id,provider,provider_account_id,provider_merchant_id,status,verification_status,payments_enabled,settlements_enabled")
-        .eq("id", requestRow.payment_account_id)
-        .eq("clinic_id", requestRow.clinic_id)
-        .single(),
-      adminClient
-        .from("consolidated_bills")
-        .select("id,invoice_number,country_code,currency_code,status")
-        .eq("id", requestRow.consolidated_bill_id)
-        .eq("clinic_id", requestRow.clinic_id)
-        .single(),
-    ]);
+    const { data: account, error: accountError } = await adminClient
+      .from("clinic_payment_accounts")
+      .select("id,provider,provider_account_id,provider_merchant_id,status,verification_status,payments_enabled,settlements_enabled")
+      .eq("id", requestRow.payment_account_id)
+      .eq("clinic_id", requestRow.clinic_id)
+      .single();
     if (accountError || !account) throw accountError || new Error("Clinic payment account not found");
-    if (billError || !bill) throw billError || new Error("Final invoice not found");
     if (
       account.id !== requestRow.payment_account_id ||
       account.provider !== requestRow.provider ||
@@ -242,6 +261,31 @@ Deno.serve(async (req) => {
       account.payments_enabled !== true ||
       account.settlements_enabled !== true
     ) return json({ error: "The receiving account bound to this payment request is not verified and enabled" }, 409);
+
+    let label = "CapDent patient payment";
+    if (requestRow.request_mode === "finalized_invoice") {
+      const { data: bill, error: billError } = await adminClient
+        .from("consolidated_bills")
+        .select("id,invoice_number,country_code,currency_code,status")
+        .eq("id", requestRow.consolidated_bill_id)
+        .eq("clinic_id", requestRow.clinic_id)
+        .single();
+      if (billError || !bill) throw billError || new Error("Final invoice not found");
+      label = `CapDent invoice ${String(bill.invoice_number || requestRow.id)}`;
+      if (String(bill.country_code).toUpperCase() !== String(requestRow.country_code).toUpperCase() || String(bill.currency_code).toUpperCase() !== String(requestRow.currency_code).toUpperCase()) {
+        return json({ error: "Payment request locale no longer matches the final invoice" }, 409);
+      }
+    } else {
+      const categoryLabels: Record<string, string> = {
+        op_fee: "OP / Consultation",
+        xray_fee: "X-ray",
+        medication_fee: "Medication",
+        treatment_fee: "Treatment",
+        pending_collection: "Pending Collection",
+        other: "Other",
+      };
+      label = `CapDent ${categoryLabels[String(requestRow.payment_category || "")] || "counter"} payment`;
+    }
 
     const { data: claimedRows, error: claimError } = await adminClient
       .from("patient_payment_requests")
@@ -256,15 +300,15 @@ Deno.serve(async (req) => {
     let created: { providerRequestId: string; checkoutUrl: string; expiresAt: string | null; environment: string };
     try {
       if (requestRow.provider === "phonepe") {
-        if (String(bill.country_code).toUpperCase() !== "IN" || String(bill.currency_code).toUpperCase() !== "INR") throw new Error("PhonePe is enabled only for Indian INR clinics");
+        if (String(requestRow.country_code).toUpperCase() !== "IN" || String(requestRow.currency_code).toUpperCase() !== "INR") throw new Error("PhonePe is enabled only for Indian INR clinics");
         const merchantId = String(account.provider_merchant_id || "").trim();
         if (!merchantId) throw new Error("Clinic PhonePe merchant ID is not configured");
-        created = await createPhonePeStandardCheckout({ requestId: requestRow.id, amount: Number(requestRow.amount || 0), currencyCode: String(requestRow.currency_code || "").toUpperCase(), merchantId, invoiceNumber: String(bill.invoice_number || requestRow.id) });
+        created = await createPhonePeStandardCheckout({ requestId: requestRow.id, amount: Number(requestRow.amount || 0), currencyCode: String(requestRow.currency_code || "").toUpperCase(), merchantId, label });
       } else {
-        if (String(bill.country_code).toUpperCase() === "IN") throw new Error("Indian clinics must use PhonePe for V28 patient invoice payments");
+        if (String(requestRow.country_code).toUpperCase() === "IN") throw new Error("Indian clinics must use PhonePe for V28 patient payments");
         const connectedAccountId = String(account.provider_account_id || "").trim();
         if (!connectedAccountId) throw new Error("Clinic card receiving account is not configured");
-        created = await createStripeCardCheckout({ requestId: requestRow.id, amount: Number(requestRow.amount || 0), currencyCode: String(requestRow.currency_code || "").toUpperCase(), connectedAccountId, invoiceNumber: String(bill.invoice_number || requestRow.id) });
+        created = await createStripeCardCheckout({ requestId: requestRow.id, amount: Number(requestRow.amount || 0), currencyCode: String(requestRow.currency_code || "").toUpperCase(), connectedAccountId, label });
       }
     } catch (error) {
       await adminClient.from("patient_payment_requests").update({ status: "failed", provider_status: "checkout_failed", failure_code: requestRow.provider === "phonepe" ? "phonepe_checkout_failed" : "card_checkout_failed", failure_message: "Provider checkout creation failed. No CapDent payment was recorded.", last_checked_at: new Date().toISOString() }).eq("id", requestRow.id).eq("status", "provider_pending");
@@ -273,7 +317,7 @@ Deno.serve(async (req) => {
 
     const { error: attachError } = await adminClient.rpc("attach_v28_provider_checkout", { p_payment_request_id: requestRow.id, p_provider_request_id: created.providerRequestId, p_checkout_url: created.checkoutUrl, p_expires_at: created.expiresAt });
     if (attachError) throw attachError;
-    return json({ paymentRequestId: requestRow.id, provider: requestRow.provider, amount: Number(requestRow.amount || 0), currencyCode: String(requestRow.currency_code || "").toUpperCase(), checkoutUrl: created.checkoutUrl, expiresAt: created.expiresAt, environment: created.environment });
+    return json({ paymentRequestId: requestRow.id, provider: requestRow.provider, amount: Number(requestRow.amount || 0), currencyCode: String(requestRow.currency_code || "").toUpperCase(), checkoutUrl: created.checkoutUrl, expiresAt: created.expiresAt, environment: created.environment, requestMode: requestRow.request_mode, paymentCategory: requestRow.payment_category || null });
   } catch (error) {
     console.error("Patient payment checkout error", error instanceof Error ? error.message : error);
     return json({ error: error instanceof Error ? error.message : "Patient payment checkout failed" }, 500);
