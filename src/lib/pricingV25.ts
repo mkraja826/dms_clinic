@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { CAPDENT_V25_LIMITS, formatStorageBytes } from "@/lib/v25Limits";
 
 export const CAPDENT_TERMS_VERSION = "2026-08-14";
-export const CAPDENT_PRIVACY_VERSION = "2026-08-14";
+export const CAPDENT_PRIVACY_VERSION = "2026-08-27";
 export const CAPDENT_APP_VERSION = Constants.expoConfig?.version ?? null;
 
 const CAPDENT_LEGAL_CONSENT_CACHE_PREFIX = "capdent:v25:legal-consent";
