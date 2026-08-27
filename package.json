@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "build:android": "npm run build:android:play-internal",
     "build:android:apk": "npm run check:v28:rc && npm run verify:android-signing && eas build --platform android --profile preview",
+    "build:android:v28-test": "npm run check:v28:feature && npm run verify:android-signing && eas build --platform android --profile v28-test",
     "build:android:aab": "npm run build:android:play-internal",
     "build:android:play-internal": "npm run check:v28:rc && npm run verify:android-signing && eas build --platform android --profile play-internal",
     "build:android:production": "npm run check:v28:rc && npm run verify:android-signing && eas build --platform android --profile production",
