@@ -27,8 +27,8 @@ jobs:
           node-version: 22.13.1
           cache: npm
 
-      - name: Install locked dependencies
-        run: npm ci
+      - name: Refresh dependency lockfile
+        run: npm install
 
       - name: Align Expo SDK 57 patch versions
         run: npx expo install --fix
