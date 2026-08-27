@@ -6,11 +6,11 @@ const read = (path) => readFileSync(path, "utf8");
 
 const paths = {
   accountMigration: "supabase/migrations/20260826173000_capdent_v28_clinic_payment_accounts.sql",
-  multiAccountMigration: "supabase/migrations/20260827193000_capdent_v28_multi_payment_accounts.sql",
-  verificationMigration: "supabase/migrations/20260827201500_capdent_v28_payment_account_verification.sql",
+  multiAccountMigration: "supabase/migrations/20260827190000_capdent_v28_multiple_payment_accounts.sql",
+  verificationMigration: "supabase/migrations/20260827211500_capdent_v28_phonepe_account_verification_lifecycle.sql",
   counterMigration: "supabase/migrations/20260827224500_capdent_v28_counter_qr_payments.sql",
-  lifecycleMigration: "supabase/migrations/20260827242500_capdent_v28_counter_qr_lifecycle_hardening.sql",
-  cancelMigration: "supabase/migrations/20260827243800_capdent_v28_cancel_counter_qr.sql",
+  lifecycleMigration: "supabase/migrations/20260827233000_capdent_v28_counter_qr_lifecycle_hardening.sql",
+  cancelMigration: "supabase/migrations/20260827201500_capdent_v28_cancel_counter_qr.sql",
   checkout: "supabase/functions/create-patient-payment-checkout/index.ts",
   counterCheckout: "supabase/functions/create-counter-payment-checkout/index.ts",
   qrFunction: "supabase/functions/get-counter-payment-qr/index.ts",
@@ -46,7 +46,7 @@ if (!failures.length) {
   expect(accountMigration.includes("create table if not exists public.clinic_payment_accounts"), "Clinic payment account table is required.");
   expect(accountMigration.includes("revoke all on table public.clinic_payment_accounts from anon, authenticated"), "Android must not directly mutate clinic payment accounts.");
   expect(multi.includes("account_label") && multi.includes("is_default"), "Multiple receiving accounts must have labels and a default flag.");
-  expect(multi.includes("provider_merchant_id") && multi.includes("unique"), "Duplicate clinic merchant identities must be constrained.");
+  expect(multi.includes("provider_merchant_id") && multi.toLowerCase().includes("unique"), "Duplicate clinic merchant identities must be constrained.");
 
   expect(verification.includes("verification_status") && verification.includes("verified"), "Merchant verification lifecycle is required.");
   expect(verification.includes("service_role"), "Merchant verification transition must be service-role gated.");
@@ -70,7 +70,7 @@ if (!failures.length) {
 
   expect(counterCheckout.includes("payment_request_id") && counterCheckout.includes("request_mode"), "Counter checkout must require a prepared counter payment request.");
   expect(counterCheckout.includes("provider_merchant_id") && counterCheckout.includes("X-MERCHANT-ID"), "Counter checkout must identify the clinic merchant account.");
-  expect(qrFunction.includes("qrSvg") || qrFunction.includes("svg"), "Counter payment QR function must render a server-authorized checkout URL.");
+  expect(qrFunction.includes("qrSvg") || qrFunction.toLowerCase().includes("svg"), "Counter payment QR function must render a server-authorized checkout URL.");
   expect(counterClient.includes('supabase.functions.invoke("create-counter-payment-checkout"'), "Android counter flow must use isolated server checkout.");
   expect(counterClient.includes('supabase.rpc("cancel_v28_counter_payment_request"'), "Android must retire an old counter QR server-side.");
   expect(counterScreen.includes("Waiting for payment") && counterScreen.includes("Paid & recorded") && counterScreen.includes("Needs review"), "Reception UI must expose clear payment states.");
