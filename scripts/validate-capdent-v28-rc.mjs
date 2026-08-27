@@ -26,9 +26,11 @@ for (const path of [
   "supabase/functions/get-counter-payment-qr/index.ts",
   "supabase/functions/phonepe-patient-payment-webhook/index.ts",
   "supabase/functions/manage-phonepe-payment-accounts/index.ts",
+  "supabase/migrations/20260827190000_capdent_v28_multiple_payment_accounts.sql",
+  "supabase/migrations/20260827211500_capdent_v28_phonepe_account_verification_lifecycle.sql",
   "supabase/migrations/20260827224500_capdent_v28_counter_qr_payments.sql",
-  "supabase/migrations/20260827242500_capdent_v28_counter_qr_lifecycle_hardening.sql",
-  "supabase/migrations/20260827243800_capdent_v28_cancel_counter_qr.sql",
+  "supabase/migrations/20260827233000_capdent_v28_counter_qr_lifecycle_hardening.sql",
+  "supabase/migrations/20260827201500_capdent_v28_cancel_counter_qr.sql",
 ]) {
   expect(existsSync(path), `V28 RC required path is missing: ${path}`);
 }
