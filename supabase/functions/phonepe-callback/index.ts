@@ -4,6 +4,7 @@ import {
   getPhonePeOrderStatus,
   isValidPhonePeCallbackAuthorization,
   requiredEnv,
+  safePhonePeOrderStatusSnapshot,
 } from "../_shared/phonepeV27.ts";
 
 function json(body: unknown, status = 200) {
@@ -83,7 +84,7 @@ Deno.serve(async (req) => {
         p_phonepe_state: settlementState,
         p_phonepe_order_id: status.orderId || callbackPhonePeOrderId || null,
         p_phonepe_transaction_id: transactionId,
-        p_status_payload: status,
+        p_status_payload: safePhonePeOrderStatusSnapshot(status),
       }
     );
     if (settlementError) throw settlementError;
