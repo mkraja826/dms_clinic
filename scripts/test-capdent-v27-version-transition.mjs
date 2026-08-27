@@ -1,3 +1,4 @@
+// CI-only proof that V27 can advance beyond the frozen V26 release numbers.
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 
