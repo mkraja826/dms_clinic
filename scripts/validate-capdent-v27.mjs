@@ -12,11 +12,11 @@ const rcMode =
   process.argv.includes("--rc") || process.env.CAPDENT_V27_RC === "true";
 
 try {
-  execFileSync(process.execPath, ["scripts/validate-capdent-v26.mjs"], {
+  execFileSync(process.execPath, ["scripts/validate-capdent-v26-frozen.mjs"], {
     stdio: "inherit",
   });
 } catch {
-  failures.push("V26 production baseline validation must continue to pass before V27 changes can ship.");
+  failures.push("The certified frozen V26 baseline must validate independently before V27 changes can ship.");
 }
 
 const patientsScreen = readText("src/app/(tabs)/patients.tsx");
