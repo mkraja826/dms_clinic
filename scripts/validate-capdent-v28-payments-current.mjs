@@ -54,7 +54,11 @@ if (!failures.length) {
   expect(managePhonePe.includes('new Set(["owner", "head_doctor"])'), "Only owner/head doctor may manage PhonePe accounts.");
   expect(managePhonePe.includes("verification_status") && managePhonePe.includes("pending"), "New PhonePe accounts must remain pending until trusted verification.");
   expect(ownerScreen.includes("Manage PhonePe Accounts") || ownerScreen.includes("Add PhonePe Merchant Account"), "Owner payment settings must expose PhonePe account management.");
-  expect(phonePeAccounts.includes("set_default") && phonePeAccounts.includes("disable"), "PhonePe account screen must support default selection and disable actions.");
+  expect(
+    phonePeAccounts.includes("setDefaultPhonePePaymentAccount") && phonePeAccounts.includes("disablePhonePePaymentAccount") &&
+      phonePeAccounts.includes("Set as Default") && phonePeAccounts.includes("Disable Account"),
+    "PhonePe account screen must support default selection and disable actions."
+  );
 
   expect(checkout.includes('String(requestRow.country_code).toUpperCase() === "IN"') && checkout.includes("Indian clinics must use PhonePe"), "Card checkout must refuse explicitly Indian clinic requests.");
   expect(checkout.includes("verification_status") && checkout.includes('account.verification_status !== "verified"'), "Checkout must require the locked receiving account to remain verified.");
