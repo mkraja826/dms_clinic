@@ -35,9 +35,7 @@ expect(
   "V27 PhonePe credentials and callback authentication must remain server-side Edge Function secrets."
 );
 expect(
-  helper.includes('Deno.env.get("PHONEPE_ENV")') &&
-    helper.includes('=== "production"') &&
-    helper.includes('return "sandbox"'),
+  /Deno\.env\.get\("PHONEPE_ENV"\)[\s\S]*===\s*"production"[\s\S]*\?\s*"production"[\s\S]*:\s*"sandbox"/.test(helper),
   "V27 PhonePe server integration must default to sandbox unless production is explicitly selected."
 );
 expect(
