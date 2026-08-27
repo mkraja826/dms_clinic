@@ -41,6 +41,7 @@ export default function HeadMoreToolsScreen() {
 
       <ToolSection title="Owner Review">
         <ToolRow title="Clinic Report" subtitle="Daily closing summary and owner export" icon="analytics-outline" target="/reports/clinic" />
+        <ToolRow title="Verified Online Payments" subtitle="Receiving account and OP, X-ray, medication, treatment allocation" icon="shield-checkmark-outline" target="/reports/online-payments" />
         <ToolRow title="Clinic Intelligence" subtitle="Owner insight preview, clinic flow, and future analytics" icon="sparkles-outline" target="/reports/owner-review" />
         <ToolRow title="Owner Review" subtitle="Follow-ups, dues, and attention items" icon="clipboard-outline" target="/reports/owner-review" />
         <ToolRow title="Treatment Report" subtitle="Planned, ongoing, complete, and pending value" icon="construct-outline" target="/reports/treatments" />
