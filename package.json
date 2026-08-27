@@ -30,7 +30,7 @@
     "validate:v27": "node scripts/validate-capdent-v27.mjs",
     "validate:v27:rc": "node scripts/validate-capdent-v27.mjs --rc",
     "validate:v28:feature": "node scripts/validate-capdent-v28-feature.mjs",
-    "validate:v28:patient-payments": "node scripts/validate-capdent-v28-patient-payments.mjs",
+    "validate:v28:patient-payments": "node scripts/validate-capdent-v28-payments-current.mjs",
     "validate:v28:rc": "node scripts/validate-capdent-v28-rc.mjs",
     "verify:android-signing": "node scripts/verify-android-signing.mjs",
     "check:v18": "npm run prepare:v18 && npm run validate:v18 && npm run typecheck",
