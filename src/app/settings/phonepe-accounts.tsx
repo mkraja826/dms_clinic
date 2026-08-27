@@ -16,11 +16,59 @@ import {
   type PhonePePaymentAccount,
 } from "@/lib/phonePePaymentAccounts";
 
-function tone(status: string): "primary" | "success" | "warning" | "danger" {
-  if (status === "connected") return "success";
-  if (status === "pending") return "warning";
-  if (status === "disabled" || status === "restricted") return "danger";
-  return "primary";
+type Readiness = {
+  label: string;
+  description: string;
+  tone: "primary" | "success" | "warning" | "danger";
+  icon: keyof typeof Ionicons.glyphMap;
+};
+
+function accountReadiness(account: PhonePePaymentAccount): Readiness {
+  if (account.status === "disabled") {
+    return {
+      label: "Disabled",
+      description: "This account cannot receive new CapDent patient payments.",
+      tone: "danger",
+      icon: "ban-outline",
+    };
+  }
+
+  if (account.status === "restricted") {
+    return {
+      label: "Restricted",
+      description: "Provider verification did not confirm this account is ready to receive payments.",
+      tone: "danger",
+      icon: "warning-outline",
+    };
+  }
+
+  if (
+    account.status === "connected" &&
+    account.paymentsEnabled &&
+    account.settlementsEnabled
+  ) {
+    if (account.isDefault) {
+      return {
+        label: "Default receiving account",
+        description: "New patient QR payments will be routed to this clinic account.",
+        tone: "success",
+        icon: "checkmark-circle-outline",
+      };
+    }
+    return {
+      label: "Ready to receive",
+      description: "Verified and ready. Set it as default when you want new QR payments routed here.",
+      tone: "success",
+      icon: "shield-checkmark-outline",
+    };
+  }
+
+  return {
+    label: "Pending verification",
+    description: "Added successfully. Patient payments stay off until CapDent verifies this merchant account.",
+    tone: "warning",
+    icon: "time-outline",
+  };
 }
 
 export default function PhonePeAccountsScreen() {
@@ -38,7 +86,10 @@ export default function PhonePeAccountsScreen() {
       setLoading(true);
       setAccounts(await listPhonePePaymentAccounts());
     } catch (error) {
-      Alert.alert("Could not load PhonePe accounts", error instanceof Error ? error.message : "Please try again.");
+      Alert.alert(
+        "Could not load PhonePe accounts",
+        error instanceof Error ? error.message : "Please try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -51,7 +102,10 @@ export default function PhonePeAccountsScreen() {
   async function addAccount() {
     if (!canManage || busy) return;
     if (!merchantId.trim()) {
-      Alert.alert("Merchant ID required", "Enter the PhonePe Merchant ID provided for this clinic account.");
+      Alert.alert(
+        "Merchant ID required",
+        "Enter the PhonePe Merchant ID provided for this clinic account."
+      );
       return;
     }
 
@@ -63,10 +117,13 @@ export default function PhonePeAccountsScreen() {
       await load();
       Alert.alert(
         "Account added",
-        "The merchant account is pending verification. Patient payments remain off until CapDent verifies PhonePe payment and settlement readiness."
+        "The merchant account is pending verification. Patient payments remain off until CapDent confirms it is ready to receive and settle payments."
       );
     } catch (error) {
-      Alert.alert("Could not add PhonePe account", error instanceof Error ? error.message : "Please try again.");
+      Alert.alert(
+        "Could not add PhonePe account",
+        error instanceof Error ? error.message : "Please try again."
+      );
     } finally {
       setBusy(false);
     }
@@ -79,7 +136,10 @@ export default function PhonePeAccountsScreen() {
       await setDefaultPhonePePaymentAccount(account.id);
       await load();
     } catch (error) {
-      Alert.alert("Could not set default account", error instanceof Error ? error.message : "Please try again.");
+      Alert.alert(
+        "Could not set default account",
+        error instanceof Error ? error.message : "Please try again."
+      );
     } finally {
       setBusy(false);
     }
@@ -107,7 +167,10 @@ export default function PhonePeAccountsScreen() {
       await disablePhonePePaymentAccount(account.id);
       await load();
     } catch (error) {
-      Alert.alert("Could not disable account", error instanceof Error ? error.message : "Please try again.");
+      Alert.alert(
+        "Could not disable account",
+        error instanceof Error ? error.message : "Please try again."
+      );
     } finally {
       setBusy(false);
     }
@@ -126,14 +189,64 @@ export default function PhonePeAccountsScreen() {
     );
   }
 
+  const readyCount = accounts.filter(
+    (account) =>
+      account.status === "connected" && account.paymentsEnabled && account.settlementsEnabled
+  ).length;
+  const defaultAccount = accounts.find((account) => account.isDefault);
+
   return (
     <Screen refreshing={loading} onRefresh={() => void load()}>
       <Header />
 
-      <SectionCard
-        title="Add PhonePe merchant account"
-        subtitle="Add only the Merchant ID. Never enter PhonePe passwords, OTPs, API keys, salts, UPI PINs, or bank credentials into CapDent."
+      <View
+        style={{
+          padding: 14,
+          borderRadius: 20,
+          backgroundColor: defaultAccount ? colors.successSoft : colors.warningSoft,
+          borderWidth: 1,
+          borderColor: defaultAccount ? colors.success : colors.warning,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 12,
+        }}
       >
+        <Ionicons
+          name={defaultAccount ? "checkmark-circle-outline" : "alert-circle-outline"}
+          size={28}
+          color={defaultAccount ? colors.success : colors.warning}
+        />
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: colors.text, fontWeight: "900", fontSize: 16 }}>
+            {defaultAccount ? "Patient payments ready" : "Receiving account not ready"}
+          </Text>
+          <Text style={{ color: colors.muted, marginTop: 3, lineHeight: 19 }}>
+            {defaultAccount
+              ? `${defaultAccount.label} is the default account for new patient QR payments.`
+              : readyCount > 0
+                ? "A verified account is available. Select one as the default receiving account."
+                : "Add a merchant account and complete verification before QR collections can start."}
+          </Text>
+        </View>
+      </View>
+
+      <SectionCard title="Add receiving account">
+        <View
+          style={{
+            padding: 12,
+            borderRadius: 16,
+            backgroundColor: colors.infoSoft,
+            flexDirection: "row",
+            gap: 10,
+            alignItems: "flex-start",
+          }}
+        >
+          <Ionicons name="shield-checkmark-outline" size={21} color={colors.primary} />
+          <Text style={{ flex: 1, color: colors.text, lineHeight: 19, fontSize: 13 }}>
+            Enter only the PhonePe Merchant ID. CapDent will never ask for your UPI PIN, OTP, bank password, API key, or PhonePe password.
+          </Text>
+        </View>
+
         <View style={{ gap: 8 }}>
           <Text style={{ color: colors.text, fontWeight: "800" }}>Account label</Text>
           <TextInput
@@ -143,16 +256,17 @@ export default function PhonePeAccountsScreen() {
             placeholderTextColor={colors.muted}
             maxLength={80}
             style={{
-              minHeight: 50,
+              minHeight: 52,
               borderWidth: 1,
               borderColor: colors.border,
-              borderRadius: 14,
+              borderRadius: 16,
               paddingHorizontal: 14,
               color: colors.text,
-              backgroundColor: colors.surface,
+              backgroundColor: colors.background,
             }}
           />
         </View>
+
         <View style={{ gap: 8 }}>
           <Text style={{ color: colors.text, fontWeight: "800" }}>PhonePe Merchant ID</Text>
           <TextInput
@@ -163,75 +277,137 @@ export default function PhonePeAccountsScreen() {
             placeholder="Enter Merchant ID"
             placeholderTextColor={colors.muted}
             style={{
-              minHeight: 50,
+              minHeight: 52,
               borderWidth: 1,
               borderColor: colors.border,
-              borderRadius: 14,
+              borderRadius: 16,
               paddingHorizontal: 14,
               color: colors.text,
-              backgroundColor: colors.surface,
+              backgroundColor: colors.background,
+              fontWeight: "700",
             }}
           />
         </View>
+
         <AppButton
-          title="Add PhonePe Account"
+          title="Add Merchant Account"
           icon="add-circle-outline"
           onPress={() => void addAccount()}
           loading={busy}
           loadingTitle="Adding account…"
+          disabled={!merchantId.trim() || busy}
         />
       </SectionCard>
 
-      <SectionCard
-        title="Clinic PhonePe accounts"
-        subtitle="Only a fully verified account can be selected as the default receiving account."
-      >
-        {accounts.length === 0 ? (
-          <Text style={{ color: colors.muted, lineHeight: 20 }}>
-            No PhonePe merchant accounts have been added yet.
-          </Text>
-        ) : (
-          <View style={{ gap: 12 }}>
-            {accounts.map((account) => (
+      <View style={{ gap: 8 }}>
+        <Text style={{ color: colors.text, fontSize: 18, fontWeight: "900" }}>
+          Receiving accounts
+        </Text>
+        <Text style={{ color: colors.muted, lineHeight: 19 }}>
+          {accounts.length
+            ? `${accounts.length} account${accounts.length === 1 ? "" : "s"} added • ${readyCount} ready to receive`
+            : "No PhonePe merchant accounts have been added yet."}
+        </Text>
+      </View>
+
+      {accounts.length ? (
+        <View style={{ gap: 12 }}>
+          {accounts.map((account) => {
+            const readiness = accountReadiness(account);
+            const canSetDefault =
+              !account.isDefault &&
+              account.status === "connected" &&
+              account.paymentsEnabled &&
+              account.settlementsEnabled;
+
+            return (
               <View
                 key={account.id}
                 style={{
-                  borderWidth: 1,
-                  borderColor: account.isDefault ? colors.primary : colors.border,
-                  borderRadius: 18,
-                  padding: 14,
-                  gap: 10,
-                  backgroundColor: account.isDefault ? colors.primarySoft : colors.surface,
+                  borderWidth: account.isDefault ? 2 : 1,
+                  borderColor: account.isDefault ? colors.success : colors.border,
+                  borderRadius: 20,
+                  padding: 15,
+                  gap: 12,
+                  backgroundColor: account.isDefault ? colors.successSoft : colors.surface,
                 }}
               >
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: colors.text, fontSize: 16, fontWeight: "900" }}>{account.label}</Text>
-                    <Text style={{ color: colors.muted, marginTop: 3 }}>{account.merchantIdMasked || "Merchant ID unavailable"}</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 11 }}>
+                  <View
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 16,
+                      backgroundColor:
+                        readiness.tone === "success"
+                          ? colors.successSoft
+                          : readiness.tone === "warning"
+                            ? colors.warningSoft
+                            : readiness.tone === "danger"
+                              ? colors.dangerSoft
+                              : colors.surfaceSoft,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Ionicons
+                      name={readiness.icon}
+                      size={23}
+                      color={
+                        readiness.tone === "success"
+                          ? colors.success
+                          : readiness.tone === "warning"
+                            ? colors.warning
+                            : readiness.tone === "danger"
+                              ? colors.danger
+                              : colors.primary
+                      }
+                    />
                   </View>
-                  <StatusBadge label={account.isDefault ? "Default" : account.status} tone={account.isDefault ? "success" : tone(account.status)} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: colors.text, fontSize: 16, fontWeight: "900" }}>
+                      {account.label}
+                    </Text>
+                    <Text style={{ color: colors.muted, marginTop: 3, fontSize: 12 }}>
+                      {account.merchantIdMasked || "Merchant ID unavailable"}
+                    </Text>
+                  </View>
+                  <StatusBadge label={readiness.label} tone={readiness.tone} />
                 </View>
 
-                <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
-                  <StatusBadge label={account.paymentsEnabled ? "Payments enabled" : "Payments off"} tone={account.paymentsEnabled ? "success" : "primary"} />
-                  <StatusBadge label={account.settlementsEnabled ? "Settlements enabled" : "Settlements off"} tone={account.settlementsEnabled ? "success" : "primary"} />
-                </View>
+                <Text style={{ color: colors.muted, lineHeight: 19 }}>{readiness.description}</Text>
 
                 {account.status !== "disabled" ? (
                   <View style={{ gap: 8 }}>
-                    <AppButton
-                      title={account.isDefault ? "Default Receiving Account" : "Set as Default"}
-                      icon="checkmark-circle-outline"
-                      variant="secondary"
-                      onPress={() => void makeDefault(account)}
-                      disabled={
-                        account.isDefault ||
-                        account.status !== "connected" ||
-                        !account.paymentsEnabled ||
-                        !account.settlementsEnabled ||
-                        busy
-                      }
-                    />
+                    {canSetDefault ? (
+                      <AppButton
+                        title="Use for New QR Payments"
+                        icon="checkmark-circle-outline"
+                        onPress={() => void makeDefault(account)}
+                        disabled={busy}
+                      />
+                    ) : account.isDefault ? (
+                      <View
+                        style={{
+                          minHeight: 48,
+                          borderRadius: 16,
+                          paddingHorizontal: 14,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 8,
+                          backgroundColor: colors.surface,
+                          borderWidth: 1,
+                          borderColor: colors.success,
+                        }}
+                      >
+                        <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+                        <Text style={{ color: colors.success, fontWeight: "900" }}>
+                          Receiving New Payments
+                        </Text>
+                      </View>
+                    ) : null}
+
                     <AppButton
                       title="Disable Account"
                       icon="ban-outline"
@@ -242,16 +418,14 @@ export default function PhonePeAccountsScreen() {
                   </View>
                 ) : null}
               </View>
-            ))}
-          </View>
-        )}
-      </SectionCard>
+            );
+          })}
+        </View>
+      ) : null}
 
-      <SectionCard title="Safety rule">
-        <Text style={{ color: colors.muted, lineHeight: 20 }}>
-          Adding a Merchant ID does not activate payments. CapDent keeps the account pending until provider verification confirms that patient payments and settlements are enabled.
-        </Text>
-      </SectionCard>
+      <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 18, textAlign: "center" }}>
+        Adding a Merchant ID never activates payments by itself. Only a verified account can receive new CapDent QR payments.
+      </Text>
     </Screen>
   );
 }
@@ -276,9 +450,11 @@ function Header() {
         <Ionicons name="arrow-back-outline" size={22} color={colors.primary} />
       </Pressable>
       <View style={{ flex: 1 }}>
-        <Text style={{ color: colors.text, fontSize: 27, fontWeight: "900" }}>PhonePe Accounts</Text>
+        <Text style={{ color: colors.text, fontSize: 27, fontWeight: "900" }}>
+          PhonePe Accounts
+        </Text>
         <Text style={{ color: colors.muted, marginTop: 2, lineHeight: 20 }}>
-          Manage the clinic's patient-payment receiving accounts.
+          Choose where this clinic receives patient QR payments.
         </Text>
       </View>
     </View>
