@@ -4,7 +4,6 @@ import { join } from "node:path";
 const readText = (path) => readFileSync(path, "utf8");
 const readJson = (path) => JSON.parse(readText(path));
 const failures = [];
-const notes = [];
 const expect = (condition, message) => {
   if (!condition) failures.push(message);
 };
@@ -14,6 +13,8 @@ const rcMode =
 
 const pkg = readJson("package.json");
 const app = readJson("app.json");
+const eas = readJson("eas.json");
+const firebaseConfig = readJson("firebase.json");
 const legalLinks = readText("src/lib/legalLinks.ts");
 const legalConsent = readText("src/app/legal-consent.tsx");
 const legalAccount = readText("src/app/settings/legal.tsx");
@@ -21,6 +22,10 @@ const deleteAccount = readText("src/app/settings/delete-account.tsx");
 const doctorMore = readText("src/app/(doctor)/more.tsx");
 const headMore = readText("src/app/(head)/more.tsx");
 const receptionMore = readText("src/app/(reception)/more.tsx");
+const pricing = readText("src/lib/pricingV25.ts");
+const crashlyticsCore = readText("src/lib/firebaseCrashlytics.ts");
+const crashlyticsNative = readText("src/lib/firebaseCrashlyticsAdapter.native.ts");
+const firebaseCoordinator = readText("src/components/FirebaseAnalyticsCoordinator.tsx");
 const dataSafety = existsSync("PLAY_STORE_DATA_SAFETY_DMS.md")
   ? readText("PLAY_STORE_DATA_SAFETY_DMS.md")
   : "";
@@ -58,6 +63,10 @@ expect(
     legalConsent.includes("recordCapDentLegalConsent") &&
     legalConsent.includes("CAPDENT_APP_VERSION"),
   "V27 must require explicit Terms/Privacy acceptance and record the packaged app version server-side."
+);
+expect(
+  pricing.includes('CAPDENT_PRIVACY_VERSION = "2026-08-27"'),
+  "V27 must require fresh consent for the 27 August 2026 Privacy Policy that discloses Crashlytics."
 );
 expect(
   legalAccount.includes('router.push("/settings/delete-account"') &&
@@ -156,29 +165,63 @@ const plugins = (app.expo?.plugins || []).map((plugin) =>
 );
 const firebaseAppVersion = pkg.dependencies?.["@react-native-firebase/app"] || null;
 const crashlyticsVersion = pkg.dependencies?.["@react-native-firebase/crashlytics"] || null;
-const crashlyticsPluginPresent = plugins.includes("@react-native-firebase/crashlytics");
 
-if (crashlyticsVersion) {
+expect(
+  crashlyticsVersion === firebaseAppVersion && crashlyticsVersion === "26.2.0",
+  "V27 Crashlytics must be installed at the same pinned 26.2.0 version as @react-native-firebase/app."
+);
+expect(
+  plugins.includes("@react-native-firebase/crashlytics"),
+  "V27 Crashlytics must be configured as an Expo config plugin."
+);
+expect(
+  firebaseConfig?.["react-native"]?.crashlytics_auto_collection_enabled === false,
+  "V27 native Crashlytics auto-collection must default off until a release profile explicitly enables it."
+);
+for (const profile of ["development", "preview"]) {
   expect(
-    crashlyticsVersion === firebaseAppVersion,
-    "V27 Crashlytics must use the same React Native Firebase version as @react-native-firebase/app."
+    eas.build?.[profile]?.env?.EXPO_PUBLIC_ENABLE_FIREBASE_CRASHLYTICS === "false",
+    `V27 ${profile} builds must keep Crashlytics collection disabled.`
   );
-  expect(
-    crashlyticsPluginPresent,
-    "V27 Crashlytics dependency must also be configured as an Expo config plugin."
-  );
-  expect(
-    /Crashlytics/i.test(dataSafety),
-    "V27 Play Store data-safety documentation must be reviewed and explicitly mention Crashlytics when crash reporting is installed."
-  );
-} else {
-  notes.push("Crashlytics is not installed yet; V27 RC mode will block release until it is configured and data-safety documentation is reviewed.");
 }
+for (const profile of ["play-internal", "production"]) {
+  expect(
+    eas.build?.[profile]?.env?.EXPO_PUBLIC_ENABLE_FIREBASE_CRASHLYTICS === "true",
+    `V27 ${profile} release builds must enable Crashlytics collection.`
+  );
+}
+expect(
+  crashlyticsCore.includes("EXPO_PUBLIC_ENABLE_FIREBASE_CRASHLYTICS") &&
+    crashlyticsCore.includes("setCollectionEnabled") &&
+    crashlyticsNative.includes("setCrashlyticsCollectionEnabled") &&
+    firebaseCoordinator.includes("initializeFirebaseCrashlytics") &&
+    firebaseCoordinator.includes("installFirebaseCrashlyticsAdapter"),
+  "V27 Crashlytics must use the release flag through the native adapter and existing Firebase coordinator."
+);
+const crashlyticsSources = `${crashlyticsCore}\n${crashlyticsNative}\n${firebaseCoordinator}`;
+for (const forbidden of [
+  "setUserId",
+  "setAttribute(",
+  "setAttributes(",
+  "recordError(",
+  "crash(",
+]) {
+  expect(
+    !crashlyticsSources.includes(forbidden),
+    `V27 Crashlytics integration must not expose ${forbidden} with clinic or patient context.`
+  );
+}
+expect(
+  /Firebase Crashlytics/i.test(dataSafety) &&
+    /Crash logs \/ diagnostics/i.test(dataSafety) &&
+    /App info and performance/i.test(dataSafety),
+  "V27 Play Store data-safety documentation must disclose Firebase Crashlytics diagnostics/app performance data."
+);
 
 if (rcMode) {
   expect(
-    Boolean(crashlyticsVersion) && crashlyticsPluginPresent,
-    "V27 RC requires Firebase Crashlytics to be installed and configured before release."
+    Boolean(crashlyticsVersion) && plugins.includes("@react-native-firebase/crashlytics"),
+    "V27 RC requires Firebase Crashlytics to remain installed and configured."
   );
 }
 
@@ -189,4 +232,3 @@ if (failures.length > 0) {
 }
 
 console.log(`CapDent V27 production-safety validation passed${rcMode ? " (RC mode)" : ""}.`);
-for (const note of notes) console.log(`Note: ${note}`);
