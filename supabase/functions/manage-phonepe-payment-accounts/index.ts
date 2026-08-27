@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
     if (action === "list") {
       const { data, error } = await adminClient
         .from("clinic_payment_accounts")
-        .select("id,account_label,provider_merchant_id,status,payments_enabled,settlements_enabled,is_default,connected_at,last_verified_at,disabled_at,created_at")
+        .select("id,account_label,provider_merchant_id,status,verification_status,verification_method,verification_checked_at,verification_failure_reason,payments_enabled,settlements_enabled,is_default,connected_at,last_verified_at,disabled_at,created_at")
         .eq("clinic_id", profile.clinic_id)
         .eq("provider", "phonepe")
         .order("is_default", { ascending: false })
@@ -96,6 +96,10 @@ Deno.serve(async (req) => {
           label: row.account_label,
           merchantIdMasked: maskMerchantId(row.provider_merchant_id),
           status: row.status,
+          verificationStatus: row.verification_status,
+          verificationMethod: row.verification_method,
+          verificationCheckedAt: row.verification_checked_at,
+          verificationFailureReason: row.verification_failure_reason,
           paymentsEnabled: row.payments_enabled,
           settlementsEnabled: row.settlements_enabled,
           isDefault: row.is_default,
@@ -142,6 +146,11 @@ Deno.serve(async (req) => {
           account_label: label,
           is_default: false,
           status: "pending",
+          verification_status: "pending",
+          verification_method: null,
+          verification_reference: null,
+          verification_checked_at: null,
+          verification_failure_reason: null,
           payments_enabled: false,
           settlements_enabled: false,
           connected_by: profile.id,
@@ -149,7 +158,7 @@ Deno.serve(async (req) => {
           last_verified_at: null,
           disabled_at: null,
         })
-        .select("id,account_label,status,is_default,created_at")
+        .select("id,account_label,status,verification_status,is_default,created_at")
         .single();
       if (insertError) throw insertError;
 
@@ -159,6 +168,7 @@ Deno.serve(async (req) => {
           label: inserted.account_label,
           merchantIdMasked: maskMerchantId(merchantId),
           status: inserted.status,
+          verificationStatus: inserted.verification_status,
           isDefault: inserted.is_default,
         },
         message: "Merchant account added for verification. Patient payments remain disabled until CapDent verifies the PhonePe account.",
@@ -172,7 +182,7 @@ Deno.serve(async (req) => {
 
     const { data: account, error: accountError } = await adminClient
       .from("clinic_payment_accounts")
-      .select("id,status,payments_enabled,settlements_enabled,is_default")
+      .select("id,status,verification_status,payments_enabled,settlements_enabled,is_default")
       .eq("id", accountId)
       .eq("clinic_id", profile.clinic_id)
       .eq("provider", "phonepe")
@@ -180,8 +190,13 @@ Deno.serve(async (req) => {
     if (accountError || !account) return json({ error: "PhonePe account not found in this clinic" }, 404);
 
     if (action === "set_default") {
-      if (account.status !== "connected" || account.payments_enabled !== true || account.settlements_enabled !== true) {
-        return json({ error: "Only a fully verified and payment-enabled PhonePe account can be made default" }, 409);
+      if (
+        account.status !== "connected" ||
+        account.verification_status !== "verified" ||
+        account.payments_enabled !== true ||
+        account.settlements_enabled !== true
+      ) {
+        return json({ error: "Only a verified and payment-enabled PhonePe account can be made default" }, 409);
       }
 
       const { error: clearError } = await adminClient
@@ -207,6 +222,7 @@ Deno.serve(async (req) => {
         .from("clinic_payment_accounts")
         .update({
           status: "disabled",
+          verification_status: "revoked",
           payments_enabled: false,
           settlements_enabled: false,
           is_default: false,
@@ -216,7 +232,7 @@ Deno.serve(async (req) => {
         .eq("clinic_id", profile.clinic_id);
       if (disableError) throw disableError;
 
-      return json({ accountId, status: "disabled", isDefault: false });
+      return json({ accountId, status: "disabled", verificationStatus: "revoked", isDefault: false });
     }
 
     return json({ error: "Unsupported action" }, 400);
