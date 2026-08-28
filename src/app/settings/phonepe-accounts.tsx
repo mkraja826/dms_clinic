@@ -9,7 +9,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { colors } from "@/constants/colors";
 import { useAuth } from "@/lib/auth";
 import {
-  addPhonePePaymentAccount,
+  addManualUpiPaymentAccount,
   disablePhonePePaymentAccount,
   listPhonePePaymentAccounts,
   setDefaultPhonePePaymentAccount,
@@ -23,6 +23,25 @@ type Readiness = {
   icon: keyof typeof Ionicons.glyphMap;
 };
 
+function isManualReady(account: PhonePePaymentAccount) {
+  return (
+    account.collectionMode === "manual_upi" &&
+    account.status === "connected" &&
+    account.paymentsEnabled &&
+    Boolean(account.upiIdMasked)
+  );
+}
+
+function isApiReady(account: PhonePePaymentAccount) {
+  return (
+    account.collectionMode === "phonepe_api" &&
+    account.status === "connected" &&
+    account.verificationStatus === "verified" &&
+    account.paymentsEnabled &&
+    account.settlementsEnabled
+  );
+}
+
 function accountReadiness(account: PhonePePaymentAccount): Readiness {
   if (account.status === "disabled") {
     return {
@@ -33,39 +52,50 @@ function accountReadiness(account: PhonePePaymentAccount): Readiness {
     };
   }
 
+  if (isManualReady(account)) {
+    return account.isDefault
+      ? {
+          label: "Default QR account",
+          description: "New manual UPI QR collections will use this account. Reception must confirm receipt after checking PhonePe Business or the clinic bank account.",
+          tone: "success",
+          icon: "checkmark-circle-outline",
+        }
+      : {
+          label: "Ready for manual QR",
+          description: "This UPI account can receive patient QR payments. Set it as default to use it at reception.",
+          tone: "success",
+          icon: "qr-code-outline",
+        };
+  }
+
+  if (isApiReady(account)) {
+    return account.isDefault
+      ? {
+          label: "Default verified account",
+          description: "PhonePe API verification is active for this receiving account.",
+          tone: "success",
+          icon: "shield-checkmark-outline",
+        }
+      : {
+          label: "PhonePe verified",
+          description: "Provider-verified account. Set it as default when automatic PhonePe collection is enabled.",
+          tone: "success",
+          icon: "shield-checkmark-outline",
+        };
+  }
+
   if (account.status === "restricted") {
     return {
       label: "Restricted",
-      description: "Provider verification did not confirm this account is ready to receive payments.",
+      description: "PhonePe provider verification did not confirm this merchant account.",
       tone: "danger",
       icon: "warning-outline",
     };
   }
 
-  if (
-    account.status === "connected" &&
-    account.paymentsEnabled &&
-    account.settlementsEnabled
-  ) {
-    if (account.isDefault) {
-      return {
-        label: "Default receiving account",
-        description: "New patient QR payments will be routed to this clinic account.",
-        tone: "success",
-        icon: "checkmark-circle-outline",
-      };
-    }
-    return {
-      label: "Ready to receive",
-      description: "Verified and ready. Set it as default when you want new QR payments routed here.",
-      tone: "success",
-      icon: "shield-checkmark-outline",
-    };
-  }
-
   return {
-    label: "Pending verification",
-    description: "Added successfully. Patient payments stay off until CapDent verifies this merchant account.",
+    label: "Awaiting PhonePe approval",
+    description: "This Merchant ID is preserved for the future PhonePe partner/API integration. It does not block manual UPI QR collection.",
     tone: "warning",
     icon: "time-outline",
   };
@@ -75,7 +105,7 @@ export default function PhonePeAccountsScreen() {
   const { profile } = useAuth();
   const [accounts, setAccounts] = useState<PhonePePaymentAccount[]>([]);
   const [label, setLabel] = useState("Primary");
-  const [merchantId, setMerchantId] = useState("");
+  const [upiId, setUpiId] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
@@ -87,7 +117,7 @@ export default function PhonePeAccountsScreen() {
       setAccounts(await listPhonePePaymentAccounts());
     } catch (error) {
       Alert.alert(
-        "Could not load PhonePe accounts",
+        "Could not load receiving accounts",
         error instanceof Error ? error.message : "Please try again."
       );
     } finally {
@@ -101,27 +131,24 @@ export default function PhonePeAccountsScreen() {
 
   async function addAccount() {
     if (!canManage || busy) return;
-    if (!merchantId.trim()) {
-      Alert.alert(
-        "Merchant ID required",
-        "Enter the PhonePe Merchant ID provided for this clinic account."
-      );
+    if (!upiId.trim()) {
+      Alert.alert("UPI ID required", "Enter the clinic UPI ID used to receive PhonePe payments.");
       return;
     }
 
     try {
       setBusy(true);
-      await addPhonePePaymentAccount(merchantId, label || "Primary");
-      setMerchantId("");
+      await addManualUpiPaymentAccount(upiId, label || "Primary");
+      setUpiId("");
       setLabel("Primary");
       await load();
       Alert.alert(
-        "Account added",
-        "The merchant account is pending verification. Patient payments remain off until CapDent confirms it is ready to receive and settle payments."
+        "Receiving account added",
+        "CapDent can use this UPI ID for manual QR collection. Reception must confirm the payment only after verifying receipt in PhonePe Business or the clinic bank account."
       );
     } catch (error) {
       Alert.alert(
-        "Could not add PhonePe account",
+        "Could not add receiving account",
         error instanceof Error ? error.message : "Please try again."
       );
     } finally {
@@ -147,9 +174,10 @@ export default function PhonePeAccountsScreen() {
 
   function confirmDisable(account: PhonePePaymentAccount) {
     if (!canManage || busy) return;
+    const destination = account.upiIdMasked || account.merchantIdMasked || "this account";
     Alert.alert(
-      "Disable PhonePe account?",
-      `${account.label}${account.merchantIdMasked ? ` (${account.merchantIdMasked})` : ""} will stop receiving new CapDent patient payments. Existing payment history is not deleted.`,
+      "Disable receiving account?",
+      `${account.label} (${destination}) will stop receiving new CapDent patient payments. Existing payment history is not deleted.`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -182,18 +210,17 @@ export default function PhonePeAccountsScreen() {
         <Header />
         <SectionCard title="Owner access required">
           <Text style={{ color: colors.muted, lineHeight: 20 }}>
-            Only the clinic owner or head doctor can add, change, or disable PhonePe receiving accounts.
+            Only the clinic owner or head doctor can add, change, or disable receiving accounts.
           </Text>
         </SectionCard>
       </Screen>
     );
   }
 
-  const readyCount = accounts.filter(
-    (account) =>
-      account.status === "connected" && account.paymentsEnabled && account.settlementsEnabled
-  ).length;
-  const defaultAccount = accounts.find((account) => account.isDefault);
+  const readyCount = accounts.filter((account) => isManualReady(account) || isApiReady(account)).length;
+  const defaultAccount = accounts.find(
+    (account) => account.isDefault && (isManualReady(account) || isApiReady(account))
+  );
 
   return (
     <Screen refreshing={loading} onRefresh={() => void load()}>
@@ -218,19 +245,19 @@ export default function PhonePeAccountsScreen() {
         />
         <View style={{ flex: 1 }}>
           <Text style={{ color: colors.text, fontWeight: "900", fontSize: 16 }}>
-            {defaultAccount ? "Patient payments ready" : "Receiving account not ready"}
+            {defaultAccount ? "QR receiving account ready" : "Add a clinic UPI account"}
           </Text>
           <Text style={{ color: colors.muted, marginTop: 3, lineHeight: 19 }}>
             {defaultAccount
-              ? `${defaultAccount.label} is the default account for new patient QR payments.`
+              ? `${defaultAccount.label} is selected for new patient QR payments.`
               : readyCount > 0
-                ? "A verified account is available. Select one as the default receiving account."
-                : "Add a merchant account and complete verification before QR collections can start."}
+                ? "A receiving account is available. Select one as the default."
+                : "Use the clinic's existing PhonePe/UPI ID. PhonePe partner approval is not required for manual confirmation mode."}
           </Text>
         </View>
       </View>
 
-      <SectionCard title="Add receiving account">
+      <SectionCard title="Add PhonePe / UPI account">
         <View
           style={{
             padding: 12,
@@ -241,9 +268,9 @@ export default function PhonePeAccountsScreen() {
             alignItems: "flex-start",
           }}
         >
-          <Ionicons name="shield-checkmark-outline" size={21} color={colors.primary} />
+          <Ionicons name="information-circle-outline" size={21} color={colors.primary} />
           <Text style={{ flex: 1, color: colors.text, lineHeight: 19, fontSize: 13 }}>
-            Enter only the PhonePe Merchant ID. CapDent will never ask for your UPI PIN, OTP, bank password, API key, or PhonePe password.
+            Add only the clinic's receiving UPI ID. CapDent never asks for a UPI PIN, OTP, bank password, PhonePe password, API key, or payment credential.
           </Text>
         </View>
 
@@ -252,7 +279,7 @@ export default function PhonePeAccountsScreen() {
           <TextInput
             value={label}
             onChangeText={setLabel}
-            placeholder="Primary / Branch 2 / Owner Account"
+            placeholder="Primary / Front Desk / Branch 2"
             placeholderTextColor={colors.muted}
             maxLength={80}
             style={{
@@ -268,13 +295,14 @@ export default function PhonePeAccountsScreen() {
         </View>
 
         <View style={{ gap: 8 }}>
-          <Text style={{ color: colors.text, fontWeight: "800" }}>PhonePe Merchant ID</Text>
+          <Text style={{ color: colors.text, fontWeight: "800" }}>Clinic UPI ID</Text>
           <TextInput
-            value={merchantId}
-            onChangeText={setMerchantId}
+            value={upiId}
+            onChangeText={setUpiId}
             autoCapitalize="none"
             autoCorrect={false}
-            placeholder="Enter Merchant ID"
+            keyboardType="email-address"
+            placeholder="clinic@bank"
             placeholderTextColor={colors.muted}
             style={{
               minHeight: 52,
@@ -290,23 +318,21 @@ export default function PhonePeAccountsScreen() {
         </View>
 
         <AppButton
-          title="Add Merchant Account"
+          title="Add Receiving Account"
           icon="add-circle-outline"
           onPress={() => void addAccount()}
           loading={busy}
           loadingTitle="Adding account…"
-          disabled={!merchantId.trim() || busy}
+          disabled={!upiId.trim() || busy}
         />
       </SectionCard>
 
       <View style={{ gap: 8 }}>
-        <Text style={{ color: colors.text, fontSize: 18, fontWeight: "900" }}>
-          Receiving accounts
-        </Text>
+        <Text style={{ color: colors.text, fontSize: 18, fontWeight: "900" }}>Receiving accounts</Text>
         <Text style={{ color: colors.muted, lineHeight: 19 }}>
           {accounts.length
-            ? `${accounts.length} account${accounts.length === 1 ? "" : "s"} added • ${readyCount} ready to receive`
-            : "No PhonePe merchant accounts have been added yet."}
+            ? `${accounts.length} account${accounts.length === 1 ? "" : "s"} added • ${readyCount} available for collection`
+            : "No PhonePe/UPI receiving accounts have been added yet."}
         </Text>
       </View>
 
@@ -314,11 +340,9 @@ export default function PhonePeAccountsScreen() {
         <View style={{ gap: 12 }}>
           {accounts.map((account) => {
             const readiness = accountReadiness(account);
-            const canSetDefault =
-              !account.isDefault &&
-              account.status === "connected" &&
-              account.paymentsEnabled &&
-              account.settlementsEnabled;
+            const ready = isManualReady(account) || isApiReady(account);
+            const canSetDefault = !account.isDefault && ready;
+            const destination = account.upiIdMasked || account.merchantIdMasked || "Receiving ID unavailable";
 
             return (
               <View
@@ -365,11 +389,10 @@ export default function PhonePeAccountsScreen() {
                     />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ color: colors.text, fontSize: 16, fontWeight: "900" }}>
-                      {account.label}
-                    </Text>
-                    <Text style={{ color: colors.muted, marginTop: 3, fontSize: 12 }}>
-                      {account.merchantIdMasked || "Merchant ID unavailable"}
+                    <Text style={{ color: colors.text, fontSize: 16, fontWeight: "900" }}>{account.label}</Text>
+                    <Text style={{ color: colors.muted, marginTop: 3, fontSize: 12 }}>{destination}</Text>
+                    <Text style={{ color: colors.muted, marginTop: 2, fontSize: 11 }}>
+                      {account.collectionMode === "manual_upi" ? "Manual receipt confirmation" : "PhonePe API / future partner mode"}
                     </Text>
                   </View>
                   <StatusBadge label={readiness.label} tone={readiness.tone} />
@@ -386,7 +409,7 @@ export default function PhonePeAccountsScreen() {
                         onPress={() => void makeDefault(account)}
                         disabled={busy}
                       />
-                    ) : account.isDefault ? (
+                    ) : account.isDefault && ready ? (
                       <View
                         style={{
                           minHeight: 48,
@@ -402,9 +425,7 @@ export default function PhonePeAccountsScreen() {
                         }}
                       >
                         <Ionicons name="checkmark-circle" size={20} color={colors.success} />
-                        <Text style={{ color: colors.success, fontWeight: "900" }}>
-                          Receiving New Payments
-                        </Text>
+                        <Text style={{ color: colors.success, fontWeight: "900" }}>Receiving New Payments</Text>
                       </View>
                     ) : null}
 
@@ -423,9 +444,11 @@ export default function PhonePeAccountsScreen() {
         </View>
       ) : null}
 
-      <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 18, textAlign: "center" }}>
-        Adding a Merchant ID never activates payments by itself. Only a verified account can receive new CapDent QR payments.
-      </Text>
+      <View style={{ padding: 12, borderRadius: 16, backgroundColor: colors.warningSoft }}>
+        <Text style={{ color: colors.text, fontSize: 12, lineHeight: 18, textAlign: "center", fontWeight: "700" }}>
+          Manual UPI mode never confirms a payment automatically. Reception must check the actual PhonePe Business or bank receipt before marking a patient payment as received.
+        </Text>
+      </View>
     </Screen>
   );
 }
@@ -450,9 +473,7 @@ function Header() {
         <Ionicons name="arrow-back-outline" size={22} color={colors.primary} />
       </Pressable>
       <View style={{ flex: 1 }}>
-        <Text style={{ color: colors.text, fontSize: 27, fontWeight: "900" }}>
-          PhonePe Accounts
-        </Text>
+        <Text style={{ color: colors.text, fontSize: 27, fontWeight: "900" }}>PhonePe / UPI Accounts</Text>
         <Text style={{ color: colors.muted, marginTop: 2, lineHeight: 20 }}>
           Choose where this clinic receives patient QR payments.
         </Text>
