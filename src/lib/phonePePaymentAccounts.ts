@@ -1,10 +1,16 @@
 import { supabase } from "@/lib/supabase";
 
+export type PhonePeCollectionMode = "manual_upi" | "phonepe_api";
+
 export type PhonePePaymentAccount = {
   id: string;
   label: string;
+  upiIdMasked: string | null;
   merchantIdMasked: string | null;
+  collectionMode: PhonePeCollectionMode;
+  manualConfirmationRequired: boolean;
   status: string;
+  verificationStatus: string | null;
   paymentsEnabled: boolean;
   settlementsEnabled: boolean;
   isDefault: boolean;
@@ -31,6 +37,10 @@ async function invoke(body: Record<string, unknown>) {
 export async function listPhonePePaymentAccounts(): Promise<PhonePePaymentAccount[]> {
   const data = await invoke({ action: "list" });
   return Array.isArray(data?.accounts) ? data.accounts : [];
+}
+
+export async function addManualUpiPaymentAccount(upiId: string, label: string) {
+  return invoke({ action: "add_upi", upi_id: upiId.trim(), label: label.trim() });
 }
 
 export async function addPhonePePaymentAccount(merchantId: string, label: string) {
