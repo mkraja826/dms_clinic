@@ -92,7 +92,7 @@ export async function uploadManualPaymentQrImage(input: {
   fileName?: string | null;
 }) {
   const profile = await profileContext();
-  if (!['owner', 'head_doctor'].includes(profile.role)) {
+  if (!["owner", "head_doctor"].includes(profile.role)) {
     throw new Error("Only the clinic owner or head doctor can upload payment QR images");
   }
 
@@ -124,7 +124,7 @@ export async function createManualPaymentQrAccount(input: {
   makeDefault?: boolean;
 }) {
   const profile = await profileContext();
-  if (!['owner', 'head_doctor'].includes(profile.role)) {
+  if (!["owner", "head_doctor"].includes(profile.role)) {
     throw new Error("Only the clinic owner or head doctor can add payment QRs");
   }
 
@@ -180,7 +180,7 @@ export async function updateManualPaymentQrAccount(
 
 export async function setDefaultManualPaymentQrAccount(accountId: string) {
   const profile = await profileContext();
-  if (!['owner', 'head_doctor'].includes(profile.role)) {
+  if (!["owner", "head_doctor"].includes(profile.role)) {
     throw new Error("Only the clinic owner or head doctor can change the default payment QR");
   }
 
@@ -203,4 +203,22 @@ export async function deleteManualPaymentQrAccount(account: ManualPaymentQrAccou
   const { error } = await supabase.from("clinic_payment_qr_accounts").delete().eq("id", account.id);
   if (error) throw error;
   await supabase.storage.from(MANUAL_QR_BUCKET).remove([account.qrStoragePath]);
+}
+
+export async function confirmManualQrCollection(input: {
+  patientId: string;
+  qrAccountId: string;
+  feeType: "op_fee" | "xray_fee" | "medication_fee" | "treatment_fee" | "other";
+  amount: number;
+  note?: string | null;
+}) {
+  const { data, error } = await supabase.rpc("confirm_manual_qr_collection", {
+    p_patient_id: input.patientId,
+    p_qr_account_id: input.qrAccountId,
+    p_fee_type: input.feeType,
+    p_amount: input.amount,
+    p_note: cleanNullable(input.note),
+  });
+  if (error) throw error;
+  return data || [];
 }
