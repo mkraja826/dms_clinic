@@ -6,9 +6,11 @@ const read = (path) => readFileSync(path, "utf8");
 
 const paths = {
   manualQrMigration: "supabase/migrations/20260829232000_capdent_v28_manual_qr_accounts.sql",
+  manualQrCollectionMigration: "supabase/migrations/20260830002500_capdent_v28_manual_qr_collection_confirmation.sql",
   manualQrClient: "src/lib/manualPaymentQr.ts",
   ownerScreen: "src/app/settings/patient-payments.tsx",
   qrAccountsScreen: "src/app/settings/payment-qr-accounts.tsx",
+  receptionScreen: "src/app/reception/counter-payment.tsx",
 };
 
 for (const path of Object.values(paths)) {
@@ -17,9 +19,11 @@ for (const path of Object.values(paths)) {
 
 if (!failures.length) {
   const migration = read(paths.manualQrMigration);
+  const collection = read(paths.manualQrCollectionMigration);
   const client = read(paths.manualQrClient);
   const ownerScreen = read(paths.ownerScreen);
   const qrAccountsScreen = read(paths.qrAccountsScreen);
+  const receptionScreen = read(paths.receptionScreen);
 
   expect(
     migration.includes("create table if not exists public.clinic_payment_qr_accounts"),
@@ -62,6 +66,24 @@ if (!failures.length) {
   );
 
   expect(
+    collection.includes("create table if not exists public.manual_qr_collection_audit") &&
+      collection.includes("qr_account_id") && collection.includes("confirmed_by"),
+    "Manual QR reception collections must have an auditable QR-account confirmation trail."
+  );
+  expect(
+    collection.includes("confirm_manual_qr_collection") &&
+      collection.includes("collect_reception_fee") &&
+      collection.includes("Only owner, head doctor, or receptionist can confirm QR collections"),
+    "Manual QR confirmation must validate staff authority and reuse the existing payment ledger path."
+  );
+  expect(
+    collection.includes("Payment QR does not belong to your clinic") &&
+      collection.includes("Selected payment QR is inactive") &&
+      collection.includes("Patient does not belong to your clinic"),
+    "Manual QR confirmation must enforce clinic, patient, and active QR ownership."
+  );
+
+  expect(
     client.includes("clinic_payment_qr_accounts") && client.includes("clinic-payment-qr"),
     "Manual QR client must use the dedicated table and private storage bucket."
   );
@@ -70,8 +92,8 @@ if (!failures.length) {
     "Manual QR images must be displayed with signed private-storage URLs."
   );
   expect(
-    client.includes("is_default") && client.includes("is_active"),
-    "Manual QR client must support default and active state."
+    client.includes("confirmManualQrCollection") && client.includes("confirm_manual_qr_collection"),
+    "Manual QR client must expose the audited reception confirmation RPC."
   );
 
   expect(
@@ -91,6 +113,24 @@ if (!failures.length) {
       !ownerScreen.includes("Connect Card Receiving Account") &&
       !ownerScreen.includes("Add PhonePe Merchant Account"),
     "V28 Patient Payments settings must expose manual QR mode rather than unfinished provider onboarding."
+  );
+
+  expect(
+    receptionScreen.includes("listManualPaymentQrAccounts") &&
+      receptionScreen.includes("confirmManualQrCollection") &&
+      receptionScreen.includes("I Verified Payment Received"),
+    "Reception Collect by QR must use saved clinic QRs and an explicit human verification action."
+  );
+  expect(
+    receptionScreen.includes("CapDent does not auto-detect this payment") &&
+      receptionScreen.includes("Do not tap confirm based only on a patient screenshot"),
+    "Reception must clearly communicate that manual QR receipt is not provider-verified automatically."
+  );
+  expect(
+    !receptionScreen.includes("createCounterPaymentCheckout") &&
+      !receptionScreen.includes("getCounterPaymentStatus") &&
+      !receptionScreen.includes("SvgXml"),
+    "V28 manual reception QR flow must not use the retired provider-generated QR polling path."
   );
 }
 
