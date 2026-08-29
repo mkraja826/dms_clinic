@@ -1,18 +1,22 @@
-name: CapDent V26 release candidate check
+name: CapDent V28 release candidate check
 
 on:
   push:
     branches:
-      - release/capdent-v26
+      - release/capdent-v28
   pull_request:
+    branches:
+      - release/capdent-v28
     paths:
       - "src/**"
-      - "scripts/validate-capdent-v26.mjs"
+      - "scripts/validate-capdent-v28-feature.mjs"
+      - "scripts/validate-capdent-v28-payments-current.mjs"
+      - "scripts/validate-capdent-v28-payment-report-schema.mjs"
+      - "scripts/validate-capdent-v28-rc.mjs"
       - "scripts/verify-android-signing.mjs"
       - "app.config.js"
       - "app.json"
       - "eas.json"
-      - "firebase.json"
       - "package.json"
       - "package-lock.json"
       - ".env.example"
@@ -25,7 +29,7 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out V26 release candidate
+      - name: Check out V28 release candidate
         uses: actions/checkout@v4
 
       - name: Use Node.js
@@ -37,11 +41,17 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
-      - name: Run strict V26 RC validation and typecheck
-        run: npm run check:v26:rc
+      - name: Run Expo Doctor
+        run: npx expo-doctor
+
+      - name: Run strict V28 RC validation and typecheck
+        run: npm run check:v28:rc
 
       - name: Check repository diff formatting
         run: git diff --check
 
       - name: Validate Expo public configuration
-        run: npx expo config --type public > /tmp/capdent-v26-expo-config.txt
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_rc_validation_only_123456789012345678901234567890123456
+        run: npx expo config --type public > /tmp/capdent-v28-expo-config.txt
