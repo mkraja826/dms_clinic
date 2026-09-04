@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Alert, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { AppButton } from "@/components/AppButton";
 import { AppInput } from "@/components/AppInput";
 import { EmptyState } from "@/components/EmptyState";
@@ -183,6 +183,7 @@ export default function AddVisitScreen() {
   );
   const patientRequestRef = useRef(0);
   const patientSearchMountedRef = useRef(false);
+  const saveVisitLockRef = useRef(false);
   const formatMoney = (value: string | number | null | undefined) =>
     formatClinicMoney(value, currencyCode);
 
@@ -486,7 +487,7 @@ export default function AddVisitScreen() {
   }, [selectedPatientId, loadingActiveTreatments, hasActiveTreatment, activeTreatmentKey, promptedTreatmentKey]);
 
   async function saveVisit(options?: { confirmedSeparateTreatment?: boolean; flow?: TreatmentFlow }) {
-    if (saving) return;
+    if (saving || saveVisitLockRef.current) return;
 
     if (!selectedPatientId) {
       Alert.alert("Patient missing", "Select the patient first.");
@@ -561,6 +562,7 @@ export default function AddVisitScreen() {
       return;
     }
 
+    saveVisitLockRef.current = true;
     setSaving(true);
 
     try {
@@ -632,6 +634,11 @@ export default function AddVisitScreen() {
         p_patient_id: selectedPatientId,
       });
 
+      if (Platform.OS === "web") {
+        router.replace(`/patient/${selectedPatientId}` as never);
+        return;
+      }
+
       Alert.alert(
         continuingExistingTreatment ? "Ongoing visit saved" : "Visit saved",
         continuingExistingTreatment
@@ -646,6 +653,7 @@ export default function AddVisitScreen() {
     } catch (error) {
       Alert.alert("Save visit failed", getErrorMessage(error));
     } finally {
+      saveVisitLockRef.current = false;
       setSaving(false);
     }
   }

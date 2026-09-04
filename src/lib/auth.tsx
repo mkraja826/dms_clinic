@@ -303,10 +303,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (error) throw error;
       },
       async resetPassword(email) {
-        const { error } = await withTimeout(
-          supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: PASSWORD_RESET_REDIRECT_URL }),
-          10000
-        );
+        const { error } = await withTimeout(supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: PASSWORD_RESET_REDIRECT_URL }), 10000);
         if (error) throw error;
         Alert.alert("Check your email", "Open the reset link from the same phone to set a new password.");
       },
@@ -327,7 +324,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setSession(null);
           setProfile(null);
           setLoading(false);
-          router.dismissAll?.();
           router.replace("/login" as never);
         }
       },
