@@ -24,7 +24,6 @@ import { isToothChartEnabledForClinic } from "@/lib/featureFlags";
 import { searchPatientsPage } from "@/lib/patientDirectory";
 import {
   createAppointment,
-  createInvoice,
   createVisit,
   getCurrentProfile,
   saveVisitWithToothChart,
@@ -725,12 +724,17 @@ export default function AddVisitScreen() {
       }
 
       if (shouldCreateTreatment && cost > 0) {
-        await createInvoice({
-          patient_id: selectedPatientId,
-          visit_id: visit.id,
-          total_amount: cost,
-          paid_amount: paid,
+        const { error: billingError } = await supabase.rpc("create_visit_treatment_billing", {
+          p_patient_id: selectedPatientId,
+          p_visit_id: visit.id,
+          p_total_amount: cost,
+          p_paid_amount: paid,
+          p_payment_method: "Cash",
+          p_payment_category: "treatment_fee",
+          p_notes: treatmentName.trim() || "Treatment fee",
         });
+
+        if (billingError) throw billingError;
       }
 
       if (followupDateTime) {
